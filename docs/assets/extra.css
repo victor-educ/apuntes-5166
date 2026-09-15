@@ -1,0 +1,6 @@
+:root { --md-primary-fg-color: #37474f; }
+.md-typeset table:not([class]) { font-size: .78rem; }
+.md-typeset figure { margin: 1em auto; }
+.md-typeset figcaption { font-size: .72rem; color: var(--md-default-fg-color--light); }
+.md-typeset img.logo-inline { height: 1.4em; vertical-align: middle; }
+.ut-meta { font-size: .8rem; color: var(--md-default-fg-color--light); border-left: 3px solid var(--md-accent-fg-color); padding-left: .8em; margin: 0 0 1.5em; }

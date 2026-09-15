@@ -1,0 +1,96 @@
+site_name: 5166 · Despliegue de plataformas de contenedores
+site_description: Apuntes del módulo 5166 (CE Contenedores). Virtualización, VPC, seguridad por capas, nube pública, IaC, CI/CD y monitorización.
+site_url: https://victor-educ.github.io/apuntes-5166/
+repo_url: https://github.com/victor-educ/apuntes-5166
+repo_name: victor-educ/apuntes-5166
+edit_uri: edit/main/docs/
+copyright: Apuntes del módulo 5166 · Víctor Sellés · CC BY-SA 4.0
+
+theme:
+  name: material
+  language: es
+  logo: assets/logo.svg
+  favicon: assets/logo.svg
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - navigation.indexes
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: blue grey
+      accent: deep orange
+      toggle:
+        icon: material/weather-night
+        name: Modo oscuro
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue grey
+      accent: deep orange
+      toggle:
+        icon: material/weather-sunny
+        name: Modo claro
+  font:
+    text: Inter
+    code: JetBrains Mono
+
+extra_css:
+  - assets/extra.css
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - footnotes
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+plugins:
+  - search:
+      lang: es
+
+nav:
+  - Inicio: index.md
+  - El módulo:
+      - Presentación y evaluación: modulo.md
+      - Calendario de sesiones: calendario.md
+      - Laboratorio: laboratorio.md
+  - Unidades:
+      - UT1 · Virtualización e hipervisores: ut/ut1-virtualizacion.md
+      - UT2 · Nubes privadas virtuales (VPC): ut/ut2-vpc.md
+      - UT3 · Seguridad por capas: ut/ut3-seguridad-por-capas.md
+      - UT4 · Nube pública (empresa): ut/ut4-nube-publica.md
+      - UT5 · Infraestructura como código: ut/ut5-iac.md
+      - UT6 · Integración continua: ut/ut6-ci.md
+      - UT7 · Monitorización: ut/ut7-monitorizacion.md
+  - Recursos:
+      - Chuleta de comandos: chuleta.md
+      - Glosario: glosario.md
+      - Bibliografía y enlaces: recursos.md

@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="452px" height="335px" viewBox="0 0 452 335" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 3.7 (28169) - http://www.bohemiancoding.com/sketch -->
+    <title>Canvas 1</title>
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Canvas-1" transform="translate(15.000000, 13.000000)">
+            <g id="Layer-1">
+                <path d="M56.264206,89.19272 C-12.972183,80.25 14.63756,4.96703 125.08508,17.8125 C135.33215,-7.22745 263.76776,-3.16318 262.92813,17.8125 C343.46118,-9.01566 446.37756,44.47913 377.3468,71.30728 C460.1803,84.31427 376.30154,154.3941 308.32031,142.6875 C302.87976,162.19965 181.34982,169.0278 170.68291,142.6875 C101.86633,170.8177 -41.627197,127.56598 56.264206,89.19272 L56.264206,89.19272 Z" id="Shape" fill="#FFFFFF"></path>
+                <path d="M56.264206,89.19272 C-12.972183,80.25 14.63756,4.96703 125.08508,17.8125 C135.33215,-7.22745 263.76776,-3.16318 262.92813,17.8125 C343.46118,-9.01566 446.37756,44.47913 377.3468,71.30728 C460.1803,84.31427 376.30154,154.3941 308.32031,142.6875 C302.87976,162.19965 181.34982,169.0278 170.68291,142.6875 C101.86633,170.8177 -41.627197,127.56598 56.264206,89.19272 L56.264206,89.19272 Z" id="Shape" stroke="#000000"></path>
+                <g id="Group" transform="translate(183.673510, 21.799990)" font-size="14" font-family="Helvetica" fill="#000000" font-weight="normal">
+                    <text id="Intercloud">
+                        <tspan x="0.1953" y="14">Intercloud</tspan>
+                    </text>
+                </g>
+                <path d="M63.13385,88.45987 C39.618134,83.25 48.995605,39.39145 86.50842,46.875 C89.988785,32.28717 133.61113,34.65494 133.32596,46.875 C160.6785,31.24539 195.63342,62.41052 172.18755,78.04013 C200.32141,85.61777 171.83253,126.44507 148.74313,119.625 C146.89528,130.99243 105.61839,134.9704 101.99544,119.625 C78.622314,136.01315 29.885635,110.81546 63.13385,88.45987 L63.13385,88.45987 Z" id="Shape" fill="#FFFFFF"></path>
+                <path d="M63.13385,88.45987 C39.618134,83.25 48.995605,39.39145 86.50842,46.875 C89.988785,32.28717 133.61113,34.65494 133.32596,46.875 C160.6785,31.24539 195.63342,62.41052 172.18755,78.04013 C200.32141,85.61777 171.83253,126.44507 148.74313,119.625 C146.89528,130.99243 105.61839,134.9704 101.99544,119.625 C78.622314,136.01315 29.885635,110.81546 63.13385,88.45987 L63.13385,88.45987 Z" id="Shape" stroke="#000000"></path>
+                <g id="Group" transform="translate(84.990005, 69.250000)" font-size="12" font-family="Helvetica" fill="#000000" font-weight="normal">
+                    <text id="Google">
+                        <tspan x="12.577343" y="11">Google</tspan>
+                    </text>
+                    <text id="App-Engine">
+                        <tspan x="0.899609" y="25">App Engine</tspan>
+                    </text>
+                </g>
+                <path d="M256.77383,89.45987 C233.25812,84.25 242.63559,40.39145 280.1484,47.875 C283.62875,33.28717 327.25113,35.65494 326.96594,47.875 C354.31848,32.24539 389.2734,63.41052 365.82755,79.04013 C393.96143,86.61777 365.4725,127.44507 342.38312,120.625 C340.53528,131.99243 299.25836,135.9704 295.63544,120.625 C272.2623,137.01315 223.52563,111.81546 256.77383,89.45987 L256.77383,89.45987 Z" id="Shape" fill="#FFFFFF"></path>
+                <path d="M256.77383,89.45987 C233.25812,84.25 242.63559,40.39145 280.1484,47.875 C283.62875,33.28717 327.25113,35.65494 326.96594,47.875 C354.31848,32.24539 389.2734,63.41052 365.82755,79.04013 C393.96143,86.61777 365.4725,127.44507 342.38312,120.625 C340.53528,131.99243 299.25836,135.9704 295.63544,120.625 C272.2623,137.01315 223.52563,111.81546 256.77383,89.45987 L256.77383,89.45987 Z" id="Shape" stroke="#000000"></path>
+                <g id="Group" transform="translate(266.630000, 63.250000)" font-size="12" font-family="Helvetica" fill="#000000" font-weight="normal">
+                    <text id="Amazon">
+                        <tspan x="21.914257" y="11">Amazon</tspan>
+                    </text>
+                    <text id="Elastic-Compute">
+                        <tspan x="0.2404289" y="25">Elastic Compute</tspan>
+                    </text>
+                    <text id="Cloud-(EC2)">
+                        <tspan x="10.9132805" y="39">Cloud (EC2)</tspan>
+                    </text>
+                </g>
+                <path d="M0.415,185.5 L422.415,185.5" id="Shape" stroke="#000000" stroke-dasharray="4,4"></path>
+                <rect id="Rectangle-path" fill="#FFFFFF" x="24.484985" y="220.5" width="373.85999" height="62"></rect>
+                <rect id="Rectangle-path" stroke="#000000" x="24.484985" y="220.5" width="373.85999" height="62"></rect>
+                <g id="Group" transform="translate(154.485000, 244.500000)" font-size="12" font-family="Helvetica" fill="#000000" font-weight="normal">
+                    <text id="Legacy-Infrastructure">
+                        <tspan x="0.568665" y="11">Legacy Infrastructure</tspan>
+                    </text>
+                </g>
+                <g id="Group" transform="translate(184.915000, 171.500000)" font-size="12" font-family="Helvetica" fill="#000000" font-weight="normal">
+                    <text id="Perimeter">
+                        <tspan x="0.49316406" y="11">Perimeter</tspan>
+                    </text>
+                </g>
+                <path d="M116.70967,139.61197 L116.45107,210.60007" id="Shape" stroke="#000000"></path>
+                <path d="M310.65848,140.64871 L310.78683,210.6" id="Shape" stroke="#000000"></path>
+                <g id="Group" transform="translate(56.025000, 171.500000)" font-size="12" font-family="Helvetica" fill="#000000" font-weight="normal">
+                    <text id="Secure">
+                        <tspan x="8.989258" y="11">Secure</tspan>
+                    </text>
+                    <text id="Data">
+                        <tspan x="15.326172" y="25">Data</tspan>
+                    </text>
+                    <text id="Connector">
+                        <tspan x="0.31738281" y="39">Connector</tspan>
+                    </text>
+                </g>
+                <g id="Group" transform="translate(316.805000, 171.500000)" font-size="12" font-family="Helvetica" fill="#000000" font-weight="normal">
+                    <text id="V">
+                        <tspan x="2.0986328" y="11">V</tspan>
+                    </text>
+                    <text id="irtual">
+                        <tspan x="9.8916016" y="11">irtual</tspan>
+                    </text>
+                    <text id="Private">
+                        <tspan x="0.32617188" y="25">Private</tspan>
+                    </text>
+                    <text id="Cloud">
+                        <tspan x="3.3232422" y="39">Cloud</tspan>
+                    </text>
+                </g>
+                <path d="M191.76135,83.63647 L237.23386,83.87125" id="Shape" stroke="#000000"></path>
+                <g id="Group" transform="translate(200.734990, 66.000000)" font-size="12" font-family="Helvetica" fill="#000000" font-weight="normal">
+                    <text id="APIs">
+                        <tspan x="0.32910156" y="11">APIs</tspan>
+                    </text>
+                </g>
+                <g id="Group" transform="translate(105.610000, 292.000000)" font-size="18" font-family="Helvetica" fill="#000000" font-weight="normal">
+                    <text id="V">
+                        <tspan x="0.12109375" y="18">V</tspan>
+                    </text>
+                    <text id="irtual-Private-Cloud-(VPC)">
+                        <tspan x="11.810547" y="18">irtual Private Cloud (VPC)</tspan>
+                    </text>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>
