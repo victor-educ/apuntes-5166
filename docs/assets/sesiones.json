@@ -1,0 +1,508 @@
+{
+ "inicio": "2026-10-01",
+ "fin": "2027-06-09",
+ "fe": {
+  "inicio": "2027-04-19",
+  "fin": "2027-06-09"
+ },
+ "festivos": {
+  "2026-10-09": "Dia de la Comunitat Valenciana",
+  "2026-10-12": "Fiesta Nacional",
+  "2026-12-08": "Inmaculada",
+  "2027-03-19": "San José",
+  "2027-05-01": "Día del Trabajo",
+  "2026-12-22": "Navidad",
+  "2026-12-23": "Navidad",
+  "2026-12-24": "Navidad",
+  "2026-12-25": "Navidad",
+  "2026-12-26": "Navidad",
+  "2026-12-27": "Navidad",
+  "2026-12-28": "Navidad",
+  "2026-12-29": "Navidad",
+  "2026-12-30": "Navidad",
+  "2026-12-31": "Navidad",
+  "2027-01-01": "Navidad",
+  "2027-01-02": "Navidad",
+  "2027-01-03": "Navidad",
+  "2027-01-04": "Navidad",
+  "2027-01-05": "Navidad",
+  "2027-01-06": "Navidad",
+  "2027-01-07": "Navidad",
+  "2027-03-01": "Magdalena",
+  "2027-03-02": "Magdalena",
+  "2027-03-03": "Magdalena",
+  "2027-03-04": "Magdalena",
+  "2027-03-05": "Magdalena",
+  "2027-03-25": "Pascua",
+  "2027-03-26": "Pascua",
+  "2027-03-27": "Pascua",
+  "2027-03-28": "Pascua",
+  "2027-03-29": "Pascua",
+  "2027-03-30": "Pascua",
+  "2027-03-31": "Pascua",
+  "2027-04-01": "Pascua",
+  "2027-04-02": "Pascua"
+ },
+ "sesiones": [
+  {
+   "n": 1,
+   "fecha": "2026-10-02",
+   "ut": "UT1",
+   "titulo": "Presentación e instalación del hipervisor",
+   "que": "Presentación del módulo, evaluación y laboratorio. Hipervisores tipo 1 y 2. Instalación de Proxmox VE en VM anidada o equipo de lab: ISO, particionado, red de gestión.",
+   "entregable": "",
+   "url": "../ut/ut1-virtualizacion/#a11-instalar-proxmox-ve-sesion-1",
+   "evaluable": false
+  },
+  {
+   "n": 2,
+   "fecha": "2026-10-07",
+   "ut": "UT1",
+   "titulo": "Configuración inicial de Proxmox",
+   "que": "Bridge vmbr0, almacenamiento (local, LVM-thin), usuarios y roles, acceso a la consola web, actualización de repositorios.",
+   "entregable": "",
+   "url": "../ut/ut1-virtualizacion/#a12-configuracion-inicial-sesion-2",
+   "evaluable": false
+  },
+  {
+   "n": 3,
+   "fecha": "2026-10-14",
+   "ut": "UT1",
+   "titulo": "Primera VM y plantilla",
+   "que": "Crear VM Debian/Ubuntu con cloud-init, convertir a plantilla, clonar (linked/full). Comprobar acceso SSH.",
+   "entregable": "",
+   "url": "../ut/ut1-virtualizacion/#a13-plantilla-cloud-init-y-clonado-sesion-3",
+   "evaluable": false
+  },
+  {
+   "n": 4,
+   "fecha": "2026-10-16",
+   "ut": "UT1",
+   "titulo": "VM vs LXC, snapshots y límites",
+   "que": "Crear un LXC y compararlo con la VM. Snapshots y rollback. Limitaciones: virtualización anidada, flags CPU, ballooning, cuotas de recursos.",
+   "entregable": "",
+   "url": "../ut/ut1-virtualizacion/#a14-vm-frente-a-lxc-snapshots-sesion-4",
+   "evaluable": false
+  },
+  {
+   "n": 5,
+   "fecha": "2026-10-21",
+   "ut": "UT1",
+   "titulo": "Redes en el hipervisor",
+   "que": "NAT, bridge, VLAN-aware bridge y bonding. Práctica: dos VM en VLAN distintas que no se ven entre sí.",
+   "entregable": "",
+   "url": "../ut/ut1-virtualizacion/#a15-redes-vlan-sesion-5",
+   "evaluable": false
+  },
+  {
+   "n": 6,
+   "fecha": "2026-10-23",
+   "ut": "UT1",
+   "titulo": "Práctica evaluable UT1",
+   "que": "Desplegar desde plantilla una VM con parámetros dados y entregar informe de capacidades y limitaciones del hipervisor.",
+   "entregable": "Informe UT1 + captura de la VM operativa (RA1 a)",
+   "url": "../ut/ut1-virtualizacion/#practica-evaluable",
+   "evaluable": true
+  },
+  {
+   "n": 7,
+   "fecha": "2026-10-28",
+   "ut": "UT2",
+   "titulo": "Diseño de la VPC",
+   "que": "Concepto de VPC, subred, zona de disponibilidad, DNS interno. Diseño en papel de tres entornos (dev, pre, pro) con front y back en cada uno.",
+   "entregable": "",
+   "url": "../ut/ut2-vpc/#a21-diseno-sesion-7",
+   "evaluable": false
+  },
+  {
+   "n": 8,
+   "fecha": "2026-10-30",
+   "ut": "UT2",
+   "titulo": "Proxmox SDN: zonas y VNets",
+   "que": "Activar SDN, crear zona y VNets para el entorno dev. Conectar VMs a la VNet.",
+   "entregable": "",
+   "url": "../ut/ut2-vpc/#a22-crear-la-vpc-dev-con-sdn-sesion-8",
+   "evaluable": false
+  },
+  {
+   "n": 9,
+   "fecha": "2026-11-04",
+   "ut": "UT2",
+   "titulo": "IP, DHCP y DNS interno",
+   "que": "VM router/DNS con dnsmasq: rangos, reservas, nombres. Asignar IP y DNS a las VMs de dev.",
+   "entregable": "",
+   "url": "../ut/ut2-vpc/#a23-dhcp-y-dns-propios-sesion-9",
+   "evaluable": false
+  },
+  {
+   "n": 10,
+   "fecha": "2026-11-06",
+   "ut": "UT2",
+   "titulo": "Comunicación entre zonas de un entorno",
+   "que": "Enrutado front↔back dentro de dev con la VM router. Pruebas de conectividad y trazas.",
+   "entregable": "",
+   "url": "../ut/ut2-vpc/#a24-comunicacion-entre-zonas-sesion-10",
+   "evaluable": false
+  },
+  {
+   "n": 11,
+   "fecha": "2026-11-11",
+   "ut": "UT2",
+   "titulo": "Segundo y tercer entorno; aislamiento",
+   "que": "Replicar pre y pro. Verificar con ping/nmap que los entornos no se ven entre sí.",
+   "entregable": "",
+   "url": "../ut/ut2-vpc/#a25-pre-pro-y-aislamiento-sesion-11",
+   "evaluable": false
+  },
+  {
+   "n": 12,
+   "fecha": "2026-11-13",
+   "ut": "UT2",
+   "titulo": "Automatizar con la CLI de Proxmox",
+   "que": "qm/pct desde shell: crear, clonar y conectar VMs por script. Antesala del IaC de la UT5.",
+   "entregable": "",
+   "url": "../ut/ut2-vpc/#a26-script-de-creacion-sesion-12",
+   "evaluable": false
+  },
+  {
+   "n": 13,
+   "fecha": "2026-11-18",
+   "ut": "UT2",
+   "titulo": "Práctica evaluable UT2",
+   "que": "Tres VPC documentadas: esquema de red, tabla de direccionamiento, script de creación y evidencias de aislamiento.",
+   "entregable": "Memoria UT2 + script (RA1 b, c)",
+   "url": "../ut/ut2-vpc/#practica-evaluable",
+   "evaluable": true
+  },
+  {
+   "n": 14,
+   "fecha": "2026-11-20",
+   "ut": "UT3",
+   "titulo": "Modelo de seguridad por capas",
+   "que": "DMZ externa, DMZ interna y zona interna. Instalar OPNsense (o nftables en VM) entre las zonas del entorno pro.",
+   "entregable": "",
+   "url": "../ut/ut3-seguridad-por-capas/#a31-instalar-el-firewall-sesion-14",
+   "evaluable": false
+  },
+  {
+   "n": 15,
+   "fecha": "2026-11-25",
+   "ut": "UT3",
+   "titulo": "Reglas por zona y publicación de un servicio",
+   "que": "Política por defecto deny; publicar un servicio web en DMZ externa con NAT/port-forward.",
+   "entregable": "",
+   "url": "../ut/ut3-seguridad-por-capas/#a32-publicar-la-web-sesion-15",
+   "evaluable": false
+  },
+  {
+   "n": 16,
+   "fecha": "2026-11-27",
+   "ut": "UT3",
+   "titulo": "DMZ interna y zona interna",
+   "que": "API en DMZ interna y BD en zona interna; reglas mínimas entre capas. Registro de tráfico.",
+   "entregable": "",
+   "url": "../ut/ut3-seguridad-por-capas/#a33-aplicacion-y-datos-sesion-16",
+   "evaluable": false
+  },
+  {
+   "n": 17,
+   "fecha": "2026-12-02",
+   "ut": "UT3",
+   "titulo": "Separación de clientes",
+   "que": "Dos clientes en VLAN distintas con reglas propias. Comprobar que un cliente no alcanza al otro.",
+   "entregable": "",
+   "url": "../ut/ut3-seguridad-por-capas/#a34-dos-clientes-sesion-17",
+   "evaluable": false
+  },
+  {
+   "n": 18,
+   "fecha": "2026-12-04",
+   "ut": "UT3",
+   "titulo": "Pruebas de seguridad",
+   "que": "nmap y tcpdump desde cada zona; matriz origen/destino/puerto con resultado. Evidencias.",
+   "entregable": "",
+   "url": "../ut/ut3-seguridad-por-capas/#a35-pruebas-y-evidencias-sesion-18",
+   "evaluable": false
+  },
+  {
+   "n": 19,
+   "fecha": "2026-12-09",
+   "ut": "UT3",
+   "titulo": "Práctica evaluable UT3",
+   "que": "Informe con matriz de reglas, pruebas de aislamiento y separación de clientes.",
+   "entregable": "Informe UT3 (RA1 d)",
+   "url": "../ut/ut3-seguridad-por-capas/#practica-evaluable",
+   "evaluable": true
+  },
+  {
+   "n": 20,
+   "fecha": "2026-12-11",
+   "ut": "UT5",
+   "titulo": "IaC: conceptos y primer despliegue",
+   "que": "Estado, idempotencia, declarativo vs imperativo. Instalar OpenTofu/Terraform; provider Proxmox; init/plan/apply.",
+   "entregable": "",
+   "url": "../ut/ut5-iac/#a51-primer-despliegue-sesion-20",
+   "evaluable": false
+  },
+  {
+   "n": 21,
+   "fecha": "2026-12-16",
+   "ut": "UT5",
+   "titulo": "Requisitos del servicio",
+   "que": "Del servicio a alojar (app web + BD) a los recursos: cómputo, memoria, disco, red. variables.tf y tfvars.",
+   "entregable": "",
+   "url": "../ut/ut5-iac/#a52-requisitos-y-variables-sesion-21",
+   "evaluable": false
+  },
+  {
+   "n": 22,
+   "fecha": "2026-12-18",
+   "ut": "UT5",
+   "titulo": "VM con Terraform",
+   "que": "Clonar plantilla con cloud-init desde código; outputs con IP; destroy y recreate.",
+   "entregable": "",
+   "url": "../ut/ut5-iac/#a53-vm-completas-sesion-22",
+   "evaluable": false
+  },
+  {
+   "n": 23,
+   "fecha": "2027-01-08",
+   "ut": "UT5",
+   "titulo": "Módulos y estado",
+   "que": "Módulo reutilizable 'vm'; backend de estado compartido; workspaces para dev/pre/pro.",
+   "entregable": "",
+   "url": "../ut/ut5-iac/#a54-modulos-y-estado-sesion-23",
+   "evaluable": false
+  },
+  {
+   "n": 24,
+   "fecha": "2027-01-13",
+   "ut": "UT5",
+   "titulo": "Ansible: configuración post-despliegue",
+   "que": "Inventario dinámico desde outputs; playbook que instala Docker y despliega el compose del servicio.",
+   "entregable": "",
+   "url": "../ut/ut5-iac/#a55-ansible-sesion-24",
+   "evaluable": false
+  },
+  {
+   "n": 25,
+   "fecha": "2027-01-15",
+   "ut": "UT5",
+   "titulo": "Pruebas del despliegue",
+   "que": "Encadenar Terraform + Ansible; smoke tests (curl, healthcheck) y chequeo de configuración.",
+   "entregable": "",
+   "url": "../ut/ut5-iac/#a56-pruebas-del-despliegue-sesion-25",
+   "evaluable": false
+  },
+  {
+   "n": 26,
+   "fecha": "2027-01-20",
+   "ut": "UT5",
+   "titulo": "Seguridad del IaC",
+   "que": "checkov / tfsec / trivy config sobre el repositorio; secretos fuera del código (variables de entorno, sops).",
+   "entregable": "",
+   "url": "../ut/ut5-iac/#a57-escaneo-de-seguridad-sesion-26",
+   "evaluable": false
+  },
+  {
+   "n": 27,
+   "fecha": "2027-01-22",
+   "ut": "UT5",
+   "titulo": "Corrección de hallazgos",
+   "que": "Corregir los hallazgos del escaneo, documentar recomendaciones aplicadas y las que no.",
+   "entregable": "",
+   "url": "../ut/ut5-iac/#a58-correccion-de-hallazgos-sesion-27",
+   "evaluable": false
+  },
+  {
+   "n": 28,
+   "fecha": "2027-01-27",
+   "ut": "UT5",
+   "titulo": "Práctica evaluable UT5",
+   "que": "Repositorio IaC que levanta VPC + VM + servicio, con pruebas y escaneo limpio.",
+   "entregable": "Repositorio IaC + README (RA3 a–d)",
+   "url": "../ut/ut5-iac/#practica-evaluable",
+   "evaluable": true
+  },
+  {
+   "n": 29,
+   "fecha": "2027-01-29",
+   "ut": "EX1",
+   "titulo": "Examen 1ª evaluación",
+   "que": "Prueba teórico-práctica de UT1–UT5 en el laboratorio.",
+   "entregable": "Examen (RA1, RA3)",
+   "url": "../modulo/#como-se-evalua",
+   "evaluable": true
+  },
+  {
+   "n": 30,
+   "fecha": "2027-02-03",
+   "ut": "UT6",
+   "titulo": "Integración continua y elección del orquestador",
+   "que": "Conceptos CI/CD. Comparativa Jenkins / GitLab CI / Gitea Actions: control de variables, límites, integración. Justificar la elección.",
+   "entregable": "",
+   "url": "../ut/ut6-ci/#a61-eleccion-del-orquestador-sesion-30",
+   "evaluable": false
+  },
+  {
+   "n": 31,
+   "fecha": "2027-02-05",
+   "ut": "UT6",
+   "titulo": "Instalar el orquestador",
+   "que": "Jenkins (o GitLab) en contenedor con compose; TLS con certificado propio; usuarios, roles y permisos.",
+   "entregable": "",
+   "url": "../ut/ut6-ci/#a62-instalacion-segura-sesion-31",
+   "evaluable": false
+  },
+  {
+   "n": 32,
+   "fecha": "2027-02-10",
+   "ut": "UT6",
+   "titulo": "Plugins y complementos",
+   "que": "Git, Docker Pipeline, Credentials, Pipeline; configuración global de herramientas.",
+   "entregable": "",
+   "url": "../ut/ut6-ci/#a63-plugins-sesion-32",
+   "evaluable": false
+  },
+  {
+   "n": 33,
+   "fecha": "2027-02-12",
+   "ut": "UT6",
+   "titulo": "Agentes",
+   "que": "Agente Docker (o runner); etiquetas; ejecutar un trabajo en el agente y no en el controlador.",
+   "entregable": "",
+   "url": "../ut/ut6-ci/#a64-agentes-sesion-33",
+   "evaluable": false
+  },
+  {
+   "n": 34,
+   "fecha": "2027-02-17",
+   "ut": "UT6",
+   "titulo": "Proyecto y credenciales",
+   "que": "Crear el proyecto, credenciales de acceso al repositorio (token), primer job de prueba.",
+   "entregable": "",
+   "url": "../ut/ut6-ci/#a65-proyecto-y-credenciales-sesion-34",
+   "evaluable": false
+  },
+  {
+   "n": 35,
+   "fecha": "2027-02-19",
+   "ut": "UT6",
+   "titulo": "Pipeline declarativo I",
+   "que": "Jenkinsfile en el repo del servicio: etapas checkout, build y test.",
+   "entregable": "",
+   "url": "../ut/ut6-ci/#a66-pipeline-i-build-y-test-sesion-35",
+   "evaluable": false
+  },
+  {
+   "n": 36,
+   "fecha": "2027-02-24",
+   "ut": "UT6",
+   "titulo": "Pipeline declarativo II",
+   "que": "Etapas package (imagen Docker) y push a un registry local. Artefactos.",
+   "entregable": "",
+   "url": "../ut/ut6-ci/#a67-pipeline-ii-package-sesion-36",
+   "evaluable": false
+  },
+  {
+   "n": 37,
+   "fecha": "2027-02-26",
+   "ut": "UT6",
+   "titulo": "Tareas y condiciones de ejecución",
+   "que": "Parámetros, when, paralelismo, triggers por webhook; máquinas en las que se ejecuta cada tarea.",
+   "entregable": "",
+   "url": "../ut/ut6-ci/#a68-parametros-condiciones-y-paralelismo-sesion-37",
+   "evaluable": false
+  },
+  {
+   "n": 38,
+   "fecha": "2027-03-10",
+   "ut": "UT6",
+   "titulo": "Gestión de errores",
+   "que": "post, retry, timeout, notificaciones. Provocar fallos en cada etapa y verificar la salida.",
+   "entregable": "",
+   "url": "../ut/ut6-ci/#a69-gestion-de-errores-sesion-38",
+   "evaluable": false
+  },
+  {
+   "n": 39,
+   "fecha": "2027-03-12",
+   "ut": "UT6",
+   "titulo": "Mínimo privilegio",
+   "que": "Usuario de servicio, tokens de alcance limitado, secretos en el orquestador; revisión de permisos.",
+   "entregable": "",
+   "url": "../ut/ut6-ci/#a610-minimo-privilegio-sesion-39",
+   "evaluable": false
+  },
+  {
+   "n": 40,
+   "fecha": "2027-03-17",
+   "ut": "UT6",
+   "titulo": "Pipeline que despliega",
+   "que": "Etapa deploy que ejecuta el IaC de la UT5 contra dev. Recorrer todos los caminos del pipeline.",
+   "entregable": "",
+   "url": "../ut/ut6-ci/#a611-pipeline-que-despliega-sesion-40",
+   "evaluable": false
+  },
+  {
+   "n": 41,
+   "fecha": "2027-03-24",
+   "ut": "UT6",
+   "titulo": "Práctica evaluable UT6",
+   "que": "Pipeline completo build → test → package → deploy con caminos de error probados y permisos documentados.",
+   "entregable": "Repositorio con Jenkinsfile + informe de pruebas (RA4 a–h)",
+   "url": "../ut/ut6-ci/#practica-evaluable",
+   "evaluable": true
+  },
+  {
+   "n": 42,
+   "fecha": "2027-04-07",
+   "ut": "UT7",
+   "titulo": "Ingesta de métricas",
+   "que": "Prometheus + node exporter + cAdvisor en compose; scrape de la VM del servicio y del orquestador.",
+   "entregable": "",
+   "url": "../ut/ut7-monitorizacion/#a71-ingesta-sesion-42",
+   "evaluable": false
+  },
+  {
+   "n": 43,
+   "fecha": "2027-04-09",
+   "ut": "UT7",
+   "titulo": "Visualización y alertas",
+   "que": "Grafana: fuente de datos, panel con 5 KPI, una alerta con envío por correo o Telegram.",
+   "entregable": "",
+   "url": "../ut/ut7-monitorizacion/#a72-paneles-y-alertas-sesion-43",
+   "evaluable": false
+  },
+  {
+   "n": 44,
+   "fecha": "2027-04-14",
+   "ut": "UT7",
+   "titulo": "Práctica evaluable UT7",
+   "que": "Asegurar la monitorización (TLS, autenticación, red dedicada) y entregar panel + alerta funcionando.",
+   "entregable": "Panel exportado + captura de alerta (RA4 i, j)",
+   "url": "../ut/ut7-monitorizacion/#practica-evaluable-ut7-sesion-44",
+   "evaluable": true
+  },
+  {
+   "n": 45,
+   "fecha": "2027-04-16",
+   "ut": "EX2",
+   "titulo": "Examen 2ª evaluación",
+   "que": "Prueba teórico-práctica de UT6–UT7 y cierre de entregas antes de la formación en empresa.",
+   "entregable": "Examen (RA4)",
+   "url": "../modulo/#como-se-evalua",
+   "evaluable": true
+  }
+ ],
+ "ut": {
+  "UT1": "Virtualización e hipervisores",
+  "UT2": "Nubes privadas virtuales (VPC)",
+  "UT3": "Seguridad por capas",
+  "UT5": "Infraestructura como código",
+  "UT6": "Integración continua",
+  "UT7": "Monitorización",
+  "EX1": "Examen 1ª evaluación",
+  "EX2": "Examen 2ª evaluación"
+ }
+}

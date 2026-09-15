@@ -6,7 +6,15 @@ Las fechas están calculadas sobre el calendario escolar de Castelló 2026-27. N
 
 Las sesiones en **negrita** son evaluables.
 
-## Primera evaluación
+## Vista de calendario
+
+Cada día de clase lleva el color de su unidad. Pasa el ratón por encima para ver qué se hace en esa sesión y qué se entrega; haz clic para ir a la actividad correspondiente en los apuntes. Los días marcados con estrella son sesiones evaluables. Con el teclado, el tabulador recorre las sesiones y muestra el mismo detalle.
+
+<div id="calendario-interactivo" data-src="../assets/sesiones.json" markdown="0"></div>
+
+## Listado de sesiones
+
+### Primera evaluación
 
 | Nº | Fecha | UT | Sesión | Qué se hace |
 |---:|-------|----|--------|-------------|
@@ -40,7 +48,7 @@ Las sesiones en **negrita** son evaluables.
 | **28** | **27 ene** | **UT5** | **Práctica evaluable UT5** | Repositorio IaC que levanta VPC + VM + servicio, con pruebas y escaneo limpio. |
 | **29** | **29 ene** | **EX1** | **Examen 1ª evaluación** | Prueba teórico-práctica de UT1 a UT5 en el laboratorio. |
 
-## Segunda evaluación
+### Segunda evaluación
 
 | Nº | Fecha | UT | Sesión | Qué se hace |
 |---:|-------|----|--------|-------------|
