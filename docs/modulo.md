@@ -77,7 +77,7 @@ Cada práctica evaluable lleva su tabla de criterios y pesos al final de la unid
 
 | Capa | Herramienta | Alternativas que se mencionan |
 |------|-------------|-------------------------------|
-| Hipervisor | Proxmox VE 8 (KVM + LXC) | VMware ESXi, Hyper-V, XCP-ng |
+| Hipervisor | Proxmox VE 9 (KVM + LXC) | VMware ESXi, Hyper-V, XCP-ng |
 | Red virtual | Proxmox SDN, bridges Linux, dnsmasq | OpenStack Neutron |
 | Cortafuegos | OPNsense | pfSense, nftables en Debian |
 | Nube pública | La que decida la empresa | AWS, Azure, Google Cloud, Hetzner, OVH |

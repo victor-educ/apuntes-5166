@@ -171,7 +171,7 @@ El cortafuegos decide por puertos y direcciones. No sabe si lo que entra por el 
 
 ## Alternativa: nftables en una VM Linux
 
-El mismo modelo se puede montar con un router Debian 13 con cinco interfaces y nftables, que es el framework de filtrado del kernel Linux desde la 3.13 y el sucesor de iptables. Lo que se pierde es la interfaz web y las comodidades (aliases con resolución DNS, live view); lo que se gana es un fichero de texto de 40 líneas que se versiona en git y que Ansible despliega en la UT5 sin ninguna magia. Además, es el mismo motor que usa el firewall integrado de Proxmox y Docker, así que os interesa entenderlo aunque uséis OPNsense.
+El mismo modelo se puede montar con un router Debian 13 con cinco interfaces y nftables, que es el framework de filtrado del kernel Linux desde la 3.13 y el sucesor de iptables. Lo que se pierde es la interfaz web y las comodidades (aliases con resolución DNS, live view); lo que se gana es un fichero de texto de 40 líneas que se versiona en git y que Ansible despliega en la UT5 sin ninguna magia. Es el mismo motor que usa el firewall integrado de Proxmox y Docker, así que os interesa entenderlo aunque uséis OPNsense.
 
 ### Tablas, cadenas, hooks y prioridades
 

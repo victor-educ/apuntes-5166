@@ -15,7 +15,7 @@ pvesm status                            # almacenes
 # Plantilla cloud-init (UT1)
 qm create 9000 --name debian-tpl --memory 2048 --cores 2 \
   --net0 virtio,bridge=vmbr0 --scsihw virtio-scsi-pci
-qm set 9000 --scsi0 local-lvm:0,import-from=/root/debian-12-genericcloud-amd64.qcow2
+qm set 9000 --scsi0 local-lvm:0,import-from=/root/debian-13-genericcloud-amd64.qcow2
 qm set 9000 --ide2 local-lvm:cloudinit --boot order=scsi0 --agent enabled=1
 qm set 9000 --ciuser ops --sshkeys ~/.ssh/id_ed25519.pub --ipconfig0 ip=dhcp
 qm template 9000

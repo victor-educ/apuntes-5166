@@ -56,7 +56,7 @@ Para que las prácticas sean comparables y para que los apuntes tengan sentido, 
 
 | Cosa | Convención |
 |------|------------|
-| ID de plantilla | 9000 (Debian 12 genericcloud) |
+| ID de plantilla | 9000 (Debian 13 genericcloud) |
 | ID de VM de servicio | 101 en adelante para dev, 201 para pre, 301 para pro |
 | Usuario en las VM | `ops` con clave SSH ed25519, sin contraseña |
 | Dominio interno | `dev.lab`, `pre.lab`, `pro.lab` |

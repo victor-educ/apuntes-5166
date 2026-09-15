@@ -200,7 +200,7 @@ Lo que existía antes del SDN sigue funcionando y es lo mismo hecho a mano: en `
 
 ### Router de entorno
 
-Una VM Debian 12 clonada de la plantilla, con una interfaz por subred y otra hacia el exterior. En Proxmox las interfaces virtio aparecen en la VM como `ens18`, `ens19`, `ens20`... en el orden de `net0`, `net1`, `net2`. Convención del curso: `ens18` exterior (vmbr0, IP del aula por DHCP), `ens19` gestión (`.0.1`), `ens20` front (`.1.1`), `ens21` back (`.2.1`).
+Una VM Debian 13 clonada de la plantilla, con una interfaz por subred y otra hacia el exterior. En Proxmox las interfaces virtio aparecen en la VM como `ens18`, `ens19`, `ens20`... en el orden de `net0`, `net1`, `net2`. Convención del curso: `ens18` exterior (vmbr0, IP del aula por DHCP), `ens19` gestión (`.0.1`), `ens20` front (`.1.1`), `ens21` back (`.2.1`).
 
 Lo primero es activar el reenvío IP, que en Debian viene apagado. Sin esto la VM acepta paquetes dirigidos a ella y descarta los demás, así que front y back no se hablan aunque el router tenga pata en las dos:
 
@@ -222,7 +222,7 @@ Son dos cosas distintas y se confunden mucho. Enrutar es reenviar el paquete sin
 
 Dentro de un entorno se enruta, nunca se hace NAT: las capas tienen que ver la IP real de quien las llama, si no los logs de la base de datos dirán que todas las conexiones vienen del router y el firewall de la UT3 no podrá distinguir front de back. NAT se hace en el borde, hacia fuera, por dos razones: la red del aula (o Internet) no sabe volver a 10.10.0.0/16, y no queremos que se sepa desde fuera cómo es la red por dentro. En nube pública es lo mismo: dentro de la VPC todo se enruta, y solo el NAT Gateway o el Internet Gateway traducen.
 
-NAT de salida con nftables, que es lo que trae Debian 12 (iptables sigue existiendo, pero es una capa de compatibilidad sobre nftables y en la UT3 lo haremos todo con `nft`):
+NAT de salida con nftables, que es lo que trae Debian 13 (iptables sigue existiendo, pero es una capa de compatibilidad sobre nftables y en la UT3 lo haremos todo con `nft`):
 
 ```bash
 nft add table ip nat
@@ -520,7 +520,7 @@ flowchart TD
     T[OpenTofu provider bpg/proxmox<br/>UT5] --> API
     J[Jenkins<br/>UT6] --> API
     API[pveproxy · /api2/json] --> D[pvedaemon como root]
-    D --> S[/etc/pve/sdn/*.cfg · qm clone · ifreload]
+    D --> S["/etc/pve/sdn/*.cfg · qm clone · ifreload"]
 ```
 
 ## Errores frecuentes en el laboratorio

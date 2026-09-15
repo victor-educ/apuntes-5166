@@ -76,15 +76,15 @@ flowchart LR
         CPU["Núcleos físicos"]
     end
     subgraph KERNEL["Kernel Linux del host (VMX root)"]
-        KVM["kvm.ko + kvm_intel.ko\n/dev/kvm"]
+        KVM["kvm.ko + kvm_intel.ko<br/>/dev/kvm"]
     end
     subgraph QEMU["Proceso QEMU (espacio de usuario)"]
         VCPU["Hilo vCPU 0"]
         VCPU1["Hilo vCPU 1"]
-        DEV["Emulación de dispositivos\nvirtio, e1000, SATA, VGA"]
+        DEV["Emulación de dispositivos<br/>virtio, e1000, SATA, VGA"]
     end
     subgraph VM["Máquina virtual (VMX non-root)"]
-        GUEST["Kernel invitado (ring 0)\nprocesos (ring 3)"]
+        GUEST["Kernel invitado (ring 0)<br/>procesos (ring 3)"]
     end
     VCPU -- "ioctl KVM_RUN" --> KVM
     VCPU1 -- "ioctl KVM_RUN" --> KVM
@@ -600,4 +600,4 @@ Se realiza en la sesión 6 (23 de octubre) sobre el Proxmox que has montado en l
 - [Documentación de QEMU](https://www.qemu.org/docs/master/): dispositivos emulados, formato qcow2 y `qemu-img`.
 - [Especificación virtio (OASIS)](https://docs.oasis-open.org/virtio/virtio/v1.2/virtio-v1.2.html): cómo funcionan las virtqueues; con leer la introducción se entiende por qué virtio gana a la emulación.
 - [Proxmox Backup Server: documentación](https://pbs.proxmox.com/docs/): deduplicación, backups incrementales y retención, para cuando el laboratorio se convierta en algo que hay que proteger.
-- [man 8 fio](https://man7.org/linux/man-pages/man1/fio.1.html) y [stress-ng](https://man7.org/linux/man-pages/man1/stress-ng.1.html): los parámetros de las herramientas de medida que usaréis en la práctica.
+- [man 1 fio](https://man7.org/linux/man-pages/man1/fio.1.html) y [stress-ng](https://man7.org/linux/man-pages/man1/stress-ng.1.html): los parámetros de las herramientas de medida que usaréis en la práctica.
