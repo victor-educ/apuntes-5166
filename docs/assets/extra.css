@@ -1,4 +1,7 @@
-:root { --md-primary-fg-color: #37474f; }
+:root { --md-primary-fg-color: #3949ab; }
+[data-md-color-scheme="slate"] { --md-primary-fg-color: #3949ab; }
+/* Barra de pestañas un punto más oscura que la cabecera para distinguirla */
+.md-tabs { background-color: color-mix(in srgb, var(--md-primary-fg-color) 85%, black); }
 .md-typeset table:not([class]) { font-size: .78rem; }
 .md-typeset figure { margin: 1em auto; }
 .md-typeset figcaption { font-size: .72rem; color: var(--md-default-fg-color--light); }
