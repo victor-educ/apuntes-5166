@@ -2,7 +2,7 @@
 
 <p class="ut-meta">Apuntes de la asignatura · Curso de especialización · 120 h (90 en el centro, 30 en empresa) · Curso 2026-27</p>
 
-Aquí están los apuntes de toda la asignatura, unidad por unidad, con las actividades de cada sesión y las prácticas evaluables. Es el mismo material que se trabaja en clase, ampliado con lo que no cabe en dos horas y con enlaces a la documentación oficial para que no os quedéis en lo que yo cuento.
+Aquí están los apuntes de toda la asignatura, unidad por unidad, con las actividades de cada sesión y las prácticas evaluables. Es el mismo material que se trabaja en clase, ampliado con lo que no cabe en dos horas y con enlaces a la documentación oficial para que no os quedéis en lo que yo cuento. La asignatura hermana, [Mantenimiento del sistema de contenedores](https://victor-educ.github.io/apuntes-5169/), tiene su propio sitio con la misma estructura.
 
 ## De qué va la asignatura
 
@@ -76,6 +76,12 @@ Cada unidad se apoya en la anterior: la red de la UT2 es donde la UT3 pone el co
     ---
 
     Documentación oficial de cada herramienta, libros que merecen la pena, sitios donde practicar fuera del aula y los créditos de las imágenes.
+
+-   :material-wrench-cog: **[Mantenimiento del sistema de contenedores](https://victor-educ.github.io/apuntes-5169/)**
+
+    ---
+
+    La asignatura hermana, que se cursa a la vez los martes y jueves. Sobre el laboratorio que se monta aquí, allí se vigila, se prueba, se actualiza, se copia y se retira el servicio.
 
 </div>
 

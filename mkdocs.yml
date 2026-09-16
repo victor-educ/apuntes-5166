@@ -66,6 +66,7 @@ extra:
     Chuleta de comandos: material/console
     Glosario: material/book-alphabet
     Bibliografía y enlaces: material/link-variant
+    Mantenimiento (5169): material/wrench-cog
 
 
 markdown_extensions:
@@ -132,3 +133,4 @@ nav:
       - Chuleta de comandos: chuleta.md
       - Glosario: glosario.md
       - Bibliografía y enlaces: recursos.md
+  - Mantenimiento (5169): https://victor-educ.github.io/apuntes-5169/
