@@ -3,6 +3,7 @@ name: Publicar en GitHub Pages
 on:
   push:
     branches: [main]
+    tags: ['v*']
   workflow_dispatch:
 
 permissions:
@@ -19,12 +20,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
       - run: pip install -r requirements.txt
-      - run: mkdocs build --strict
+      - name: Construir el sitio con versión y commit
+        run: |
+          export SITE_VERSION=$(git describe --tags --always)
+          export SITE_COMMIT=$(git rev-parse --short HEAD)
+          echo "Publicando $SITE_VERSION ($SITE_COMMIT)"
+          mkdocs build --strict
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site

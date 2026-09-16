@@ -1,4 +1,4 @@
-/* Calendario interactivo del módulo 5166.
+/* Calendario interactivo de la asignatura.
    Lee assets/sesiones.json y pinta un mes por bloque. Cada día de clase es un enlace a la
    actividad de esa sesión; al pasar el ratón se muestra el detalle. */
 (function () {

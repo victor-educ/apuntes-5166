@@ -1,6 +1,6 @@
 # UT2 · Nubes privadas virtuales (VPC)
 
-<p class="ut-meta">Módulo 5166 · 14 h · Sesiones 7 a 13 · RA1 CE b, c</p>
+<p class="ut-meta">14 h · Sesiones 7 a 13 · RA1 CE b, c</p>
 
 En la UT1 dejamos un Proxmox funcionando, una plantilla Debian con cloud-init (ID 9000) y un par de bridges. Hasta ahora las máquinas que clonábamos caían todas en la misma red, la del aula, y eso vale para probar pero no para lo que viene. En esta unidad construimos la red de verdad: tres entornos (dev, pre, pro) separados, cada uno con sus subredes por capa, su router, su DHCP y su DNS interno, y con la garantía de que lo que pasa en dev no puede tocar pro. Todo lo que montemos aquí es el suelo sobre el que la UT3 pone cortafuegos, DMZ y proxy inverso, y lo que en la UT5 volveremos a crear desde cero con OpenTofu sin pasar por la consola web. Por eso la última sesión de contenido es la de la CLI y la API: si sabes hacerlo a mano con `pvesh`, el provider de Terraform deja de ser magia.
 

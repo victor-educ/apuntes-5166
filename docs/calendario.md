@@ -79,7 +79,7 @@ Cada día de clase lleva el color de su unidad. Pasa el ratón por encima para v
 
 ```mermaid
 gantt
-    title Módulo 5166 · curso 2026-27
+    title Despliegue de contenedores · curso 2026-27
     dateFormat  YYYY-MM-DD
     axisFormat  %b
     section Centro

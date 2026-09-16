@@ -1,6 +1,6 @@
 # UT3 · Seguridad por capas: DMZ externa, DMZ interna y zona interna
 
-<p class="ut-meta">Módulo 5166 · 12 h · Sesiones 14 a 19 · RA1 CE d</p>
+<p class="ut-meta">12 h · Sesiones 14 a 19 · RA1 CE d</p>
 
 En la UT2 montasteis una VPC por entorno (dev, pre, pro) con dos subredes, front y back, y comprobasteis que el enrutado entre ellas funcionaba. Funcionaba demasiado bien: cualquier máquina de front podía hablar con cualquier puerto de back. En esta unidad ponemos un cortafuegos en medio, añadimos dos zonas más (datos y gestión) y convertimos esa red plana en una red por capas donde cada salto está justificado, permitido de forma explícita y registrado. Después tendremos que demostrar con nmap y tcpdump que el aislamiento es real, y separar dos clientes que comparten la misma infraestructura. Lo que construyáis aquí no se tira: en la UT5 lo describiréis como código con OpenTofu y Ansible, y en la UT6 el pipeline de Jenkins desplegará contenedores dentro de estas zonas, así que las reglas que escribáis ahora son las que vuestro pipeline tendrá que respetar.
 

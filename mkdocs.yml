@@ -1,10 +1,10 @@
-site_name: 5166 · Despliegue de plataformas de contenedores
-site_description: Apuntes del módulo 5166 (CE Contenedores). Virtualización, VPC, seguridad por capas, nube pública, IaC, CI/CD y monitorización.
+site_name: Despliegue de plataformas de contenedores
+site_description: Apuntes de la asignatura Despliegue de plataformas de ejecución de contenedores. Virtualización, VPC, seguridad por capas, nube pública, IaC, CI/CD y monitorización.
 site_url: https://victor-educ.github.io/apuntes-5166/
 repo_url: https://github.com/victor-educ/apuntes-5166
 repo_name: victor-educ/apuntes-5166
 edit_uri: edit/main/docs/
-copyright: Apuntes del módulo 5166 · Víctor Sellés · CC BY-SA 4.0
+copyright: Víctor Sellés · CC BY-SA 4.0
 
 theme:
   name: material
@@ -42,6 +42,10 @@ theme:
   font:
     text: Inter
     code: JetBrains Mono
+
+extra:
+  version: !ENV [SITE_VERSION, "local"]
+  commit: !ENV [SITE_COMMIT, ""]
 
 extra_css:
   - assets/extra.css

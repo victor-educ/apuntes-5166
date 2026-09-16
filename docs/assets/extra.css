@@ -75,3 +75,4 @@
 .md-tabs, .md-tabs__list { overflow: visible; }
 .md-tabs__list { contain: none; }
 .md-tabs { position: relative; z-index: 4; }
+.md-version-tag { font-family: var(--md-code-font-family); font-size: .6rem; opacity: .8; }

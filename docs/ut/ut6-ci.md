@@ -1,6 +1,6 @@
 # UT6 · Orquestador de integración continua
 
-<p class="ut-meta">Módulo 5166 · 24 h · Sesiones 30 a 41 · RA4 CE a, b, c, d, e, f, g, h</p>
+<p class="ut-meta">24 h · Sesiones 30 a 41 · RA4 CE a, b, c, d, e, f, g, h</p>
 
 En la UT5 dejasteis un repositorio con el que se levanta el servicio del curso de principio a fin: `tofu apply` crea las máquinas en Proxmox, Ansible las configura y `test.sh` comprueba que responde. Lo lanzabais a mano desde vuestro portátil, con vuestro usuario y vuestro token. Esta unidad quita a la persona de en medio: un orquestador de integración continua vigila el repositorio, ejecuta las pruebas, construye la imagen, la sube a un registry y, si se lo pedimos, despliega con el IaC de la UT5. Vamos a montar Jenkins desde cero (contenedor, TLS, roles, plugins, agentes), escribir el pipeline y, sobre todo, probarlo por todos los caminos que puede tomar, incluidos los que acaban mal. En la UT7 pondremos Prometheus y Grafana a vigilar tanto el orquestador como el servicio que despliega.
 
@@ -212,7 +212,7 @@ openssl x509 -req -in jenkins.csr -CA ca.crt -CAkey ca.key -CAcreateserial \
 ```yaml
 # casc/jenkins.yaml
 jenkins:
-  systemMessage: "Jenkins del módulo 5166. Configurado por JCasC, no toques nada a mano."
+  systemMessage: "Jenkins de la asignatura. Configurado por JCasC, no toques nada a mano."
   numExecutors: 0
   mode: EXCLUSIVE
   securityRealm:

@@ -1,6 +1,6 @@
 # UT7 · Monitorización del entorno
 
-<p class="ut-meta">Módulo 5166 · 6 h en el centro + 12 h en la formación en empresa · Sesiones 42 a 44 · RA4 CE i, j, k</p>
+<p class="ut-meta">6 h en el centro + 12 h en la formación en empresa · Sesiones 42 a 44 · RA4 CE i, j, k</p>
 
 Llegamos a la última unidad del centro. En la UT6 dejasteis Jenkins ejecutando pipelines contra la plataforma que habíais levantado con OpenTofu y Ansible, y de paso activasteis el plugin que expone sus métricas en `/prometheus`. Ahora toca cerrar el círculo: una plataforma que no se vigila no está desplegada, está abandonada. En tres sesiones vais a montar Prometheus, Alertmanager y Grafana en la VM `mon01` de la subred de gestión, recoger datos de los hosts, de los contenedores y del orquestador de CI, dibujar paneles con los KPI del entorno y hacer que una alerta llegue a un buzón o a un chat. La sesión 44 es la práctica evaluable, la 45 (16 de abril de 2027) es el examen de la segunda evaluación, y las 12 horas de monitorización avanzada se hacen ya en la empresa. Los logs, el segundo pilar de la observabilidad, quedan para el módulo 5169.
 

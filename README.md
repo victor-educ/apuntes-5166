@@ -1,6 +1,6 @@
-# Apuntes · 5166 Despliegue de plataformas de ejecución de contenedores
+# Apuntes · Despliegue de plataformas de ejecución de contenedores
 
-Apuntes del módulo 5166 del curso de especialización en contenedores. Se publican en
+Apuntes de la asignatura Despliegue de plataformas de ejecución de contenedores (módulo 5166) del curso de especialización en contenedores. Se publican en
 <https://victor-educ.github.io/apuntes-5166/>.
 
 ## Editar
@@ -20,3 +20,13 @@ y lo publica en GitHub Pages.
 
 Texto e imágenes propias: [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/deed.es).
 Las imágenes de terceros llevan su atribución al pie.
+
+## Versiones
+
+El pie de cada página muestra la versión publicada: la última etiqueta git (`v1.0`, `v1.1`...) seguida del número de commits desde ella y el hash, tal como lo devuelve `git describe --tags`. Para marcar una versión nueva:
+
+```bash
+git tag -a v1.1 -m "Correcciones tras la UT2" && git push origin v1.1
+```
+
+El push de la etiqueta vuelve a publicar el sitio con ese número.

@@ -1,6 +1,6 @@
 # UT5 · Infraestructura como código
 
-<p class="ut-meta">Módulo 5166 · 18 h · Sesiones 20 a 28 · RA3 CE a, b, c, d</p>
+<p class="ut-meta">18 h · Sesiones 20 a 28 · RA3 CE a, b, c, d</p>
 
 En UT2 y UT3 montasteis la VPC y el cortafuegos dos veces: primero a mano en la consola de Proxmox y OPNsense, y después con un script bash que repetía los mismos pasos. El script fue un avance, pero tiene un defecto de fondo: describe cómo llegar, no dónde hay que estar. Si lo ejecutas dos veces crea las cosas dos veces (o falla), y si alguien toca una VM a mano, el script no se entera. En esta unidad cambiamos de enfoque: escribimos en ficheros de texto el estado que queremos (tres VM con estas CPU, estas IP, en estos puentes) y dejamos que una herramienta calcule y aplique la diferencia. Ese código será lo que ejecute el pipeline de Jenkins en UT6, y es el grueso de la primera evaluación (examen en la sesión 29, el 29 de enero de 2027).
 

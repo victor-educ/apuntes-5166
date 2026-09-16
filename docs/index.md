@@ -1,6 +1,6 @@
-# Apuntes del módulo 5166
+# Despliegue de plataformas de contenedores
 
-<p class="ut-meta">Despliegue de plataformas de ejecución de contenedores · Curso de especialización · 120 h (90 en el centro, 30 en empresa) · Curso 2026-27</p>
+<p class="ut-meta">Apuntes de la asignatura · Curso de especialización · 120 h (90 en el centro, 30 en empresa) · Curso 2026-27</p>
 
 Aquí están los apuntes de todo el módulo, unidad por unidad, con las actividades de cada sesión y las prácticas evaluables. Es el mismo material que se trabaja en clase, ampliado con lo que no cabe en dos horas y con enlaces a la documentación oficial para que no os quedéis en lo que yo cuento.
 
@@ -47,4 +47,4 @@ Todo el software del módulo es libre o tiene una versión gratuita suficiente: 
 
 ## Sobre estos apuntes
 
-Los escribo yo, Víctor, para el módulo 5166 y los voy corrigiendo durante el curso. Si encuentras un error o un comando que ya no funciona, dímelo en clase o abre un issue en el [repositorio](https://github.com/victor-educ/apuntes-5166). El texto se publica con licencia [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/deed.es); las imágenes de terceros llevan su atribución al pie.
+Los escribo yo, Víctor, para la asignatura y los voy corrigiendo durante el curso. Si encuentras un error o un comando que ya no funciona, dímelo en clase o abre un issue en el [repositorio](https://github.com/victor-educ/apuntes-5166). El texto se publica con licencia [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/deed.es); las imágenes de terceros llevan su atribución al pie.

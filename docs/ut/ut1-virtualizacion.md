@@ -1,6 +1,6 @@
 # UT1 · Virtualización e hipervisores
 
-<p class="ut-meta">Módulo 5166 · 12 h · Sesiones 1 a 6 · RA1 CE a</p>
+<p class="ut-meta">12 h · Sesiones 1 a 6 · RA1 CE a</p>
 
 Esta es la primera unidad del módulo y la que sostiene todas las demás. Todo lo que vais a desplegar en el curso (las VPC con SDN de la UT2, los cortafuegos y proxies de la UT3, los clústeres de contenedores, los pipelines de Jenkins) corre sobre máquinas virtuales, y esas máquinas virtuales corren sobre un hipervisor que tenéis que saber instalar, configurar y, sobre todo, entender. Vais a montar vuestro propio Proxmox VE, a crear una plantilla con cloud-init de la que saldrán decenas de VM en las próximas semanas y a medir qué aguanta y qué no aguanta vuestro laboratorio. En la UT2 cogeremos ese mismo Proxmox y le añadiremos redes definidas por software para construir una VPC como la de cualquier nube pública.
 

@@ -1,6 +1,6 @@
 # UT4 · Nube pública: consola, CLI y SDK
 
-<p class="ut-meta">Módulo 5166 · 12 h · Formación en empresa (19 abr a 9 jun 2027) · RA2 CE a, b, c, d, e</p>
+<p class="ut-meta">12 h · Formación en empresa (19 abr a 9 jun 2027) · RA2 CE a, b, c, d, e</p>
 
 Esta unidad no se cursa en el centro. Se hace en la empresa, durante el periodo de formación, y la plataforma la decide el tutor de empresa: puede ser AWS, Azure, Google Cloud o alguna alternativa europea (OVHcloud, Hetzner, Scaleway). Lo que sigue es la guía de referencia que tienes que llevar leída el primer día y la lista de evidencias que debes traer de vuelta. Hasta aquí, en las UT1 a UT3, has montado todo a mano sobre Proxmox: hipervisor, VPC con subredes, OPNsense, DMZ, proxy inverso. La nube pública es ese mismo diseño alquilado por horas y expuesto por API. Cuando vuelvas, en la UT5 (OpenTofu) y la UT6 (Jenkins) automatizarás sobre esa API lo que aquí vas a hacer con la consola, la CLI y el SDK, así que conviene que salgas de la empresa con perfiles de CLI funcionando y credenciales bien gestionadas.
 

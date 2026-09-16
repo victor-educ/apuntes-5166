@@ -1,0 +1,20 @@
+{#- Pie con licencia y versión publicada (etiqueta git + commit). -#}
+<div class="md-copyright">
+  {% if config.copyright %}
+    <div class="md-copyright__highlight">
+      {{ config.copyright }}
+    </div>
+  {% endif %}
+  {% set v = config.extra.version %}
+  {% set c = config.extra.commit %}
+  <span class="md-version-tag">
+    Versión {{ v }}{% if c %} ·
+    <a href="{{ config.repo_url }}/commit/{{ c }}" target="_blank" rel="noopener" title="Ver este commit en GitHub">{{ c[:7] }}</a>{% endif %}
+  </span>
+  {% if not config.extra.generator == false %}
+    · Hecho con
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  {% endif %}
+</div>
