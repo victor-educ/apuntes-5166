@@ -55,6 +55,7 @@ extra:
     Laboratorio: material/flask
     Unidades: material/book-open-page-variant
     Recursos: material/toolbox
+    PDF: material/file-pdf-box
     UT1 · Virtualización e hipervisores: material/server
     UT2 · Nubes privadas virtuales (VPC): material/lan
     UT3 · Seguridad por capas: material/shield-lock
@@ -100,6 +101,22 @@ markdown_extensions:
 plugins:
   - search:
       lang: es
+  - print-site:
+      add_to_navigation: true
+      print_page_title: PDF
+      add_cover_page: true
+      cover_page_template: docs/assets/templates/portada.tpl
+      add_table_of_contents: true
+      toc_title: Índice
+      toc_depth: 2
+      add_full_urls: false
+      enumerate_headings: false
+      enumerate_figures: false
+      add_print_site_banner: true
+      print_site_banner_template: docs/assets/templates/aviso.tpl
+      print_page_basename: pdf
+      exclude:
+        - calendario.md
 
 nav:
   - Inicio: index.md

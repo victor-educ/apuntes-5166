@@ -2,9 +2,9 @@
    al índice lateral. Solo actúa en páginas de unidad (docs/ut/). Los h3 de la sección
    "Actividades" no se numeran porque ya llevan su código (A1.1, A1.2...). */
 (function () {
-  if (!/\/ut\/[^/]+\/?$/.test(location.pathname)) return;
-  var article = document.querySelector("article.md-content__inner");
-  if (!article) return;
+  var esUnidad = /\/ut\/[^/]+\/?$/.test(location.pathname);
+  var esPdf = !!document.getElementById("print-site-page");
+  if (!esUnidad && !esPdf) return;
 
   var toc = {};
   document.querySelectorAll(".md-nav a.md-nav__link[href^='#']").forEach(function (a) {
@@ -26,8 +26,9 @@
     });
   }
 
+  function numerar(raiz) {
   var n2 = 0, n3 = 0, saltarSub = false;
-  article.querySelectorAll("h2, h3").forEach(function (h) {
+  raiz.querySelectorAll("h2, h3").forEach(function (h) {
     if (h.tagName === "H2") {
       n2 += 1; n3 = 0;
       saltarSub = /^actividades/i.test(h.textContent.trim());
@@ -37,4 +38,13 @@
       etiqueta(h, n2 + "." + n3);
     }
   });
+  }
+
+  if (esPdf) {
+    // En la página imprimible cada unidad va en su propia sección
+    document.querySelectorAll("section.print-page[id*='ut-']").forEach(numerar);
+  } else {
+    var article = document.querySelector("article.md-content__inner");
+    if (article) numerar(article);
+  }
 })();

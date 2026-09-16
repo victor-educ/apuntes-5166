@@ -86,3 +86,12 @@
 .num-apartado { display: inline-block; min-width: 1.6em; margin-right: .35em; color: var(--md-accent-fg-color); font-variant-numeric: tabular-nums; }
 h3 .num-apartado { min-width: 2.2em; }
 .md-nav--secondary .num-apartado { min-width: 0; margin-right: .3em; font-size: .9em; }
+
+/* ---------- Página imprimible / PDF ---------- */
+.print-cover { min-height: 80vh; display: flex; flex-direction: column; justify-content: center; text-align: center; page-break-after: always; }
+.print-cover-asig, .print-cover-sub { color: var(--md-default-fg-color--light); font-size: .9rem; }
+.print-cover-titulo { font-size: 2.2rem !important; margin: .4em 0 !important; }
+.print-cover-autor { font-size: 1rem; margin-top: 2em; }
+.print-cover-version, .print-cover-lic { font-size: .7rem; color: var(--md-default-fg-color--light); }
+.print-site-banner { border-left: 3px solid var(--md-accent-fg-color); padding: .4em .9em; margin: 0 0 1.5em; font-size: .8rem; background: var(--md-code-bg-color); }
+@media print { .print-site-banner { display: none; } .md-tabs, .md-header, .md-sidebar, .md-footer { display: none !important; } }
