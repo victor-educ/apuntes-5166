@@ -1,6 +1,6 @@
 # UT6 · Orquestador de integración continua
 
-<p class="ut-meta">24 h · Sesiones 30 a 41 · RA4 CE a, b, c, d, e, f, g, h</p>
+<p class="ut-meta">20 h · Sesiones 30 a 39 · RA4 CE a, b, c, d, e, f, g, h</p>
 
 En la UT5 dejasteis un repositorio con el que se levanta el servicio del curso de principio a fin: `tofu apply` crea las máquinas en Proxmox, Ansible las configura y `test.sh` comprueba que responde. Lo lanzabais a mano desde vuestro portátil, con vuestro usuario y vuestro token. Esta unidad quita a la persona de en medio: un orquestador de integración continua vigila el repositorio, ejecuta las pruebas, construye la imagen, la sube a un registry y, si se lo pedimos, despliega con el IaC de la UT5. Vamos a montar Jenkins desde cero (contenedor, TLS, roles, plugins, agentes), escribir el pipeline y, sobre todo, probarlo por todos los caminos que puede tomar, incluidos los que acaban mal. En la UT7 pondremos Prometheus y Grafana a vigilar tanto el orquestador como el servicio que despliega.
 
@@ -42,10 +42,10 @@ Un jueves de febrero, a las tres de la tarde, un compañero sube al repositorio 
 **Cómo está organizada la unidad.** Empezamos por el vocabulario (integración, entrega y despliegue continuos, y qué aporta un pipeline frente a un script) y por la comparativa de orquestadores, porque elegir Jenkins tiene que ser una decisión razonada. Después instalamos y aseguramos Jenkins, y solo entonces vienen plugins y agentes, que le dan capacidades y sitio donde ejecutar. Con un agente conectado enganchamos el repositorio (proyecto, credenciales y webhook), escribimos el `Jenkinsfile` y montamos el registry. La gestión de errores va después porque solo se prueba un pipeline que existe, y el mínimo privilegio cierra la unidad porque para repartir credenciales hay que saber quién las usa. Las actividades siguen ese orden, una por sesión.
 
 !!! info "Dónde se usa esto en la otra asignatura"
-    Esta unidad va del 3 de febrero al 24 de marzo y coincide con la [UT7 de Mantenimiento, actualización y vulnerabilidades](https://victor-educ.github.io/apuntes-5169/ut/ut7-actualizacion-vulnerabilidades/) (4 de febrero a 9 de marzo) y con la [UT8, terminación segura](https://victor-educ.github.io/apuntes-5169/ut/ut8-terminacion-segura/) (11 de marzo a 6 de abril). Allí se dan por conocidos Jenkins, sus credenciales y el registry local que montáis aquí.
+    Esta unidad va del 27 de enero al 26 de febrero y coincide con la [UT7 de Mantenimiento, actualización y vulnerabilidades](https://victor-educ.github.io/apuntes-5169/ut/ut7-actualizacion-vulnerabilidades/) (2 a 23 de febrero) y con la [UT8, terminación segura](https://victor-educ.github.io/apuntes-5169/ut/ut8-terminacion-segura/) (25 de febrero a 18 de marzo). Allí se dan por conocidos Jenkins, sus credenciales y el registry local que montáis aquí.
 
-    - En la sesión 35 de la 5169 (25 de febrero) se añade al `Jenkinsfile` una [etapa de escaneo con Trivy](https://victor-educ.github.io/apuntes-5169/ut/ut7-actualizacion-vulnerabilidades/#la-etapa-de-escaneo-en-el-jenkinsfile) entre construir la imagen y subirla al registry. Aquí el pipeline se construye en las sesiones 35 a 37 (19 a 26 de febrero): si ese día el tuyo aún no empaqueta, prueba la etapa en un job aparte que solo construya y escanee, e intégrala después.
-    - La UT8 de Mantenimiento [borra las credenciales de Jenkins](https://victor-educ.github.io/apuntes-5169/ut/ut8-terminacion-segura/#credenciales-y-tokens) del entorno `pre` y deshabilita su job sin borrar el historial. El inventario de credenciales que entregáis en la sesión 39 es la lista que allí se recorre para no dejar ningún token huérfano.
+    - En la sesión 35 de la 5169 (18 de febrero) se añade al `Jenkinsfile` una [etapa de escaneo con Trivy](https://victor-educ.github.io/apuntes-5169/ut/ut7-actualizacion-vulnerabilidades/#la-etapa-de-escaneo-en-el-jenkinsfile) entre construir la imagen y subirla al registry. Aquí el pipeline se construye en las sesiones 34 a 36 (10 a 17 de febrero): si ese día el tuyo aún no empaqueta, prueba la etapa en un job aparte que solo construya y escanee, e intégrala después.
+    - La UT8 de Mantenimiento [borra las credenciales de Jenkins](https://victor-educ.github.io/apuntes-5169/ut/ut8-terminacion-segura/#credenciales-y-tokens) del entorno `pre` y deshabilita su job sin borrar el historial. El inventario de credenciales que entregáis en la sesión 37 es la lista que allí se recorre para no dejar ningún token huérfano.
 
 ## Integración continua, entrega continua y despliegue continuo
 
@@ -851,64 +851,60 @@ Este inventario es un entregable de la práctica. Con los pools de Proxmox (`/po
 
 En grupos: instala en 30 minutos una demo de Jenkins y de Gitea Actions (ambos en compose) y ejecuta el mismo "hola mundo" (un `Jenkinsfile` de una etapa con `echo` y un workflow `.gitea/workflows/hola.yml` con un paso `run: echo hola`). Rellena una tabla comparativa con los criterios del apartado de elección (control de variables, limitaciones, integración, registro, mantenimiento, comunidad) y redacta media página justificando cuál usarías para el servicio del curso. Entrega la tabla y la justificación.
 
-### A6.2 Instalación segura (sesión 31)
+### A6.2 Instalación segura y plugins (sesión 31)
+
+Instalación y plugins van en la misma sesión: la primera parte deja Jenkins seguro (TLS, roles, ejecutores del controlador a 0) y la segunda, sobre esa base, instala lo que hace falta para el resto de la unidad.
 
 1. Despliega Jenkins con el compose del apartado de instalación (elige keystore o nginx; justifica) en una VM de la subred de gestión.
 2. Genera una CA propia y un certificado para `jenkins.lab` con `subjectAltName`; importa la CA en tu navegador y en el almacén del sistema de la VM.
 3. Instala Role-based Authorization: roles `admin`, `dev`, `lector`. Crea un usuario de cada tipo y comprueba qué puede hacer cada uno (lanzar un job, ver la consola, entrar en Manage Jenkins).
 4. Pon los ejecutores del controlador a 0 y comprueba que Agent → Controller Access Control está activado.
+5. Instala los plugins de la tabla del apartado de plugins, preferiblemente con `plugins.txt` y una imagen propia. Configura la herramienta Git y la URL de tu GitLab/Gitea.
+6. Exporta la configuración con JCasC (`jenkins.yaml`), límpiala de ruido y de secretos (sustitúyelos por `${VARIABLE}`) y súbela a un repositorio `jenkins-config` junto con el compose y el `Dockerfile`. Comprueba que, borrando el volumen y levantando de nuevo, Jenkins arranca con la misma configuración.
 
-Entrega: captura de `https://jenkins.lab` con candado y de la matriz de roles.
+Entrega: captura de `https://jenkins.lab` con candado, de la matriz de roles y del repositorio `jenkins-config`.
 
-### A6.3 Plugins (sesión 32)
-
-Instala los plugins de la tabla del apartado de plugins, preferiblemente con `plugins.txt` y una imagen propia. Configura la herramienta Git y la URL de tu GitLab/Gitea. Exporta la configuración con JCasC (`jenkins.yaml`), límpiala de ruido y de secretos (sustitúyelos por `${VARIABLE}`) y súbela a un repositorio `jenkins-config` junto con el compose y el `Dockerfile`. Comprueba que, borrando el volumen y levantando de nuevo, Jenkins arranca con la misma configuración.
-
-### A6.4 Agentes (sesión 33)
+### A6.3 Agentes (sesión 32)
 
 1. Crea una VM `agent01` (2 vCPU, 4 GB, en la subred de gestión) con Java 21 y Docker; conéctala como agente SSH con etiquetas `docker` y `terraform`. Añádela al `jenkins.yaml`.
 2. Configura la cloud Docker para agentes efímeros apuntando al demonio de `agent01` (o de una VM dedicada) con una plantilla de etiqueta `efimero`.
 3. Ejecuta un job en cada tipo de agente y comprueba en el log dónde ha corrido (`hostname` y `cat /etc/os-release` como pasos bastan).
 
-### A6.5 Proyecto y credenciales (sesión 34)
+### A6.4 Proyecto y credenciales (sesión 33)
 
 1. En Gitea/GitLab crea un usuario de servicio `jenkins` y un token de solo lectura. Guárdalo como credencial `git-ro` en una carpeta `servicio/`.
 2. Crea un proyecto Multibranch Pipeline en esa carpeta apuntando al repositorio del servicio del curso.
 3. Configura el webhook con secreto para que cada push dispare el pipeline. Comprueba con un commit y mira la entrega del webhook en Gitea y el log del escaneo en Jenkins.
 
-### A6.6 Pipeline I: build y test (sesión 35)
+### A6.5 Pipeline I: build y test (sesión 34)
 
 `Jenkinsfile` con etapas `Checkout` y `Build & Test` en un agente Docker con la imagen del lenguaje del servicio. Publica el informe JUnit. Haz que una prueba falle y observa el estado UNSTABLE; arréglala y observa cómo el `post { fixed }` (añádelo) detecta el cambio.
 
-### A6.7 Pipeline II: package (sesión 36)
+### A6.6 Pipeline II: package (sesión 35)
 
 1. Levanta un registry local (`registry:2`) con TLS de la CA del aula y autenticación htpasswd.
 2. Etapa `Package` que construye la imagen con etiqueta del commit y la sube. Credencial `registry-cred`.
 3. Comprueba con `docker pull` desde otra máquina, y con `curl` contra `/v2/app/tags/list` que existen la etiqueta del commit y `latest`.
 
-### A6.8 Parámetros, condiciones y paralelismo (sesión 37)
+### A6.7 Tareas, condiciones y gestión de errores (sesión 36)
 
-Añade parámetros `ENV` y `RUN_DEPLOY`, una etapa `Lint` en paralelo con `Test`, y `when` para que `Package` solo corra en la rama `main`. Documenta en una tabla cada etapa: nombre, agente, condición, salidas. Comprueba con una rama `feature/x` que `Package` aparece como saltada.
+Esta sesión también junta dos frentes: primero se afinan los parámetros y las condiciones del pipeline, y con eso ya construido se ejecuta el plan de pruebas de fallos sobre él.
 
-### A6.9 Gestión de errores (sesión 38)
+1. Añade parámetros `ENV` y `RUN_DEPLOY`, una etapa `Lint` en paralelo con `Test`, y `when` para que `Package` solo corra en la rama `main`. Documenta en una tabla cada etapa: nombre, agente, condición, salidas. Comprueba con una rama `feature/x` que `Package` aparece como saltada.
+2. Ejecuta el plan de pruebas del apartado de gestión de errores (cinco casos). Para cada uno: cómo lo has provocado, estado final del pipeline, notificación recibida, estado del workspace y del agente. Corrige lo que no se comporte como esperabas (timeouts, `retry`, `cleanWs`). Configura la notificación por Telegram o Slack, porque el correo del aula no sale.
 
-Ejecuta el plan de pruebas del apartado de gestión de errores (cinco casos). Para cada uno: cómo lo has provocado, estado final del pipeline, notificación recibida, estado del workspace y del agente. Corrige lo que no se comporte como esperabas (timeouts, `retry`, `cleanWs`). Configura la notificación por Telegram o Slack, porque el correo del aula no sale.
-
-### A6.10 Mínimo privilegio (sesión 39)
+### A6.8 Mínimo privilegio (sesión 37)
 
 1. Crea en Proxmox el usuario `jenkins@pve` con token limitado a `PVEVMAdmin` sobre `/vms` (o sobre el pool del entorno). Comprueba con `pvesh get /access/permissions --user 'jenkins@pve!dev'` qué ve.
 2. Mueve las credenciales a carpetas: `dev/` y `pre/` con ámbitos distintos.
 3. Intenta desde el job de `dev` usar la credencial de `pre`: debe fallar con "credentials not found".
 4. Inventario de credenciales: id, tipo, quién la usa, alcance, fecha de rotación.
 
-### A6.11 Pipeline que despliega (sesión 40)
+### A6.9 Pipeline que despliega (sesión 38)
 
 Etapa `Deploy` que ejecuta el IaC de la UT5 (`tofu` + `ansible` + `test.sh`) contra el entorno elegido por parámetro. Recorre los tres caminos: despliegue correcto, fallo en `apply` (un `vmid` ya ocupado sirve), fallo en smoke test (un puerto equivocado en `test.sh`). Comprueba que en los fallos el entorno queda en un estado conocido, y documenta cuál es y cómo se vuelve de él.
 
 ## Práctica evaluable
-
-!!! note "Sesión 41 (24 de marzo)"
-    Entre la sesión 37 y la 38 están las fiestas de la Magdalena (del 1 al 5 de marzo, no lectivo): aprovechad para tener el pipeline hasta `Package` estable antes de meteros con los fallos.
 
 Entrega:
 

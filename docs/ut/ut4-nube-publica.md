@@ -1,6 +1,6 @@
 # UT4 · Nube pública: consola, CLI y SDK
 
-<p class="ut-meta">12 h · Formación en empresa (19 abr a 9 jun 2027) · RA2 CE a, b, c, d, e</p>
+<p class="ut-meta">12 h · Formación en empresa (29 mar a 9 jun 2027) · RA2 CE a, b, c, d, e</p>
 
 Esta unidad no se cursa en el centro. Se hace en la empresa, durante el periodo de formación, y la plataforma la decide el tutor de empresa: puede ser AWS, Azure, Google Cloud o alguna alternativa europea (OVHcloud, Hetzner, Scaleway). Lo que sigue es la guía de referencia que tienes que llevar leída el primer día y la lista de evidencias que debes traer de vuelta. Hasta aquí, en las UT1 a UT3, has montado todo a mano sobre Proxmox: hipervisor, VPC con subredes, OPNsense, DMZ, proxy inverso. La nube pública es ese mismo diseño alquilado por horas y expuesto por API (una interfaz a la que un programa le pide por HTTP que cree o liste recursos). Cuando vuelvas, en la UT5 (OpenTofu) y la UT6 (Jenkins) automatizarás sobre esa API lo que aquí vas a hacer con la consola, la CLI (la herramienta de línea de comandos del proveedor) y el SDK (la librería para hacer lo mismo desde código), así que conviene que salgas de la empresa con perfiles de CLI funcionando y credenciales bien gestionadas.
 
@@ -15,27 +15,27 @@ Esta unidad no se cursa en el centro. Se hace en la empresa, durante el periodo 
 
 ## Antes de entrar en detalle
 
-El primer día en la empresa el tutor te da un usuario de la consola de AWS y te pide la lista de máquinas de desarrollo. Entras, ves un panel con doscientos servicios y no aparece ninguna máquina: estás en la región de Virginia y la empresa trabaja en Irlanda. Cuando por fin las ves, copias nombres e IP a mano, y a media tarde el tutor te pregunta si has activado el segundo factor, sin el cual no se puede trabajar. En el centro esto era `qm list`. Lo que queremos conseguir cabe en una frase: que al terminar la estancia sepas entrar en la nube de la empresa con la identidad correcta, sacar esa lista con un comando o con diez líneas de código, y no dejar atrás ni una clave suelta ni una máquina olvidada que cueste dinero.
+El primer día en la empresa el tutor te da un usuario de la consola de AWS y te pide la lista de máquinas de desarrollo. Entras, ves un panel con doscientos servicios y no aparece ninguna máquina: estás en la región de Virginia y la empresa trabaja en Irlanda. Cuando por fin las ves, copias nombres e IP a mano, y a media tarde el tutor te pregunta si has activado el segundo factor, sin el cual no se puede trabajar. En el centro esto era `qm list`. Lo que queremos conseguir cabe en una frase: entrar en la nube de la empresa con la identidad correcta, sacar esa lista con un comando o con diez líneas de código, y no dejar atrás ni una clave suelta ni una máquina que cueste dinero.
 
 | Herramienta o concepto | Qué es, en una frase | Para qué la usamos en esta unidad |
 |---|---|---|
-| Consola web y Cloud Shell | La página desde la que se administra la nube, y el terminal que lleva dentro con la CLI instalada | Ajustar idioma, región y favoritos el primer día, y empezar sin instalar nada |
+| Consola web y Cloud Shell | La página desde la que se administra la nube, y el terminal que lleva dentro con la CLI instalada | Ajustar idioma, región y favoritos, y empezar sin instalar nada |
 | CLI (`aws`, `az`, `gcloud`) | El programa de línea de comandos del proveedor, como `qm` en Proxmox | Listar redes y máquinas, comprobar quién eres y cambiar de entorno |
-| Perfiles y variables de entorno | Un conjunto con nombre (cuenta, región, credenciales) que usa la CLI, y las variables que mandan sobre él | Tener uno por entorno y saltar entre ellos sin reconfigurar |
+| Perfiles y variables de entorno | Un conjunto con nombre (cuenta, región, credenciales) que usa la CLI, y las variables que lo anulan | Tener uno por entorno y saltar entre ellos sin reconfigurar |
 | SDK (`boto3`, `azure-mgmt-*`, `google-cloud-*`) | La librería que hace desde Python o Node las mismas llamadas que la CLI | Un script que liste la red y las máquinas sin ninguna clave dentro |
-| Gestor de dependencias (`pip` con `venv`, `npm`) | La herramienta que instala librerías y apunta cuáles en un fichero del proyecto | Que otro instale lo mismo que tú desde `requirements.txt` o `package.json` |
+| Gestor de dependencias (`pip` con `venv`, `npm`) | La herramienta que instala librerías y apunta cuáles en un fichero | Que otro instale lo mismo que tú desde `requirements.txt` o `package.json` |
 | Identidad y permisos (IAM, Entra ID, roles) | El sistema que dice quién eres y qué puedes tocar, mucho más fino que en Proxmox | Entender por qué ves unas cosas y otras no |
 | MFA y SSO | El segundo factor al entrar, y el inicio de sesión único con la identidad de la empresa | Entrar sin claves de larga duración, que es lo que se evalúa |
 | Región y zona de disponibilidad | La ciudad donde vive un recurso, y el centro de datos concreto dentro de ella | No perder las máquinas por mirar en la región equivocada |
 | Cuenta, suscripción o proyecto | La caja que aísla recursos y factura, con nombre distinto en cada proveedor | Anotar su identificador el primer día: todo gira alrededor de él |
-| Etiquetas y presupuesto | Pares nombre/valor pegados a cada recurso, y una alarma que avisa cuando el gasto pasa de una cifra | Saber qué es tuyo y enterarte del gasto antes de la factura |
+| Etiquetas y presupuesto | Pares nombre/valor pegados a cada recurso, y una alarma cuando el gasto pasa de una cifra | Saber qué es tuyo y enterarte del gasto antes de la factura |
 | JSON, JMESPath y `jq` | El formato en que responde la nube, y dos maneras de filtrarlo por columnas | Convertir varias pantallas de salida en una tabla legible |
 | gitleaks | Un escáner que busca claves y contraseñas en un repositorio Git | Comprobar que el script no lleva credenciales antes de subirlo |
 
-Cómo está organizada la unidad: primero qué es una nube pública y cómo se corresponde con lo que montaste en Proxmox, porque sin ese mapa los nombres de cada proveedor no dicen nada. Después la identidad, porque sin saber quién eres nada funciona, y las etiquetas y los costes, que se deciden antes de crear nada. A partir de ahí el orden sigue los criterios de evaluación: consola (CE 2a y 2b), CLI y perfiles (CE 2c y 2d) y SDK (CE 2e), cada uno apoyado en el anterior: el SDK reutiliza las credenciales de la CLI, y la CLI la identidad con la que entraste en la consola.
+Cómo está organizada la unidad: primero qué es una nube pública y su correspondencia con Proxmox, porque sin ese mapa los nombres de cada proveedor no dicen nada. Después la identidad, porque sin saber quién eres nada funciona, y las etiquetas y los costes, que se deciden antes de crear nada. A partir de ahí el orden sigue los criterios de evaluación: consola (CE 2a y 2b), CLI y perfiles (CE 2c y 2d) y SDK (CE 2e), cada uno apoyado en el anterior: el SDK reutiliza las credenciales de la CLI, y la CLI la identidad con la que entraste en la consola.
 
 !!! info "Dónde se usa esto en la otra asignatura"
-    En estas mismas semanas (19 de abril a 9 de junio) haces en la empresa las dos unidades de 5169 que también se cursan allí:
+    En estas mismas semanas (29 de marzo a 9 de junio) haces en la empresa las dos unidades de 5169 que también se cursan allí:
     la UT5, Explotación de logs, accesos y rendimiento ([https://victor-educ.github.io/apuntes-5169/ut/ut5-logs-accesos-rendimiento/](https://victor-educ.github.io/apuntes-5169/ut/ut5-logs-accesos-rendimiento/)),
     y la UT6, Copias de seguridad y restauración ([https://victor-educ.github.io/apuntes-5169/ut/ut6-copias-seguridad/](https://victor-educ.github.io/apuntes-5169/ut/ut6-copias-seguridad/)).
     La nube de la empresa que aquí recorres con la consola, la CLI y el SDK es donde en 5169 revisas los logs y los accesos

@@ -37,7 +37,7 @@ Un jueves por la tarde un compañero de otro grupo lanza desde su VM del aula un
 Cómo está organizada la unidad: primero el modelo de zonas y sus principios, porque sin eso las reglas son una lista de puertos sin sentido. Después el diseño con uno o dos cortafuegos y qué es un cortafuegos con estado, que explica por qué basta una regla por conexión. Con eso entendido se monta el firewall (OPNsense en clase, nftables como alternativa) y se publica el primer servicio a través del proxy con certificado. Sigue la separación de clientes con VLAN, que reutiliza todo lo anterior sobre dos redes más. Cierran las pruebas (nmap, nc, tcpdump y los logs), porque configurar sin demostrar no vale, y la documentación que operaciones necesita para heredar el firewall.
 
 !!! info "Dónde se usa esto en la otra asignatura"
-    La [UT3 de Mantenimiento, seguridad de la monitorización](https://victor-educ.github.io/apuntes-5169/ut/ut3-seguridad-monitorizacion/) (26 nov a 10 dic) va en paralelo con esta (20 nov a 9 dic) y da por sabido lo que se explica aquí: nmap, tcpdump, nftables, la CA del curso y las reglas de OPNsense se aprenden en esta quincena y allí se aplican a los puertos de la monitorización.
+    La [UT3 de Mantenimiento, seguridad de la monitorización](https://victor-educ.github.io/apuntes-5169/ut/ut3-seguridad-monitorizacion/) (19 nov a 1 dic) va en paralelo con esta (13 nov a 2 dic) y da por sabido lo que se explica aquí: nmap, tcpdump, nftables, la CA del curso y las reglas de OPNsense se aprenden en esta quincena y allí se aplican a los puertos de la monitorización.
     Hasta ahora app01 y mon01 vivían en el entorno provisional del bridge del aula (vmbr0); esta unidad es el momento de moverlas a la VPC dev, detrás del firewall de la sesión 14, con mon01 en la red de gestión.
     La matriz de reglas de la sección de documentación es la que en la 5169 se amplía con los puertos de los exporters (9100, 8080, 9187) desde mon01 y el 3100 de Loki desde cada host: allí no se hace una matriz nueva, se añaden filas a esta.
 
@@ -100,7 +100,7 @@ El esquema que acabamos de dibujar usa un solo cortafuegos con cinco interfaces,
   <figcaption>DMZ con un solo cortafuegos: una interfaz hacia Internet, otra hacia la DMZ y otra hacia la red interna. Fuente: Pbroks13, dominio público, vía Wikimedia Commons.</figcaption>
 </figure>
 
-El diseño de dos cortafuegos pone uno de cara a Internet (el "front-end" o perimetral) que solo permite tráfico hacia la DMZ, y otro detrás (el "back-end") entre la DMZ y la red interna. Un atacante que comprometa el primero sigue teniendo el segundo por delante. Con dos firewalls también se reparte la carga: el perimetral absorbe los escaneos y el ruido de Internet, y el interno solo ve tráfico ya filtrado.
+El diseño de dos cortafuegos pone uno de cara a Internet (el "front-end" o perimetral) que solo permite tráfico hacia la DMZ, y otro detrás (el "back-end") entre la DMZ y la red interna. Un atacante que comprometa el primero sigue teniendo el segundo por delante. Con dos firewalls también se reparte la carga: el perimetral absorbe el ruido de Internet y el interno solo ve tráfico ya filtrado.
 
 <figure markdown="span">
   ![DMZ con dos cortafuegos en serie](../img/dmz-dos-firewalls.svg){ width="560" }

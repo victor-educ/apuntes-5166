@@ -1,6 +1,6 @@
 # Presentación y evaluación
 
-<p class="ut-meta">Módulo 5166 · Despliegue de plataformas de ejecución de contenedores · 120 h · Clases miércoles y viernes, 2 h por sesión</p>
+<p class="ut-meta">Módulo 5166 · Despliegue de plataformas de ejecución de contenedores · 116 h · Clases miércoles y viernes, 2 h por sesión</p>
 
 ## De qué va el módulo
 
@@ -63,9 +63,9 @@ La nota sale de tres cosas: las prácticas evaluables de cada unidad, dos exáme
 | Evaluación | Qué entra | Peso |
 |------------|-----------|-----:|
 | Prácticas evaluables UT1, UT2, UT3, UT5 | Informe o repositorio al cierre de cada unidad | 40 % de la 1ª evaluación |
-| Examen 1ª evaluación (29 ene 2027) | UT1 a UT5, prueba práctica en el laboratorio | 60 % de la 1ª evaluación |
+| Examen 1ª evaluación (22 ene 2027) | UT1 a UT5, prueba práctica en el laboratorio | 60 % de la 1ª evaluación |
 | Prácticas evaluables UT6, UT7 | Repositorios y informes de pruebas | 40 % de la 2ª evaluación |
-| Examen 2ª evaluación (16 abr 2027) | UT6 y UT7, prueba práctica en el laboratorio | 60 % de la 2ª evaluación |
+| Examen 2ª evaluación (24 mar 2027) | UT6 y UT7, prueba práctica en el laboratorio | 60 % de la 2ª evaluación |
 | Formación en empresa | UT4, UT7b y UT8 con ficha de evidencias firmada por el tutor | Según el plan de FE del centro |
 
 Cada práctica evaluable lleva su tabla de criterios y pesos al final de la unidad. Se entrega en la fecha de la sesión marcada; una entrega fuera de plazo sin causa justificada se corrige sobre el 50 %.

@@ -37,9 +37,9 @@ Ese es el entorno **dev**. En la UT2 se crean también **pre** y **pro** con la 
 
 ## Las dos asignaturas comparten este laboratorio
 
-La asignatura hermana, [Mantenimiento del sistema de contenedores](https://victor-educ.github.io/apuntes-5169/), vigila, prueba, actualiza y retira el mismo servicio, y empieza a hacerlo el 6 de octubre, cuando aquí todavía se está instalando Proxmox. Para que eso cuadre, en la sesión 3 (14 de octubre), nada más tener la plantilla cloud-init, se clonan dos VM que en principio no tocan a esta unidad: `app01`, con el servicio del curso en Docker Compose, y `mon01`, con Prometheus, Alertmanager y Grafana levantados con un compose que se entrega en la otra asignatura. Las dos van en vmbr0, la red del aula, sin subredes ni cortafuegos.
+La asignatura hermana, [Mantenimiento del sistema de contenedores](https://victor-educ.github.io/apuntes-5169/), vigila, prueba, actualiza y retira el mismo servicio, y empieza a hacerlo el 29 de septiembre, cuando aquí todavía se está instalando Proxmox. Para que eso cuadre, en la sesión 3 (2 de octubre), nada más tener la plantilla cloud-init, se clonan dos VM que en principio no tocan a esta unidad: `app01`, con el servicio del curso en Docker Compose, y `mon01`, con Prometheus, Alertmanager y Grafana levantados con un compose que se entrega en la otra asignatura. Las dos van en vmbr0, la red del aula, sin subredes ni cortafuegos.
 
-Cuando aquí termine la UT2 (VPC, 18 de noviembre) y la UT3 (cortafuegos, 9 de diciembre), esas dos VM se mueven a su sitio definitivo: app01 a la subred back y mon01 a la de gestión con la IP 10.10.0.20. La otra asignatura hace esa migración en su UT3, que coincide en fechas con la nuestra. Y en abril, cuando lleguemos a la UT7 de monitorización, la pila ya llevará medio curso funcionando: esa unidad se centra en lo que la otra asignatura no cubre.
+Cuando aquí termine la UT2 (VPC, 11 de noviembre) y la UT3 (cortafuegos, 2 de diciembre), esas dos VM se mueven a su sitio definitivo: app01 a la subred back y mon01 a la de gestión con la IP 10.10.0.20. La otra asignatura hace esa migración en su UT3, que coincide en fechas con la nuestra. Y en marzo, cuando lleguemos a la UT7 de monitorización, la pila ya llevará medio curso funcionando: esa unidad se centra en lo que la otra asignatura no cubre.
 
 ## Requisitos por puesto
 
