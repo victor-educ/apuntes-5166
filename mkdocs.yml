@@ -68,6 +68,7 @@ extra:
 
 extra_javascript:
   - assets/calendario.js
+  - assets/numeracion.js
 
 markdown_extensions:
   - admonition

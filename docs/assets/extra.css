@@ -81,3 +81,8 @@
 .md-tabs__dropdown-link .md-tabs__icon { opacity: .7; }
 .md-tabs__item--active .md-tabs__icon { opacity: 1; }
 .md-tabs__icon svg { width: 1.05em !important; height: 1.05em !important; }
+
+/* ---------- Numeración de apartados en las unidades ---------- */
+.num-apartado { display: inline-block; min-width: 1.6em; margin-right: .35em; color: var(--md-accent-fg-color); font-variant-numeric: tabular-nums; }
+h3 .num-apartado { min-width: 2.2em; }
+.md-nav--secondary .num-apartado { min-width: 0; margin-right: .3em; font-size: .9em; }
