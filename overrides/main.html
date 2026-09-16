@@ -4,3 +4,8 @@
   {{ super() }}
   <link rel="stylesheet" href="{{ 'assets/extra.css' | url }}?v={{ config.extra.commit or config.extra.version }}">
 {% endblock %}
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ 'assets/calendario.js' | url }}?v={{ config.extra.commit or config.extra.version }}"></script>
+  <script src="{{ 'assets/numeracion.js' | url }}?v={{ config.extra.commit or config.extra.version }}"></script>
+{% endblock %}

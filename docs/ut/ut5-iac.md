@@ -35,8 +35,8 @@ Lo que une a las dos columnas buenas es la idempotencia: aplicar el código dos 
 
 ### Herramientas
 
-- Terraform (HashiCorp) y su bifurcación libre OpenTofu <img src="../img/terraform-logo.svg" class="logo-inline" alt="Logo de Terraform"> aprovisionan infraestructura (VM, redes, DNS, recursos de nube) a través de providers, en lenguaje HCL. Es la herramienta de referencia del sector y la que usamos.
-- Ansible <img src="../img/ansible-logo.svg" class="logo-inline" alt="Logo de Ansible"> (Red Hat) configura lo que hay dentro de las máquinas (paquetes, ficheros, servicios) por SSH, sin agente, en YAML. Complementa a Terraform: uno crea la máquina, el otro la deja útil.
+- Terraform (HashiCorp) y su bifurcación libre OpenTofu ![Logo de Terraform](../img/terraform-logo.svg){ .logo-inline } aprovisionan infraestructura (VM, redes, DNS, recursos de nube) a través de providers, en lenguaje HCL. Es la herramienta de referencia del sector y la que usamos.
+- Ansible ![Logo de Ansible](../img/ansible-logo.svg){ .logo-inline } (Red Hat) configura lo que hay dentro de las máquinas (paquetes, ficheros, servicios) por SSH, sin agente, en YAML. Complementa a Terraform: uno crea la máquina, el otro la deja útil.
 - Pulumi: mismo modelo que Terraform pero el código se escribe en Python, TypeScript o Go. Gusta a equipos de desarrollo que no quieren aprender otro lenguaje; en operaciones se ve menos.
 - CloudFormation, Bicep y Deployment Manager: los lenguajes propios de AWS, Azure y GCP. Solo sirven en su nube; Terraform sirve en todas y en Proxmox, que es lo que tenemos en el laboratorio.
 
