@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{#- La hoja de estilos propia se enlaza con el commit publicado para invalidar la caché en cada despliegue. -#}
+{% block styles %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ 'assets/extra.css' | url }}?v={{ config.extra.commit or config.extra.version }}">
+{% endblock %}

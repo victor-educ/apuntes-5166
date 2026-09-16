@@ -66,9 +66,6 @@ extra:
     Glosario: material/book-alphabet
     Bibliografía y enlaces: material/link-variant
 
-extra_css:
-  - assets/extra.css
-
 extra_javascript:
   - assets/calendario.js
 

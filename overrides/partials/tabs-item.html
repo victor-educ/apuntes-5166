@@ -2,7 +2,7 @@
 {% macro icon_for(title) %}
   {% set icons = config.extra.nav_icons or {} %}
   {% if title in icons %}
-    <span class="twemoji md-tabs__icon">{% include ".icons/" ~ icons[title] ~ ".svg" %}</span>
+    <span class="twemoji md-tabs__icon" style="display:inline-block;width:1.05em;height:1.05em;vertical-align:-.18em">{% include ".icons/" ~ icons[title] ~ ".svg" %}</span>
   {% endif %}
 {% endmacro %}
 {% macro render_content(nav_item, ref) %}
