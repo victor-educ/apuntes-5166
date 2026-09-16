@@ -51,7 +51,7 @@ extra:
   nav_icons:
     Inicio: material/home
     Presentación y evaluación: material/school
-    Calendario de sesiones: material/calendar-month
+    Calendario: material/calendar-month
     Laboratorio: material/flask
     Unidades: material/book-open-page-variant
     Recursos: material/toolbox
@@ -110,9 +110,9 @@ nav:
       - UT5 · Infraestructura como código: ut/ut5-iac.md
       - UT6 · Integración continua: ut/ut6-ci.md
       - UT7 · Monitorización: ut/ut7-monitorizacion.md
+  - Calendario: calendario.md
   - Recursos:
       - Presentación y evaluación: modulo.md
-      - Calendario de sesiones: calendario.md
       - Laboratorio: laboratorio.md
       - Chuleta de comandos: chuleta.md
       - Glosario: glosario.md
