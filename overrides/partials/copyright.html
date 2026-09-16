@@ -5,8 +5,8 @@
       {{ config.copyright }}
     </div>
   {% endif %}
-  {% set v = config.extra.version %}
-  {% set c = config.extra.commit %}
+  {% set v = config.extra.version | string %}
+  {% set c = config.extra.commit | string %}
   <span class="md-version-tag">
     Versión {{ v }}{% if c %} ·
     <a href="{{ config.repo_url }}/commit/{{ c }}" target="_blank" rel="noopener" title="Ver este commit en GitHub">{{ c[:7] }}</a>{% endif %}
