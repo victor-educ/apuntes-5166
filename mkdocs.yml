@@ -50,8 +50,8 @@ extra:
   commit: !ENV [SITE_COMMIT, ""]
   nav_icons:
     Inicio: material/home
-    El módulo: material/school
-    Calendario: material/calendar-month
+    Presentación y evaluación: material/school
+    Calendario de sesiones: material/calendar-month
     Laboratorio: material/flask
     Unidades: material/book-open-page-variant
     Recursos: material/toolbox
@@ -102,9 +102,6 @@ plugins:
 
 nav:
   - Inicio: index.md
-  - El módulo: modulo.md
-  - Calendario: calendario.md
-  - Laboratorio: laboratorio.md
   - Unidades:
       - UT1 · Virtualización e hipervisores: ut/ut1-virtualizacion.md
       - UT2 · Nubes privadas virtuales (VPC): ut/ut2-vpc.md
@@ -114,6 +111,9 @@ nav:
       - UT6 · Integración continua: ut/ut6-ci.md
       - UT7 · Monitorización: ut/ut7-monitorizacion.md
   - Recursos:
+      - Presentación y evaluación: modulo.md
+      - Calendario de sesiones: calendario.md
+      - Laboratorio: laboratorio.md
       - Chuleta de comandos: chuleta.md
       - Glosario: glosario.md
       - Bibliografía y enlaces: recursos.md
