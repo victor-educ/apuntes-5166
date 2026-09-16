@@ -11,7 +11,7 @@
 /* ---------- Calendario interactivo ---------- */
 :root {
   --cal-ut1: #5c6bc0; --cal-ut2: #26a69a; --cal-ut3: #ef6c00; --cal-ut5: #8e24aa;
-  --cal-ut6: #c62828; --cal-ut7: #2e7d32; --cal-ex1: #37474f; --cal-ex2: #37474f;
+  --cal-ut4: #0288d1; --cal-ut6: #c62828; --cal-ut7: #2e7d32; --cal-ut8: #6d4c41; --cal-ex1: #37474f; --cal-ex2: #37474f;
   --cal-festivo: #d7ccc8; --cal-fe: #ffe082; --cal-finde: transparent;
 }
 [data-md-color-scheme="slate"] {
@@ -25,7 +25,9 @@
 .cal-dia.cal-ut1, .cal-swatch.cal-ut1, .cal-tip-ut.cal-ut1 { background: var(--cal-ut1); }
 .cal-dia.cal-ut2, .cal-swatch.cal-ut2, .cal-tip-ut.cal-ut2 { background: var(--cal-ut2); }
 .cal-dia.cal-ut3, .cal-swatch.cal-ut3, .cal-tip-ut.cal-ut3 { background: var(--cal-ut3); }
+.cal-dia.cal-ut4, .cal-swatch.cal-ut4, .cal-tip-ut.cal-ut4 { background: var(--cal-ut4); }
 .cal-dia.cal-ut5, .cal-swatch.cal-ut5, .cal-tip-ut.cal-ut5 { background: var(--cal-ut5); }
+.cal-dia.cal-ut8, .cal-swatch.cal-ut8, .cal-tip-ut.cal-ut8 { background: var(--cal-ut8); }
 .cal-dia.cal-ut6, .cal-swatch.cal-ut6, .cal-tip-ut.cal-ut6 { background: var(--cal-ut6); }
 .cal-dia.cal-ut7, .cal-swatch.cal-ut7, .cal-tip-ut.cal-ut7 { background: var(--cal-ut7); }
 .cal-dia.cal-ex1, .cal-dia.cal-ex2, .cal-swatch.cal-ex1, .cal-swatch.cal-ex2, .cal-tip-ut.cal-ex1, .cal-tip-ut.cal-ex2 { background: var(--cal-ex1); }
