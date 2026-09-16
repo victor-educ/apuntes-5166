@@ -10,7 +10,9 @@ theme:
   name: material
   custom_dir: overrides
   language: es
-  logo: assets/logo.svg
+  icon:
+    logo: material/package-variant-closed
+    repo: fontawesome/brands/github
   favicon: assets/logo.svg
   features:
     - navigation.tabs
@@ -46,6 +48,23 @@ theme:
 extra:
   version: !ENV [SITE_VERSION, "local"]
   commit: !ENV [SITE_COMMIT, ""]
+  nav_icons:
+    Inicio: material/home
+    El módulo: material/school
+    Calendario: material/calendar-month
+    Laboratorio: material/flask
+    Unidades: material/book-open-page-variant
+    Recursos: material/toolbox
+    UT1 · Virtualización e hipervisores: material/server
+    UT2 · Nubes privadas virtuales (VPC): material/lan
+    UT3 · Seguridad por capas: material/shield-lock
+    UT4 · Nube pública (empresa): material/cloud
+    UT5 · Infraestructura como código: material/code-braces
+    UT6 · Integración continua: material/pipe
+    UT7 · Monitorización: material/chart-line
+    Chuleta de comandos: material/console
+    Glosario: material/book-alphabet
+    Bibliografía y enlaces: material/link-variant
 
 extra_css:
   - assets/extra.css

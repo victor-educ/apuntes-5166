@@ -1,7 +1,13 @@
 {#- Pestañas con desplegable: muestra los subapartados de una sección al pasar el ratón. -#}
+{% macro icon_for(title) %}
+  {% set icons = config.extra.nav_icons or {} %}
+  {% if title in icons %}
+    <span class="twemoji md-tabs__icon">{% include ".icons/" ~ icons[title] ~ ".svg" %}</span>
+  {% endif %}
+{% endmacro %}
 {% macro render_content(nav_item, ref) %}
   {% set ref = ref or nav_item %}
-  {{ ref.title }}
+  {{ icon_for(ref.title) }}{{ ref.title }}
 {% endmacro %}
 {% macro render_dropdown(nav_item) %}
   <ul class="md-tabs__dropdown">
@@ -9,10 +15,10 @@
       {% if child.children %}
         <li class="md-tabs__dropdown-group">{{ child.title }}</li>
         {% for sub in child.children %}
-          <li><a href="{{ sub.url | url }}" class="md-tabs__dropdown-link{% if sub.active %} md-tabs__dropdown-link--active{% endif %}">{{ sub.title }}</a></li>
+          <li><a href="{{ sub.url | url }}" class="md-tabs__dropdown-link{% if sub.active %} md-tabs__dropdown-link--active{% endif %}">{{ icon_for(sub.title) }}{{ sub.title }}</a></li>
         {% endfor %}
       {% else %}
-        <li><a href="{{ child.url | url }}" class="md-tabs__dropdown-link{% if child.active %} md-tabs__dropdown-link--active{% endif %}">{{ child.title }}</a></li>
+        <li><a href="{{ child.url | url }}" class="md-tabs__dropdown-link{% if child.active %} md-tabs__dropdown-link--active{% endif %}">{{ icon_for(child.title) }}{{ child.title }}</a></li>
       {% endif %}
     {% endfor %}
   </ul>
