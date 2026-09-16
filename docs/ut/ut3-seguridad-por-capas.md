@@ -2,7 +2,7 @@
 
 <p class="ut-meta">12 h · Sesiones 14 a 19 · RA1 CE d</p>
 
-En la UT2 montasteis una VPC por entorno (dev, pre, pro) con dos subredes, front y back, y comprobasteis que el enrutado entre ellas funcionaba. Funcionaba demasiado bien: cualquier máquina de front podía hablar con cualquier puerto de back. En esta unidad ponemos un cortafuegos en medio, añadimos dos zonas más (datos y gestión) y convertimos esa red plana en una red por capas donde cada salto está justificado, permitido de forma explícita y registrado. Después tendremos que demostrar con nmap y tcpdump que el aislamiento es real, y separar dos clientes que comparten la misma infraestructura. Lo que construyáis aquí no se tira: en la UT5 lo describiréis como código con OpenTofu y Ansible, y en la UT6 el pipeline de Jenkins desplegará contenedores dentro de estas zonas, así que las reglas que escribáis ahora son las que vuestro pipeline tendrá que respetar.
+En la UT2 montasteis una VPC por entorno (dev, pre, pro) con dos subredes, front y back, y comprobasteis que el enrutado entre ellas funcionaba. Funcionaba demasiado bien: cualquier máquina de front podía hablar con cualquier puerto de back. En esta unidad ponemos un cortafuegos en medio, añadimos dos zonas más (datos y gestión) y convertimos esa red plana en una red por capas donde cada salto está justificado, permitido de forma explícita y registrado. Después tendremos que demostrar con nmap y tcpdump (un escáner de puertos y un capturador de tráfico) que el aislamiento es real, y separar dos clientes que comparten la misma infraestructura. Lo que construyáis aquí no se tira: en la UT5 lo describiréis como código con OpenTofu y Ansible, y en la UT6 el pipeline de Jenkins desplegará contenedores dentro de estas zonas, respetando las reglas que escribáis ahora.
 
 ## Qué tienes que saber hacer al terminar
 
@@ -15,9 +15,35 @@ El criterio de evaluación d del RA1 pide desplegar capas de seguridad según el
 - Probar el aislamiento con nmap, nc, tcpdump y los logs del cortafuegos, e interpretar correctamente lo que devuelven.
 - Entregar a operaciones una matriz de reglas justificada, una matriz de pruebas con evidencias y un procedimiento de cambios.
 
+## Antes de entrar en detalle
+
+Un jueves por la tarde un compañero de otro grupo lanza desde su VM del aula un `nmap` contra vuestra subred back y le salen el 22 de SSH, el 8080 de la API y, en la subred de al lado, el 5432 de PostgreSQL. Abre `psql`, prueba `postgres` sin contraseña y entra. Nadie se entera porque nada lo registra, y esa base de datos de dev tiene una copia de la de pro. Ese es el problema de la unidad: la red funciona, pero cualquiera que esté dentro llega a todo. Lo que queremos al terminar cabe en una frase: que desde fuera solo se vea el 443 del proxy, que cada salto entre zonas exista porque una regla escrita lo permite, y que podáis demostrarlo con escaneos y capturas fechadas.
+
+| Herramienta o concepto | Qué es, en una frase | Para qué la usamos en esta unidad |
+|------------------------|----------------------|-----------------------------------|
+| Zonas y defensa en profundidad | Dividir la red en capas y poner un filtro entre cada dos | Decidir en qué zona va cada máquina y qué puede hablar con qué |
+| Cortafuegos con estado | Un filtro que recuerda las conexiones abiertas, como el portero que deja volver a entrar a quien vio salir | Escribir una sola regla por conexión, en la dirección en que se inicia |
+| OPNsense | Un cortafuegos con interfaz web que se instala como una VM más de Proxmox | El firewall central del laboratorio, con una interfaz por zona |
+| nftables | El firewall del kernel Linux, con las reglas en un fichero de texto | La alternativa sin interfaz web, la que Ansible desplegará en la UT5 |
+| NAT (port forward y outbound) | Reescribir la IP de destino o de origen de un paquete al cruzar el firewall | Publicar el proxy en la IP pública y dar salida a Internet solo a quien la necesite |
+| Proxy inverso (nginx) | Un servidor web que recibe las peticiones de fuera y las reenvía al de dentro | Que Internet hable con web01 y nunca con la aplicación ni la base de datos |
+| TLS, certificados y CA | TLS es el cifrado de HTTPS; el certificado identifica al servidor y la CA es quien lo firma y en quien confían los clientes | Cifrar lo publicado con una CA propia hecha con openssl, y saber cuándo toca Let's Encrypt |
+| VLAN (802.1Q) | Una etiqueta numérica en cada trama Ethernet que separa redes sobre el mismo cable | Aislar a dos clientes que comparten firewall y proxy |
+| nmap | Un escáner de puertos: pregunta a una máquina, puerto a puerto, si alguien responde | Comprobar desde cada zona qué se ve de verdad y distinguir `closed` de `filtered` |
+| nc y curl | Un cliente TCP mínimo y un cliente HTTP de terminal | Probar un puerto concreto y el servicio publicado de extremo a extremo |
+| tcpdump | Un grabador de tráfico: muestra los paquetes que pasan por una interfaz | Saber en qué interfaz muere un paquete |
+| IDS/IPS y WAF | Filtros que miran el contenido de los paquetes o de las peticiones web, no solo los puertos | Solo se mencionan como capas adicionales |
+
+Cómo está organizada la unidad: primero el modelo de zonas y sus principios, porque sin eso las reglas son una lista de puertos sin sentido. Después el diseño con uno o dos cortafuegos y qué es un cortafuegos con estado, que explica por qué basta una regla por conexión. Con eso entendido se monta el firewall (OPNsense en clase, nftables como alternativa) y se publica el primer servicio a través del proxy con certificado. Sigue la separación de clientes con VLAN, que reutiliza todo lo anterior sobre dos redes más. Cierran las pruebas (nmap, nc, tcpdump y los logs), porque configurar sin demostrar no vale, y la documentación que operaciones necesita para heredar el firewall.
+
+!!! info "Dónde se usa esto en la otra asignatura"
+    La [UT3 de Mantenimiento, seguridad de la monitorización](https://victor-educ.github.io/apuntes-5169/ut/ut3-seguridad-monitorizacion/) (26 nov a 10 dic) va en paralelo con esta (20 nov a 9 dic) y da por sabido lo que se explica aquí: nmap, tcpdump, nftables, la CA del curso y las reglas de OPNsense se aprenden en esta quincena y allí se aplican a los puertos de la monitorización.
+    Hasta ahora app01 y mon01 vivían en el entorno provisional del bridge del aula (vmbr0); esta unidad es el momento de moverlas a la VPC dev, detrás del firewall de la sesión 14, con mon01 en la red de gestión.
+    La matriz de reglas de la sección de documentación es la que en la 5169 se amplía con los puertos de los exporters (9100, 8080, 9187) desde mon01 y el 3100 de Loki desde cada host: allí no se hace una matriz nueva, se añaden filas a esta.
+
 ## Defensa en profundidad y zonas
 
-Ningún control de seguridad es perfecto. El proxy tendrá una vulnerabilidad algún día, alguien subirá una imagen de contenedor con una librería vieja, un administrador reutilizará una contraseña. La defensa en profundidad parte de asumir que cada control fallará y pone varios en serie, de modo que cada capa que atraviesa un atacante le cuesta trabajo, le lleva tiempo y deja rastro en un log que alguien (o algo) está mirando. La forma clásica de organizar esto en red son las zonas, separadas por un cortafuegos que solo deja pasar lo imprescindible entre una y la siguiente.
+Ningún control de seguridad es perfecto. El proxy tendrá una vulnerabilidad algún día, alguien subirá una imagen de contenedor con una librería vieja, un administrador reutilizará una contraseña. La defensa en profundidad parte de asumir que cada control fallará y pone varios en serie, de modo que cada capa que atraviesa un atacante le cuesta trabajo, le lleva tiempo y deja rastro en un log que alguien (o algo) está mirando. La forma clásica de organizarlo en red son las zonas, separadas por un cortafuegos que solo deja pasar lo imprescindible entre una y la siguiente.
 
 | Zona | Qué aloja | Quién puede entrar | Hacia dónde sale |
 |----|----|----|----|
@@ -27,7 +53,7 @@ Ningún control de seguridad es perfecto. El proxy tendrá una vulnerabilidad al
 | Zona interna | Bases de datos, almacenamiento, backups | DMZ interna y administradores | Nada hacia fuera (o solo actualizaciones por proxy) |
 | Gestión | Consola del firewall, SSH, Proxmox, monitorización | Administradores | Todas las zonas, solo en puertos de gestión |
 
-Los principios que gobiernan las reglas son cuatro, y los vais a ver repetidos en cualquier auditoría:
+Los principios que gobiernan las reglas son cuatro, y los veréis repetidos en cualquier auditoría:
 
 - **Denegar por defecto**: todo lo que no está permitido expresamente se bloquea y se registra. La lista de reglas es una lista blanca.
 - **Tráfico solo hacia dentro por saltos**: Internet nunca habla con la zona interna; la web nunca habla con la base de datos sin pasar por la aplicación. Cada zona solo inicia conexiones hacia la inmediatamente más profunda.
@@ -36,13 +62,13 @@ Los principios que gobiernan las reglas son cuatro, y los vais a ver repetidos e
 
 ### Qué frena cada capa
 
-Para que el modelo no se quede en una tabla bonita, conviene tener claro qué ataque concreto para cada zona. Un escaneo de puertos desde Internet contra la IP pública solo ve el 443 del proxy; los puertos 8080 de la aplicación y 5432 de PostgreSQL ni siquiera aparecen como cerrados, aparecen como filtrados, que es distinto y lo veremos al hablar de nmap. Si un atacante explota una vulnerabilidad del proxy y consigue ejecutar código en él, se encuentra en la DMZ externa: puede llegar al 8080 de app01 porque es lo que el proxy necesita, pero no puede abrir una sesión a la base de datos, ni hacer SSH a nada, ni salir a Internet a descargarse herramientas si la regla de salida de la DMZ externa está cerrada. Si además compromete la aplicación (inyección SQL, deserialización, dependencia vulnerable), llega a la base de datos, pero con el usuario de aplicación, que no puede hacer `COPY ... TO PROGRAM` ni leer otras bases. Para llegar a la zona de gestión no hay ningún camino permitido desde ninguna zona de servicio, así que tendría que atacar el propio cortafuegos. Cada uno de esos saltos genera entradas de log de intentos denegados, que es exactamente lo que un sistema de detección busca.
+Para que el modelo no se quede en una tabla bonita, conviene saber qué ataque concreto para cada zona. Un escaneo de puertos desde Internet contra la IP pública solo ve el 443 del proxy; los puertos 8080 de la aplicación y 5432 de PostgreSQL ni siquiera aparecen como cerrados, aparecen como filtrados, que es distinto y lo veremos al hablar de nmap. Si un atacante explota una vulnerabilidad del proxy y consigue ejecutar código en él, se encuentra en la DMZ externa: puede llegar al 8080 de app01 porque es lo que el proxy necesita, pero no puede abrir una sesión a la base de datos, ni hacer SSH a nada, ni salir a Internet a descargarse herramientas si la regla de salida de la DMZ externa está cerrada. Si además compromete la aplicación (inyección SQL, deserialización, dependencia vulnerable), llega a la base de datos, pero con el usuario de aplicación, que no puede hacer `COPY ... TO PROGRAM` (una orden de PostgreSQL que ejecuta programas en el servidor) ni leer otras bases. Para llegar a la zona de gestión no hay ningún camino permitido desde ninguna zona de servicio, así que tendría que atacar el propio cortafuegos. Cada uno de esos saltos deja intentos denegados en el log, que es justo lo que un sistema de detección busca.
 
 Comparadlo con la red plana de la UT2: una vulnerabilidad en el proxy daba acceso directo a la base de datos y al hipervisor.
 
 ### Mapa sobre la VPC de la UT2
 
-No hay que rehacer la red. Lo que ya tenéis se reasigna y se amplía: la subred front pasa a ser la DMZ externa, back pasa a ser la DMZ interna, y se añaden dos subredes nuevas, data como zona interna y mgmt para administración. En el entorno dev del aula queda así:
+No hay que rehacer la red; lo que ya tenéis se reasigna y se amplía: la subred front pasa a ser la DMZ externa, back pasa a ser la DMZ interna, y se añaden dos subredes nuevas, data como zona interna y mgmt para administración. En el entorno dev del aula queda así:
 
 | Zona | Nombre en Proxmox | Red | Gateway (firewall) | Máquinas |
 |----|----|----|----|----|
@@ -63,7 +89,7 @@ flowchart LR
     ADM[Puesto admin<br/>10.10.0.50] -->|22, 443 gestión| FW
 ```
 
-El cortafuegos es el gateway de todas las zonas, con la IP .1 en cada una. Eso significa que ningún paquete cruza de una subred a otra sin pasar por él, que es lo que queremos. Si en la UT2 pusisteis un router entre front y back, esa VM se sustituye por el firewall o se convierte en él.
+El cortafuegos es el gateway de todas las zonas, con la IP .1 en cada una, así que ningún paquete cruza de una subred a otra sin pasar por él. Si en la UT2 pusisteis un router entre front y back, esa VM se sustituye por el firewall o se convierte en él.
 
 ## DMZ con uno y con dos cortafuegos
 
@@ -81,17 +107,19 @@ El diseño de dos cortafuegos pone uno de cara a Internet (el "front-end" o peri
   <figcaption>DMZ con dos cortafuegos: el perimetral protege la DMZ; el interno protege la red corporativa. Fuente: Pbroks13, dominio público, vía Wikimedia Commons.</figcaption>
 </figure>
 
-Hay una recomendación clásica que os encontraréis en cualquier guía de seguridad perimetral: que los dos cortafuegos sean de fabricantes distintos. La razón es que una vulnerabilidad de ejecución remota en el software del firewall (las ha habido en todos los grandes fabricantes en los últimos años) afectaría a los dos si son iguales, y el segundo dejaría de aportar nada. Con dos fabricantes, el atacante necesita dos exploits diferentes. El coste es que operaciones tiene que saber administrar dos productos, mantener dos ciclos de parches y escribir la misma política en dos sintaxis, y ese coste operativo es la razón de que muchas empresas medianas acaben con un solo firewall bien mantenido en lugar de dos mal mantenidos. Mi opinión: un cortafuegos único, parcheado y con reglas revisadas cada trimestre, es mejor que dos que nadie toca porque dan miedo.
+Una recomendación clásica de las guías de seguridad perimetral es que los dos cortafuegos sean de fabricantes distintos. Una vulnerabilidad de ejecución remota en el software del firewall (las ha habido en todos los grandes fabricantes) afectaría a los dos si son iguales; con dos fabricantes, el atacante necesita dos exploits distintos. El coste es que operaciones tiene que administrar dos productos, dos ciclos de parches y la misma política en dos sintaxis, y por eso muchas empresas medianas acaban con un solo firewall bien mantenido en lugar de dos mal mantenidos. Mi opinión: un cortafuegos único, parcheado y revisado cada trimestre, es mejor que dos que nadie toca porque dan miedo.
 
-En clase montamos el modelo de un firewall con cinco interfaces. Quien quiera hacer el de dos puede usar OPNsense como perimetral y un Debian con nftables como interno; es la combinación de fabricantes distintos, sale gratis y encaja con lo que vamos a ver en las dos secciones siguientes.
+En clase montamos el modelo de un firewall con cinco interfaces. Quien quiera el de dos puede usar OPNsense como perimetral y un Debian con nftables como interno: fabricantes distintos, gratis y lo que vemos en las dos secciones siguientes.
 
 ## Cortafuegos con estado
 
-Un cortafuegos sin estado (stateless, un filtro de paquetes puro) mira cada paquete de forma aislada: origen, destino, protocolo, puerto, flags. Para permitir que web01 abra una conexión a app01:8080 necesitaría dos reglas, una para el SYN de ida y otra para la respuesta de vuelta, y la de vuelta tendría que permitir tráfico desde el puerto 8080 de app01 hacia cualquier puerto alto de web01, lo cual es un agujero: cualquier cosa que se origine en app01 con puerto origen 8080 pasaría.
+Antes de escribir la primera regla hay que entender cómo decide el cortafuegos qué paquete pasa, porque de eso depende cuántas reglas hacen falta y en qué dirección se escriben. La idea del apartado es una: el firewall recuerda las conexiones que ya aceptó, así que solo hay que permitir el primer paquete de cada una. Quien lo tiene claro escribe la mitad de reglas y entiende el error de "abre pero no responde".
+
+Un cortafuegos sin estado (stateless, un filtro de paquetes puro) mira cada paquete de forma aislada: origen, destino, protocolo, puerto, flags. Para permitir que web01 abra una conexión a app01:8080 necesitaría dos reglas, una para el SYN de ida (el primer paquete de una conexión TCP, el que pide abrirla) y otra para la respuesta de vuelta, y la de vuelta tendría que permitir tráfico desde el puerto 8080 de app01 hacia cualquier puerto alto de web01, lo cual es un agujero: cualquier cosa que se origine en app01 con puerto origen 8080 pasaría.
 
 Un cortafuegos **con estado** (stateful) recuerda las conexiones. Cuando ve el SYN de web01:43812 hacia app01:8080 y una regla lo permite, crea una entrada en su **tabla de estados** con la tupla (protocolo, IP origen, puerto origen, IP destino, puerto destino) y el estado de la conexión. Cuando llega el SYN-ACK de vuelta, no evalúa las reglas: busca en la tabla, encuentra la entrada, comprueba que el paquete es coherente con el estado (números de secuencia, flags) y lo deja pasar. Lo mismo con todos los paquetes siguientes en ambas direcciones, hasta que ve el cierre (FIN/RST) o la entrada expira por inactividad.
 
-En Linux este mecanismo se llama **conntrack** y es un módulo del kernel (`nf_conntrack`) que usan tanto iptables como nftables. En OPNsense y pfSense lo hace el propio `pf` de FreeBSD, con una tabla que podéis ver en Firewall → Diagnostics → States. Los estados que manejan son, de forma simplificada:
+En Linux este mecanismo se llama **conntrack** y es un módulo del kernel (`nf_conntrack`) que usan tanto iptables (el antecesor de nftables) como nftables. En OPNsense y pfSense lo hace el propio `pf` (el filtro de paquetes de FreeBSD, el sistema sobre el que se construyen ambos), con una tabla que podéis ver en Firewall → Diagnostics → States. Los estados que manejan son, de forma simplificada:
 
 | Estado | Significado |
 |----|----|
@@ -104,11 +132,13 @@ Para UDP e ICMP, que no tienen conexión, conntrack crea "pseudo-estados" basado
 
 Por qué importa esto para escribir reglas: solo hay que escribir la regla del primer paquete, en la dirección en que se inicia la conexión, y poner una regla genérica `established,related accept` al principio de la cadena. Es lo que hace que la política "DMZ externa puede iniciar hacia DMZ interna:8080, pero DMZ interna no puede iniciar nada hacia DMZ externa" sea expresable con una sola línea. También explica un error clásico: si la regla `established,related` no está, o está después de un `drop`, la conexión abre (el SYN pasa) pero nunca responde, y en tcpdump veréis SYN, SYN-ACK... y el SYN-ACK muriendo en el firewall.
 
-La tabla de estados tiene tamaño finito. En un Debian con nftables `sysctl net.netfilter.nf_conntrack_max` suele valer 65536 o más según la RAM; en OPNsense el límite está en Firewall → Settings → Advanced (Firewall Maximum States). Un ataque de inundación de SYN busca precisamente llenarla; cuando se llena, el firewall descarta conexiones nuevas legítimas y en el log aparece `nf_conntrack: table full, dropping packet`. Los tiempos de expiración también son configurables: una conexión TCP establecida sin tráfico vive por defecto 5 días en conntrack de Linux, y eso es lo que os permite tener una sesión SSH abierta horas sin que el firewall la olvide.
+La tabla de estados tiene tamaño finito. En Debian `sysctl net.netfilter.nf_conntrack_max` suele valer 65536 o más según la RAM; en OPNsense el límite está en Firewall → Settings → Advanced (Firewall Maximum States). Un ataque de inundación de SYN busca precisamente llenarla; cuando se llena, el firewall descarta conexiones nuevas legítimas y en el log aparece `nf_conntrack: table full, dropping packet`. Los tiempos de expiración también se configuran: una conexión TCP establecida sin tráfico vive por defecto 5 días en conntrack de Linux, y por eso una sesión SSH aguanta horas abierta sin que el firewall la olvide.
 
 ## OPNsense
 
-OPNsense es una distribución de firewall basada en FreeBSD y en el filtro `pf`, con interfaz web, desarrollo abierto y versiones semestrales (la 26.1 y la 26.7 son las de este curso; la numeración es año.mes). Nació como bifurcación de pfSense en 2015 y las dos son funcionalmente muy parecidas: si en una empresa os encontráis pfSense, todo lo de esta sección aplica cambiando algún nombre de menú. En clase usamos OPNsense porque la interfaz es más limpia, el ciclo de parches es más rápido y la edición comunitaria no tiene recortes respecto a la de pago.
+Montamos el cortafuegos del laboratorio: una VM con una pata en cada zona, la consola web solo accesible desde gestión, y las reglas, el NAT y los logs que hacen que el modelo de zonas exista de verdad. Más que los menús, que cambian con cada versión, importan tres ideas: las reglas se escriben con nombres (aliases), se evalúan en la interfaz por la que entra el paquete, y nada se aplica hasta pulsar "Apply changes".
+
+OPNsense es una distribución de firewall basada en FreeBSD y en el filtro `pf`, con interfaz web, desarrollo abierto y versiones semestrales (la 26.1 y la 26.7 son las de este curso; la numeración es año.mes). Nació como bifurcación de pfSense en 2015 y las dos son funcionalmente muy parecidas: si en una empresa os encontráis pfSense, todo lo de esta sección aplica cambiando algún nombre de menú. En clase usamos OPNsense porque la interfaz es más limpia, parchea más rápido y la edición comunitaria no tiene recortes respecto a la de pago.
 
 <figure markdown="span">
   ![Panel principal de OPNsense](../img/opnsense-dashboard.png){ width="640" }
@@ -117,7 +147,7 @@ OPNsense es una distribución de firewall basada en FreeBSD y en el filtro `pf`,
 
 ### Instalación en Proxmox
 
-Se instala como una VM normal: descargad la imagen `dvd` o `vga` de la 26.x desde opnsense.org, 2 vCPU, 2 GB de RAM y 20 GB de disco sobran. Lo que la distingue es el número de interfaces: una por zona, cinco en nuestro caso, cada una conectada a su bridge o VNet de Proxmox. Usad el modelo VirtIO para las NIC y activad la opción de arranque en el orden correcto; FreeBSD nombra las interfaces VirtIO como `vtnet0`, `vtnet1`... en el orden en que Proxmox las presenta en el bus PCI, así que el orden en que las añadís a la VM importa. Apuntad qué MAC corresponde a qué bridge antes de arrancar, porque en el asistente de consola tendréis que asignar cada `vtnetN` a su papel:
+Se instala como una VM normal: imagen `dvd` o `vga` de la 26.x desde opnsense.org, 2 vCPU, 2 GB de RAM y 20 GB de disco sobran. Lo que la distingue es el número de interfaces: una por zona, cinco en nuestro caso, cada una conectada a su bridge o VNet de Proxmox. Usad el modelo VirtIO (el dispositivo paravirtualizado de KVM, el más rápido en Proxmox) para las NIC y activad la opción de arranque en el orden correcto; FreeBSD nombra las interfaces VirtIO como `vtnet0`, `vtnet1`... en el orden en que Proxmox las presenta en el bus PCI, así que el orden en que las añadís a la VM importa. Apuntad qué MAC corresponde a qué bridge antes de arrancar, porque en el asistente de consola tendréis que asignar cada `vtnetN` a su papel:
 
 | Interfaz OPNsense | vtnet | Bridge / VNet Proxmox | IP |
 |----|----|----|----|
@@ -127,15 +157,15 @@ Se instala como una VM normal: descargad la imagen `dvd` o `vga` de la 26.x desd
 | INT | vtnet3 | vdata | 10.10.3.1/24 |
 | MGMT | vtnet4 | vmgmt | 10.10.0.1/24 |
 
-Tras la instalación, la interfaz web escucha en todas las interfaces con la regla "anti-lockout" activa en LAN. Lo primero que haréis es mover la administración a MGMT y desactivar el acceso desde el resto (System → Settings → Administration, "Listen interfaces"). Si os equivocáis y os quedáis fuera, la consola de Proxmox de la VM tiene un menú de texto con la opción "Reset to factory defaults" y otra para reasignar interfaces; no hace falta reinstalar.
+Tras la instalación, la interfaz web escucha en todas las interfaces con la regla "anti-lockout" (la que impide que os cerréis el acceso a la propia consola) activa en LAN. Lo primero que haréis es mover la administración a MGMT y desactivar el acceso desde el resto (System → Settings → Administration, "Listen interfaces"). Si os equivocáis y os quedáis fuera, la consola de Proxmox de la VM tiene un menú de texto con la opción "Reset to factory defaults" y otra para reasignar interfaces; no hace falta reinstalar.
 
 ### Aliases
 
-Un alias es un nombre para un conjunto de IPs, redes, puertos o URLs. `srv_web` = 10.10.1.10, `net_dmzint` = 10.10.2.0/24, `p_app` = 8080, `p_web` = {80, 443}. Las reglas se escriben con aliases, nunca con IPs sueltas, por dos razones: la regla se lee sola ("permitir net_dmzext a srv_app en p_app" se entiende sin consultar nada) y cuando app01 cambie de IP, o haya dos app, se cambia el alias y no diez reglas. Los aliases de tipo "Host" admiten nombres DNS que OPNsense resuelve periódicamente, y los de tipo "URL Table" descargan listas (por ejemplo, rangos de IP de un proveedor) y las actualizan solas. En Firewall → Aliases.
+Un alias es un nombre para un conjunto de IPs, redes, puertos o URLs. `srv_web` = 10.10.1.10, `net_dmzint` = 10.10.2.0/24, `p_app` = 8080, `p_web` = {80, 443}. Las reglas se escriben con aliases, nunca con IPs sueltas, por dos razones: la regla se lee sola ("permitir net_dmzext a srv_app en p_app") y cuando app01 cambie de IP, o haya dos app, se cambia el alias y no diez reglas. Los aliases de tipo "Host" admiten nombres DNS que OPNsense resuelve periódicamente, y los de tipo "URL Table" descargan listas (por ejemplo, rangos de IP de un proveedor) y las actualizan solas. En Firewall → Aliases.
 
 ### Reglas y orden de evaluación
 
-Las reglas se organizan por interfaz y se evalúan sobre el tráfico que **entra** por esa interfaz (dirección "in", que es la que usaréis casi siempre). Para permitir que web01 hable con app01:8080, la regla va en la pestaña DMZEXT, porque es por donde entra el paquete al firewall, aunque el destino esté en DMZINT. Esto confunde al principio: pensad siempre "¿por qué interfaz llega este paquete al cortafuegos?".
+Las reglas se organizan por interfaz y se evalúan sobre el tráfico que **entra** por esa interfaz (dirección "in", que es la que usaréis casi siempre). Para permitir que web01 hable con app01:8080, la regla va en la pestaña DMZEXT, porque es por donde entra el paquete al firewall, aunque el destino esté en DMZINT. Pensad siempre "¿por qué interfaz llega este paquete al cortafuegos?".
 
 El orden de evaluación es el siguiente:
 
@@ -145,9 +175,9 @@ El orden de evaluación es el siguiente:
 4. Reglas de la interfaz concreta, de arriba abajo.
 5. Denegación implícita al final, que registra si tenéis activado "Log packets matched by the default deny rule" en Firewall → Settings → Advanced.
 
-Aquí entra la opción **quick**, que está marcada por defecto en cada regla y merece explicación. `pf` evalúa toda la lista y aplica la **última** regla que coincide, salvo que una regla tenga `quick`, en cuyo caso la evaluación se detiene en ella. Como OPNsense marca quick en todo, en la práctica funciona como "la primera que coincide gana". Si desmarcáis quick en una regla, esa regla solo se aplicará si ninguna posterior coincide. Se usa para escribir una regla genérica arriba ("permitir todo desde MGMT", sin quick) que las reglas posteriores más específicas pueden anular. Mi consejo: dejad quick activado siempre y ordenad las reglas de más específica a más general; es más fácil de leer y de auditar.
+Aquí entra la opción **quick**, que está marcada por defecto en cada regla y merece explicación. `pf` evalúa toda la lista y aplica la **última** regla que coincide, salvo que una regla tenga `quick`, en cuyo caso la evaluación se detiene en ella. Como OPNsense marca quick en todo, en la práctica funciona como "la primera que coincide gana". Si desmarcáis quick en una regla, esa regla solo se aplicará si ninguna posterior coincide. Se usa para escribir una regla genérica arriba ("permitir todo desde MGMT", sin quick) que las reglas posteriores más específicas pueden anular. Mi consejo: dejad quick activado y ordenad las reglas de más específica a más general; es más fácil de leer y de auditar.
 
-Cada regla lleva: acción (Pass, Block, Reject), interfaz, dirección, familia IP, protocolo, origen (con puerto opcional), destino y puerto, opción de log, y una descripción. Ponedla siempre; en el log aparece la descripción, no el número de regla. La diferencia entre Block y Reject: Block descarta en silencio (el origen espera hasta agotar el timeout), Reject responde con un TCP RST o un ICMP unreachable (el origen sabe al instante que no hay servicio). Hacia Internet se usa Block, para no dar información; entre zonas internas, Reject ahorra esperas a vuestros propios servicios.
+Cada regla lleva: acción (Pass, Block, Reject), interfaz, dirección, familia IP, protocolo, origen (con puerto opcional), destino y puerto, opción de log, y una descripción. Ponedla siempre: en el log aparece la descripción, no el número de regla. La diferencia entre Block y Reject: Block descarta en silencio (el origen espera hasta agotar el timeout), Reject responde con un TCP RST o un ICMP unreachable (el origen sabe al instante que no hay servicio). Hacia Internet se usa Block, para no dar información; entre zonas internas, Reject ahorra esperas a vuestros propios servicios.
 
 Las reglas nuevas se guardan y luego se aplican con "Apply changes". Hasta que no aplicáis, no hay cambio. Y cuando aplicáis, los estados existentes que ya no encajan con la política se mantienen hasta que expiran; si necesitáis cortar una conexión ya establecida, hay que borrar su estado en Firewall → Diagnostics → States (o "Reset state table", que las corta todas).
 
@@ -155,23 +185,23 @@ Las reglas nuevas se guardan y luego se aplican con "Apply changes". Hasta que n
 
 Dos tipos de NAT os van a hacer falta:
 
-**Port forward** (DNAT) publica un servicio interno en la IP WAN: WAN:443 → srv_web:443. Se configura en Firewall → NAT → Port Forward, y al crearlo OPNsense ofrece generar la regla de filtro asociada ("Filter rule association: add associated filter rule"). Aceptadlo; sin regla de filtro, el paquete se traduce pero después se bloquea en la interfaz WAN. El orden de procesamiento en pf es NAT primero y filtro después, así que la regla de filtro se escribe con el destino ya traducido (srv_web:443), no con la IP WAN.
+**Port forward** (DNAT, NAT de destino: cambia la IP de destino del paquete) publica un servicio interno en la IP WAN: WAN:443 → srv_web:443. Se configura en Firewall → NAT → Port Forward, y al crearlo OPNsense ofrece generar la regla de filtro asociada ("Filter rule association: add associated filter rule"). Aceptadlo; sin regla de filtro, el paquete se traduce pero después se bloquea en la interfaz WAN. En pf el NAT va antes que el filtro, así que la regla de filtro se escribe con el destino ya traducido (srv_web:443), no con la IP WAN.
 
-**Outbound NAT** (SNAT) permite que las zonas internas salgan a Internet con la IP del firewall. En modo automático OPNsense lo hace para todas las redes de sus interfaces. En nuestro laboratorio lo queremos restringido: la DMZ interna y la zona interna no deberían salir a Internet salvo para actualizaciones, y eso se resuelve mejor con un proxy de paquetes (apt-cacher-ng o un mirror interno en MGMT) que con NAT abierto. Ponedlo en modo "Hybrid" y cread solo las reglas de salida que justifiquéis.
+**Outbound NAT** (SNAT, NAT de origen: cambia la IP de origen) permite que las zonas internas salgan a Internet con la IP del firewall. En modo automático OPNsense lo hace para todas las redes de sus interfaces. En nuestro laboratorio lo queremos restringido: la DMZ interna y la zona interna no deberían salir a Internet salvo para actualizaciones, y eso se resuelve mejor con un proxy de paquetes (apt-cacher-ng, una caché de paquetes Debian, o un mirror interno en MGMT) que con NAT abierto. Ponedlo en modo "Hybrid" y cread solo las reglas de salida que justifiquéis.
 
 ### Logs
 
-Firewall → Log Files → Live View muestra en tiempo real cada paquete que coincide con una regla que tiene log activado, y todos los de la denegación por defecto. Cada línea trae interfaz, dirección, acción, origen, destino, protocolo y la etiqueta de la regla. Filtrad por interfaz o por etiqueta; en un aula con 20 VM escaneándose, el log sin filtro es inservible. Para conservar el histórico está Plain View, y para enviarlo fuera (que es lo que haréis en producción y en la UT7) System → Settings → Logging / Targets permite mandar todo por syslog a un colector.
+Firewall → Log Files → Live View muestra en tiempo real cada paquete que coincide con una regla que tiene log activado, y todos los de la denegación por defecto. Cada línea trae interfaz, dirección, acción, origen, destino, protocolo y la etiqueta de la regla. Filtrad por interfaz o por etiqueta; con 20 VM escaneándose, el log sin filtro es inservible. Para el histórico está Plain View, y para enviarlo fuera (lo que haréis en producción y en la UT7) System → Settings → Logging / Targets permite mandar todo por syslog (el protocolo estándar de envío de logs) a un colector.
 
 Activad el log en todas las reglas de denegación y en las de permiso hacia INT. No en la regla de permiso de WAN:443, que generaría una línea por conexión web y solo serviría para llenar el disco; para eso están los logs de acceso del proxy.
 
 ### IDS/IPS y WAF, dos capas más
 
-El cortafuegos decide por puertos y direcciones. No sabe si lo que entra por el 443 es una petición legítima o un intento de explotación. Para eso hay dos capas adicionales que en el módulo solo mencionamos: OPNsense integra **Suricata** como IDS/IPS (Services → Intrusion Detection), que inspecciona el contenido de los paquetes contra reglas de firmas (ET Open, gratuitas) y puede alertar o bloquear. En la interfaz WAN de un laboratorio con tráfico cifrado ve poco; tiene más sentido en la DMZ externa, después del proxy, donde el tráfico ya va en claro. Y en el propio proxy inverso se puede añadir un **WAF** (Web Application Firewall) como ModSecurity o su reimplementación en Go, Coraza, con el conjunto de reglas OWASP CRS, que bloquea patrones de inyección SQL, XSS y similares antes de que lleguen a la aplicación. Ambos generan falsos positivos y necesitan ajuste; no los pongáis en modo bloqueo el primer día.
+El cortafuegos decide por puertos y direcciones. No sabe si lo que entra por el 443 es una petición legítima o un intento de explotación. Para eso hay dos capas adicionales que en el módulo solo mencionamos: OPNsense integra **Suricata** como IDS/IPS (Services → Intrusion Detection), que inspecciona el contenido de los paquetes contra reglas de firmas (ET Open, gratuitas) y puede alertar o bloquear. En la interfaz WAN de un laboratorio con tráfico cifrado ve poco; tiene más sentido en la DMZ externa, después del proxy, donde el tráfico ya va en claro. Y en el propio proxy inverso se puede añadir un **WAF** (Web Application Firewall) como ModSecurity o su reimplementación en Go, Coraza, con el conjunto de reglas OWASP CRS (Core Rule Set, la lista de patrones de ataque que mantiene la fundación OWASP), que bloquea patrones de inyección SQL, XSS (inyección de scripts en páginas web) y similares antes de que lleguen a la aplicación. Ambos generan falsos positivos; no los pongáis en modo bloqueo el primer día.
 
 ## Alternativa: nftables en una VM Linux
 
-El mismo modelo se puede montar con un router Debian 13 con cinco interfaces y nftables, que es el framework de filtrado del kernel Linux desde la 3.13 y el sucesor de iptables. Lo que se pierde es la interfaz web y las comodidades (aliases con resolución DNS, live view); lo que se gana es un fichero de texto de 40 líneas que se versiona en git y que Ansible despliega en la UT5 sin ninguna magia. Es el mismo motor que usa el firewall integrado de Proxmox y Docker, así que os interesa entenderlo aunque uséis OPNsense.
+El mismo modelo se puede montar con un router Debian 13 con cinco interfaces y nftables, que es el framework de filtrado del kernel Linux desde la 3.13 y el sucesor de iptables. Se pierde la interfaz web y sus comodidades (aliases con resolución DNS, live view); se gana un fichero de texto de 40 líneas que se versiona en git y que Ansible despliega en la UT5 sin magia. Es el mismo motor que usan el firewall de Proxmox y Docker, así que os interesa entenderlo aunque uséis OPNsense.
 
 ### Tablas, cadenas, hooks y prioridades
 
@@ -195,7 +225,7 @@ La **prioridad** ordena las cadenas base que comparten hook: se evalúan de meno
 
 ### El fichero completo y persistente
 
-Este es el fichero `/etc/nftables.conf` para nuestro laboratorio, con nombres de interfaz ya renombrados con systemd-networkd o udev para que se llamen como las zonas (si no, usad `ens18`, `ens19`... o mejor, definid variables):
+Este es el fichero `/etc/nftables.conf` para nuestro laboratorio, con nombres de interfaz ya renombrados con systemd-networkd o udev (los dos mecanismos de Debian para dar nombre fijo a una interfaz) para que se llamen como las zonas (si no, usad `ens18`, `ens19`... o mejor, definid variables). Tiene tres partes: las variables con redes y servidores, la tabla `fw` con las cadenas `input` (quién llega al propio router) y `forward` (qué cruza entre zonas), y la tabla `nat`. Fijaos en que las dos cadenas de filtro empiezan igual, con `established,related` e `invalid`, y terminan con un `log` seguido de `drop`; entre medias solo están los saltos permitidos, uno por línea:
 
 ```text
 #!/usr/sbin/nft -f
@@ -261,12 +291,14 @@ table ip nat {
 
 Fijaos en que el `masquerade` solo cubre la DMZ externa: la DMZ interna y la zona interna no tienen salida a Internet. Si app01 necesita instalar paquetes, se hace por un proxy APT en MGMT o se abre una regla temporal y documentada.
 
-Para probarlo sin cargarlo, `nft -c -f /etc/nftables.conf` valida la sintaxis. Se carga con `nft -f /etc/nftables.conf` y se persiste activando el servicio: `systemctl enable --now nftables`, que en Debian lee exactamente ese fichero en cada arranque. Antes de todo hay que activar el reenvío en el kernel, `net.ipv4.ip_forward=1` en `/etc/sysctl.d/99-router.conf`, porque sin eso el router descarta todo lo que no es para él aunque nftables lo permita. `nft list ruleset` muestra lo cargado, y `nft list ruleset -a` añade los handles de cada regla para poder borrar una concreta. Los logs salen por el kernel, `journalctl -k -f | grep FW-`, o a un fichero propio si configuráis rsyslog con un filtro por prefijo.
+Para probarlo sin cargarlo, `nft -c -f /etc/nftables.conf` valida la sintaxis. Se carga con `nft -f /etc/nftables.conf` y se persiste activando el servicio: `systemctl enable --now nftables`, que en Debian lee exactamente ese fichero en cada arranque. Antes de todo hay que activar el reenvío en el kernel, `net.ipv4.ip_forward=1` en `/etc/sysctl.d/99-router.conf`, porque sin eso el router descarta todo lo que no es para él aunque nftables lo permita. `nft list ruleset` muestra lo cargado, y `nft list ruleset -a` añade los handles de cada regla para poder borrar una concreta. Los logs salen por el kernel, `journalctl -k -f | grep FW-`, o a un fichero propio si configuráis rsyslog (el servicio de logs de Debian) con un filtro por prefijo.
 
 !!! warning "Orden de las reglas y bloqueo remoto"
-    Si administráis el router Debian por SSH desde MGMT y cargáis un ruleset con `policy drop` en `input` sin la regla que permite vuestro SSH, os quedáis fuera en el acto (la sesión actual sobrevive gracias a `established`, pero la siguiente no entra). Probad siempre con un `at now + 5 min` que restaure el fichero anterior, o desde la consola de Proxmox.
+    Si administráis el router Debian por SSH desde MGMT y cargáis un ruleset con `policy drop` en `input` sin la regla que permite vuestro SSH, os quedáis fuera en el acto (la sesión actual sobrevive gracias a `established`, pero la siguiente no entra). Probad siempre con un `at now + 5 min` (una orden programada que se ejecuta pasado ese tiempo) que restaure el fichero anterior, o desde la consola de Proxmox.
 
 ## Publicar un servicio
+
+Con el firewall en pie, toca el primer servicio de verdad: una web que se ve desde Internet con HTTPS y cuya aplicación y base de datos no son alcanzables desde fuera. El apartado junta el port forward, el proxy inverso en la DMZ externa y el certificado: las tres piezas que necesita cualquier cosa que publiquéis el resto del curso.
 
 El patrón es siempre el mismo: Internet → firewall (port forward 443) → proxy inverso en DMZ externa → aplicación en DMZ interna → base de datos en zona interna. La aplicación no tiene IP pública ni ruta directa desde fuera. La base de datos solo acepta conexiones desde la subred de aplicación, y con un usuario de aplicación, no con `postgres`.
 
@@ -294,14 +326,14 @@ sequenceDiagram
   <figcaption>El cliente solo conoce al proxy; los servidores de detrás no son alcanzables directamente. Fuente: H2g2bob, CC0, vía Wikimedia Commons.</figcaption>
 </figure>
 
-Un proxy inverso recibe la conexión del cliente y abre otra distinta hacia el servidor interno. Son dos conexiones TCP separadas, y eso tiene consecuencias:
+Un proxy inverso recibe la conexión del cliente y abre otra distinta hacia el servidor interno. Son dos conexiones TCP separadas, con consecuencias:
 
 - **Termina TLS**. El certificado y la clave privada viven en el proxy; la aplicación puede hablar HTTP plano dentro de la DMZ interna (o TLS con certificado interno si la política lo exige). Renovar un certificado no toca la aplicación.
 - **Oculta la topología**. El cliente ve una IP y un puerto. No sabe si detrás hay una máquina o veinte, ni en qué red están, ni qué servidor de aplicaciones usan. Las cabeceras `Server` y los mensajes de error del backend se pueden reescribir.
-- **Filtra rutas**. Se puede publicar `/api` y `/` y dejar `/admin` o `/metrics` solo accesibles desde MGMT, con un `location` y un `allow`/`deny`.
+- **Filtra rutas**. Se puede publicar `/api` y `/` y dejar `/admin` o `/metrics` solo accesibles desde MGMT, con un `location` y un `allow`/`deny` (directivas de nginx: una ruta y quién puede pedirla).
 - **Pierde la IP del cliente**, salvo que se la pase a la aplicación. Como la segunda conexión sale desde 10.10.1.10, la aplicación vería siempre esa IP. Por eso el proxy añade la cabecera `X-Forwarded-For` con la IP original (y `X-Forwarded-Proto` con `https`, para que la aplicación genere enlaces correctos). La aplicación debe confiar en esas cabeceras **solo** si vienen del proxy; si acepta `X-Forwarded-For` de cualquiera, un cliente puede falsificar su IP. El RFC 7239 estandariza esto como cabecera `Forwarded`, pero en la práctica todo el mundo sigue usando las `X-Forwarded-*`.
 
-Configuración mínima de nginx en web01 (fichero en `/etc/nginx/sites-available/app.lab`, enlazado en `sites-enabled`):
+Configuración mínima de nginx en web01 (fichero en `/etc/nginx/sites-available/app.lab`, enlazado en `sites-enabled`). Son dos bloques `server`: el del puerto 80 solo redirige a HTTPS, y el del 443 termina TLS y reenvía a app01. Fijaos en las cuatro cabeceras `proxy_set_header` y en el `location /metrics`, que es la ruta restringida a gestión:
 
 ```nginx
 server {
@@ -335,6 +367,8 @@ server {
 }
 ```
 
+Con esto cargado (`nginx -t` valida, `systemctl reload nginx` aplica), `curl -kv https://app.lab` desde el aula devuelve la respuesta de app01, y `/metrics` desde cualquier sitio que no sea MGMT devuelve un 403.
+
 Las alternativas que os encontraréis en empresas son **Traefik** y **Caddy**. Traefik descubre los backends solo: se conecta al socket de Docker o a la API de Kubernetes y crea las rutas a partir de etiquetas de los contenedores, lo que lo hace el proxy natural para la UT6, donde el pipeline despliega contenedores y no queremos editar nginx a mano cada vez. Caddy destaca porque obtiene y renueva certificados de Let's Encrypt automáticamente sin configurar nada, y su fichero de configuración para lo mismo que arriba son cuatro líneas:
 
 ```text
@@ -343,13 +377,13 @@ app.lab {
 }
 ```
 
-Prefiero nginx para enseñar porque obliga a entender cada cabecera, y Traefik para producción con contenedores. Caddy para un servicio pequeño que queráis publicar sin pensar en certificados.
+Prefiero nginx para enseñar porque obliga a entender cada cabecera, Traefik para producción con contenedores y Caddy para un servicio pequeño sin pensar en certificados.
 
 ### Certificados
 
 El `curl -kv` de las actividades usa `-k` para saltarse la validación del certificado, y eso está bien para probar el primer día, pero no es la forma de trabajar. Hay dos escenarios:
 
-**CA interna** para el laboratorio y para todo lo que no ve Internet (paneles de administración, comunicación entre zonas). Con openssl se crea una CA y se firma un certificado para app.lab en cinco comandos:
+**CA interna** (autoridad de certificación: quien firma los certificados y en quien confían los clientes) para el laboratorio y para todo lo que no ve Internet (paneles de administración, comunicación entre zonas). Con openssl se crea una CA y se firma un certificado para app.lab en cinco comandos. Fijaos en el SAN (Subject Alternative Name, el campo del certificado donde van los nombres y las IP para los que vale): sin él los navegadores rechazan el certificado aunque la firma sea correcta.
 
 ```bash
 # CA raíz (guardad la clave en MGMT, no en el proxy)
@@ -366,11 +400,13 @@ openssl x509 -req -in app.csr -CA ca.crt -CAkey ca.key -CAcreateserial \
   -out app.crt -days 365 -extfile san.ext
 ```
 
-Después se instala `ca.crt` en los clientes (`/usr/local/share/ca-certificates/` y `update-ca-certificates` en Debian) y `curl` deja de necesitar `-k`. Para algo más serio que un laboratorio, **step-ca** de Smallstep es una CA completa con protocolo ACME, de modo que los servidores internos renuevan sus certificados solos con el mismo cliente que usarían contra Let's Encrypt, y con certificados de vida corta (24 horas) que hacen innecesarias las listas de revocación.
+Después se instala `ca.crt` en los clientes (`/usr/local/share/ca-certificates/` y `update-ca-certificates` en Debian) y `curl` deja de necesitar `-k`. Para algo más serio que un laboratorio, **step-ca** de Smallstep es una CA completa con protocolo ACME (el protocolo con el que un servidor pide y renueva certificados sin intervención humana, el mismo que usa Let's Encrypt), de modo que los servidores internos renuevan sus certificados solos con el mismo cliente que usarían contra Let's Encrypt, y con certificados de vida corta (24 horas) que hacen innecesarias las listas de revocación.
 
-**Let's Encrypt** en producción, para todo lo que tiene nombre público. Emite certificados de 90 días (y está pasando a 6 días para quien los quiera) gratis, validando que controláis el dominio: con `HTTP-01` publicando un fichero en `/.well-known/acme-challenge/` por el puerto 80 (por eso el port forward del 80 en el firewall aunque redirijáis a HTTPS), o con `DNS-01` creando un registro TXT, que es la única opción para wildcards y para servicios que no exponen el 80. Certbot, Caddy, Traefik y el plugin ACME de OPNsense hacen la renovación automática. Lo que hay que vigilar es que la renovación funcione: un certificado caducado un domingo es la avería más tonta y más frecuente de un servicio publicado.
+**Let's Encrypt** en producción, para todo lo que tiene nombre público. Emite certificados de 90 días (y está pasando a 6 días para quien los quiera) gratis, validando que controláis el dominio: con `HTTP-01` publicando un fichero en `/.well-known/acme-challenge/` por el puerto 80 (por eso el port forward del 80 en el firewall aunque redirijáis a HTTPS), o con `DNS-01` creando un registro TXT, que es la única opción para wildcards y para servicios que no exponen el 80. Certbot, Caddy, Traefik y el plugin ACME de OPNsense renuevan solos. Vigilad que la renovación funcione: un certificado caducado un domingo es la avería más tonta y más frecuente de un servicio publicado.
 
 ## Separación de clientes
+
+Hasta aquí la red tiene un solo dueño. Ahora añadimos dos clientes que pagan por el mismo servicio y no pueden verse entre sí, con la menor infraestructura nueva posible: dos redes etiquetadas, dos pestañas de reglas y el mismo proxy para ambos. Es lo que pide el criterio de evaluación.
 
 Cuando la misma infraestructura sirve a varios clientes (multi-tenant) hay que garantizar que uno no ve ni afecta al otro. Las opciones, de menos a más aislamiento:
 
@@ -383,7 +419,7 @@ En la práctica del módulo se usa la opción 2: dos clientes en VLAN distintas 
 
 ### VLAN en Proxmox y en OPNsense
 
-En Proxmox, un bridge marcado como **VLAN aware** deja pasar tramas etiquetadas 802.1Q; a cada VM se le asigna su etiqueta en la configuración de la NIC (`tag=101`), y el bridge la pone y la quita de forma transparente, así que la VM no sabe nada de VLAN. Si usáis SDN (UT2), una VNet de tipo VLAN sobre una zona VLAN hace lo mismo con más orden.
+En Proxmox, un bridge marcado como **VLAN aware** deja pasar tramas etiquetadas 802.1Q (el estándar de VLAN: una etiqueta numérica en cada trama Ethernet); a cada VM se le asigna su etiqueta en la configuración de la NIC (`tag=101`), y el bridge la pone y la quita de forma transparente, así que la VM no sabe nada de VLAN. Si usáis SDN (UT2), una VNet de tipo VLAN sobre una zona VLAN hace lo mismo con más orden.
 
 El firewall necesita ver las dos VLAN por una sola interfaz física (trunk): en Proxmox, su NIC en ese bridge va **sin** tag, y en OPNsense se crean dos interfaces VLAN (Interfaces → Other Types → VLAN) sobre el padre `vtnet5`, con tags 101 y 102, y se les asignan las IP 10.10.101.1/24 y 10.10.102.1/24. Cada VLAN es una interfaz más a efectos de reglas, con su propia pestaña, y por defecto nada pasa entre ellas porque la denegación implícita se aplica igual.
 
@@ -396,11 +432,11 @@ Las reglas para cada cliente son dos líneas, en la pestaña de su VLAN:
 | CLI_B | Pass | net_cli_b | srv_web | 443 | no | Cliente B al proxy compartido |
 | CLI_B | Block | net_cli_b | any | any | sí | Cliente B: resto denegado |
 
-La regla explícita de Block al final de cada pestaña es redundante con la denegación implícita, pero se pone para que quede en el log con una descripción legible y para que quien lea la matriz vea la intención sin conocer OPNsense. Con el proxy compartido hay un detalle más: si el cliente A hace una petición a app.lab, el proxy la reenvía a app01 desde su propia IP, así que la aplicación tiene que distinguir clientes por otro medio (nombre de host, cabecera, autenticación), no por la IP de origen. El aislamiento de red garantiza que A no llega a la red de B; el aislamiento de datos sigue siendo responsabilidad de la aplicación.
+La regla explícita de Block al final de cada pestaña es redundante con la denegación implícita, pero deja en el log una descripción legible y muestra la intención a quien lea la matriz sin conocer OPNsense. Con el proxy compartido hay un detalle más: si el cliente A hace una petición a app.lab, el proxy la reenvía a app01 desde su propia IP, así que la aplicación tiene que distinguir clientes por otro medio (nombre de host, cabecera, autenticación), no por la IP de origen. El aislamiento de red garantiza que A no llega a la red de B; el aislamiento de datos sigue siendo responsabilidad de la aplicación.
 
 ## Pruebas de seguridad
 
-No basta con configurar: hay que demostrar que el aislamiento funciona, y demostrarlo desde el punto de vista del atacante, es decir, desde fuera de cada zona. Las pruebas se hacen desde la máquina que representa cada origen (vuestro equipo del aula para Internet, web01 para la DMZ externa, la VM del cliente A para el cliente A), no desde el firewall.
+No basta con configurar: hay que demostrar que el aislamiento funciona, y demostrarlo desde el punto de vista del atacante, es decir, desde fuera de cada zona. Las pruebas se hacen desde la máquina que representa cada origen (el equipo del aula para Internet, web01 para la DMZ externa, la VM del cliente A para el cliente A), no desde el firewall.
 
 ### nmap
 
@@ -413,7 +449,7 @@ nmap envía paquetes y clasifica cada puerto según la respuesta. Los tipos de e
 - `-Pn`: no hacer ping previo. Imprescindible cuando el firewall bloquea ICMP, porque si no nmap concluye que el host está caído y no escanea nada.
 - `-sV` identifica la versión del servicio, `-O` el sistema operativo. Útiles para ver qué información regala vuestro proxy.
 
-La interpretación de los estados es lo que os diferencia de alguien que ejecuta comandos sin entenderlos:
+Interpretar los estados es lo que os diferencia de quien ejecuta comandos sin entenderlos:
 
 | Estado nmap | Qué recibió nmap | Qué significa en nuestro modelo |
 |----|----|----|
@@ -422,11 +458,11 @@ La interpretación de los estados es lo que os diferencia de alguien que ejecuta
 | `filtered` | Nada, o ICMP unreachable de tipo administrativo | Algo en medio descarta el paquete. Es lo que debe salir en todo lo que no está publicado. |
 | `open\|filtered` | Nada (solo en UDP y algunos escaneos) | nmap no puede distinguir; hay que probar con nc o con tcpdump en el destino. |
 
-Si un escaneo desde Internet contra app01 devuelve `8080/tcp closed` en lugar de `filtered`, tenéis un problema aunque no haya servicio: significa que el firewall dejó pasar el SYN hasta app01 y fue app01 quien respondió con RST. Alguna regla está permitiendo más de lo que creéis. Ese es exactamente el tipo de hallazgo que se pide en la práctica.
+Si un escaneo desde Internet contra app01 devuelve `8080/tcp closed` en lugar de `filtered`, tenéis un problema aunque no haya servicio: el firewall dejó pasar el SYN hasta app01 y fue app01 quien respondió con RST. Alguna regla permite más de lo que creéis, y ese es justo el tipo de hallazgo que se pide en la práctica.
 
 ### nc, curl y tcpdump
 
-`nc -zv 10.10.3.10 5432` prueba un puerto concreto y devuelve "succeeded" o "Connection refused" (llegó y no hay servicio, equivale a closed) o se queda esperando hasta el timeout (filtered). Con `-w 3` limitáis la espera. `curl -kv https://app.lab` comprueba el servicio publicado de extremo a extremo, y con `-v` veis el handshake TLS, el certificado presentado y las cabeceras de respuesta; buscad ahí la cabecera `Server` para ver si estáis regalando la versión de nginx.
+`nc -zv 10.10.3.10 5432` (nc es netcat, un cliente TCP y UDP mínimo) prueba un puerto concreto y devuelve "succeeded" o "Connection refused" (llegó y no hay servicio, equivale a closed) o se queda esperando hasta el timeout (filtered). Con `-w 3` limitáis la espera. `curl -kv https://app.lab` comprueba el servicio publicado de extremo a extremo, y con `-v` veis el handshake TLS, el certificado presentado y las cabeceras de respuesta; buscad ahí la cabecera `Server` para ver si estáis regalando la versión de nginx.
 
 tcpdump es la herramienta para saber **dónde** muere un paquete. La técnica es capturar en dos sitios a la vez: en la interfaz de entrada del firewall y en la de salida.
 
@@ -436,11 +472,11 @@ tcpdump -ni vtnet1 host 10.10.1.10 and port 8080     # entrada desde DMZEXT
 tcpdump -ni vtnet2 host 10.10.1.10 and port 8080     # salida hacia DMZINT
 ```
 
-Si el SYN aparece en la primera captura y no en la segunda, el firewall lo ha descartado y la línea correspondiente estará en el log. Si aparece en las dos y no hay respuesta, el problema está en app01 (servicio caído, escuchando solo en localhost, firewall local). Si ni siquiera aparece en la primera, el paquete no ha llegado al firewall: revisad la ruta por defecto de la máquina origen. `-n` evita resoluciones DNS que ralentizan y confunden; `-w captura.pcap` guarda para abrir en Wireshark, y `-c 20` corta tras 20 paquetes para no llenar el disco por olvido.
+Si el SYN aparece en la primera captura y no en la segunda, el firewall lo ha descartado y la línea correspondiente estará en el log. Si aparece en las dos y no hay respuesta, el problema está en app01 (servicio caído, escuchando solo en localhost, firewall local). Si ni siquiera aparece en la primera, el paquete no ha llegado al firewall: revisad la ruta por defecto de la máquina origen. `-n` evita resoluciones DNS que ralentizan y confunden; `-w captura.pcap` guarda para abrir en Wireshark (el analizador gráfico de capturas), y `-c 20` corta tras 20 paquetes para no llenar el disco.
 
 ### La matriz de pruebas
 
-Una fila por par origen/destino relevante, con puerto, resultado esperado (permitido/bloqueado) y resultado real. Cualquier discrepancia es un hallazgo que hay que corregir y volver a probar; una matriz sin ningún hallazgo en la primera pasada es sospechosa, no meritoria.
+Una fila por par origen/destino relevante, con puerto, resultado esperado (permitido/bloqueado) y resultado real. Cualquier discrepancia es un hallazgo que hay que corregir y volver a probar; una matriz sin hallazgos en la primera pasada es sospechosa, no meritoria.
 
 | Origen | Destino | Puerto | Esperado | Obtenido | Evidencia |
 |----|----|----|----|----|----|
@@ -460,7 +496,7 @@ Una fila por par origen/destino relevante, con puerto, resultado esperado (permi
 
 ## Documentación operativa
 
-Lo que se entrega a operaciones cuando la red pasa a producción, y lo que os pedirá cualquier auditoría, son cuatro documentos. El diagrama de zonas con subredes, gateways y máquinas. La matriz de pruebas ejecutada, con evidencias. Y dos más que merecen detalle.
+Lo que se entrega a operaciones cuando la red pasa a producción, y lo que pedirá cualquier auditoría, son cuatro documentos. El diagrama de zonas con subredes, gateways y máquinas. La matriz de pruebas ejecutada, con evidencias. Y dos más que merecen detalle.
 
 ### Matriz de reglas
 
@@ -487,7 +523,7 @@ Quién puede pedir una regla, qué información tiene que dar, quién la revisa,
 4. Se añade la fila a la matriz de reglas con la referencia de la petición.
 5. Las reglas temporales tienen fecha; el primer lunes de cada mes se revisan las caducadas.
 
-Lo que no puede pasar es que alguien entre en la interfaz web un viernes a las 18:00, abra "cualquiera → cualquiera" para que funcione algo y se olvide. Sin procedimiento, todos los cortafuegos acaban así en dos años.
+Lo que no puede pasar es que alguien entre un viernes a las 18:00, abra "cualquiera → cualquiera" para que funcione algo y se olvide. Sin procedimiento, todos los cortafuegos acaban así en dos años.
 
 ## Errores frecuentes en el laboratorio
 

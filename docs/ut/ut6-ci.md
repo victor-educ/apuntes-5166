@@ -20,7 +20,36 @@ En la UT5 dejasteis un repositorio con el que se levanta el servicio del curso d
 - Probar el pipeline en todos los caminos, con timeouts, reintentos y notificaciones, y dejar el entorno en un estado conocido cuando algo falla (CE 4g).
 - Aplicar mínimo privilegio a cada credencial y agente, y mantener un inventario de secretos (CE 4h).
 
+## Antes de entrar en detalle
+
+Un jueves de febrero, a las tres de la tarde, un compañero sube al repositorio un cambio de tres líneas en la API y se va a clase. El cambio rompe una prueba, pero nadie ejecuta `pytest` hasta el lunes, cuando otro compañero lanza `tofu apply` desde su portátil, con su token de Proxmox, y despliega en `pre` un servicio que no arranca. Nadie sabe qué commit era ni con qué imagen se desplegó. Lo que queremos conseguir al final de la unidad cabe en una frase: que cada push se pruebe, se empaquete y, si alguien lo pide, se despliegue solo, en una máquina que no es la de nadie, con registro de todo y sin que ninguna contraseña salga de donde se guarda.
+
+| Herramienta o concepto | Qué es, en una frase | Para qué la usamos en esta unidad |
+|----|----|----|
+| Jenkins | Servidor que vigila el repositorio y ejecuta tareas cuando hay cambios, como un compañero que nunca duerme | El orquestador que instalamos, aseguramos y programamos toda la unidad |
+| Pipeline y `Jenkinsfile` | La cadena de etapas por la que pasa cada cambio (descargar, probar, empaquetar, desplegar), escrita en un fichero que vive junto al código | Escribimos el del servicio del curso en el dialecto declarativo de Groovy de Jenkins |
+| Agente | Máquina o contenedor donde Jenkins ejecuta de verdad las tareas; el servidor solo reparte trabajo | `agent01` por SSH y agentes desechables en contenedor |
+| Webhook | Aviso HTTP que el servidor Git manda a Jenkins en cuanto alguien hace push | Dispara el pipeline sin que nadie pulse nada |
+| Registry local (`registry:2`) | Almacén de imágenes de contenedor, como un Docker Hub privado del aula | El pipeline sube ahí la imagen y los entornos la descargan |
+| Credenciales y `withCredentials` | Caja fuerte de tokens y contraseñas; el pipeline los pide por nombre y nunca los lleva escritos | Todo secreto pasa por ahí y se enmascara en el log |
+| Plugins | Piezas que se añaden a Jenkins para que entienda Git, Docker, informes de pruebas o roles | Solo los que hacen falta, desde un fichero versionado |
+| JCasC (Configuration as Code) | Plugin que carga toda la configuración de Jenkins desde un YAML en lugar de pulsar opciones en la web | Un Jenkins que se reconstruye desde un repositorio |
+| TLS con CA propia (openssl, nginx) | Certificado firmado por una autoridad del aula para que navegadores y Docker confíen en `jenkins.lab` y en el registry | Jenkins y el registry solo hablan cifrado |
+| Informe JUnit | Formato XML estándar en el que `pytest` deja el resultado de cada prueba | Jenkins lo lee para marcar las pruebas rojas |
+| OpenTofu y Ansible (UT5) | Las herramientas que ya usáis para crear y configurar las VM del servicio | La etapa de despliegue las ejecuta tal cual, con el token que le presta Jenkins |
+| GitLab CI | La integración continua que viene dentro de GitLab, definida en `.gitlab-ci.yml` | Traducimos el pipeline al final para ver que lo aprendido no depende de Jenkins |
+
+**Cómo está organizada la unidad.** Empezamos por el vocabulario (integración, entrega y despliegue continuos, y qué aporta un pipeline frente a un script) y por la comparativa de orquestadores, porque elegir Jenkins tiene que ser una decisión razonada. Después instalamos y aseguramos Jenkins, y solo entonces vienen plugins y agentes, que le dan capacidades y sitio donde ejecutar. Con un agente conectado enganchamos el repositorio (proyecto, credenciales y webhook), escribimos el `Jenkinsfile` y montamos el registry. La gestión de errores va después porque solo se prueba un pipeline que existe, y el mínimo privilegio cierra la unidad porque para repartir credenciales hay que saber quién las usa. Las actividades siguen ese orden, una por sesión.
+
+!!! info "Dónde se usa esto en la otra asignatura"
+    Esta unidad va del 3 de febrero al 24 de marzo y coincide con la [UT7 de Mantenimiento, actualización y vulnerabilidades](https://victor-educ.github.io/apuntes-5169/ut/ut7-actualizacion-vulnerabilidades/) (4 de febrero a 9 de marzo) y con la [UT8, terminación segura](https://victor-educ.github.io/apuntes-5169/ut/ut8-terminacion-segura/) (11 de marzo a 6 de abril). Allí se dan por conocidos Jenkins, sus credenciales y el registry local que montáis aquí.
+
+    - En la sesión 35 de la 5169 (25 de febrero) se añade al `Jenkinsfile` una [etapa de escaneo con Trivy](https://victor-educ.github.io/apuntes-5169/ut/ut7-actualizacion-vulnerabilidades/#la-etapa-de-escaneo-en-el-jenkinsfile) entre construir la imagen y subirla al registry. Aquí el pipeline se construye en las sesiones 35 a 37 (19 a 26 de febrero): si ese día el tuyo aún no empaqueta, prueba la etapa en un job aparte que solo construya y escanee, e intégrala después.
+    - La UT8 de Mantenimiento [borra las credenciales de Jenkins](https://victor-educ.github.io/apuntes-5169/ut/ut8-terminacion-segura/#credenciales-y-tokens) del entorno `pre` y deshabilita su job sin borrar el historial. El inventario de credenciales que entregáis en la sesión 39 es la lista que allí se recorre para no dejar ningún token huérfano.
+
 ## Integración continua, entrega continua y despliegue continuo
+
+Antes de tocar Jenkins hay que ponerse de acuerdo en las palabras, porque en las ofertas de trabajo y en los blogs se usan como sinónimos y no lo son. Este apartado deja claro qué se automatiza en cada escalón, qué piezas intervienen y qué gana un pipeline frente al script que ya tenéis de la UT5; sin eso, la comparativa del apartado siguiente no se puede leer con criterio.
 
 **Integración continua (CI)** es integrar el trabajo de todos los desarrolladores varias veces al día en un repositorio común y comprobar automáticamente, en cada integración, que el proyecto compila, pasa las pruebas y se empaqueta. La idea la formalizó Martin Fowler hace más de veinte años y no ha cambiado: si integras poco y tarde, el día que juntas el trabajo de cinco personas te encuentras con conflictos que nadie sabe resolver; si integras cada pocas horas y una máquina ejecuta las pruebas en cada integración, el error aparece a los diez minutos de haberlo cometido y lo arregla quien lo acaba de escribir.
 
@@ -36,7 +65,7 @@ En el módulo llegaremos hasta la entrega continua: el pipeline despliega en `de
 
 ### Las piezas
 
-- **Repositorio Git** con el código del servicio y, en el mismo repositorio, la definición del pipeline. Que el pipeline viva con el código importa: se versiona, se revisa en un *merge request* y cada rama lleva el suyo.
+- **Repositorio Git** con el código del servicio y, en el mismo repositorio, la definición del pipeline. Que el pipeline viva con el código importa: se versiona, se revisa en un *merge request* (la petición de fusionar una rama, *pull request* en GitHub) y cada rama lleva el suyo.
 - **Orquestador** (Jenkins, GitLab CI, GitHub Actions, Gitea Actions): recibe el aviso de cambio, decide qué ejecutar, dónde, con qué credenciales, y guarda resultados, logs e informes.
 - **Agentes** o *runners*: las máquinas o contenedores donde se ejecutan realmente las tareas. El orquestador solo coordina; si ejecutase él mismo las tareas, cualquier `sh` de cualquier pipeline correría con los permisos del orquestador entero.
 - **Registry** de imágenes y almacén de artefactos: donde queda lo que produce el pipeline (imágenes, paquetes, informes) identificado por el commit que lo generó.
@@ -62,10 +91,12 @@ La pregunta es legítima, porque el `test.sh` de la UT5 ya encadena `tofu apply`
 - **Historial**: cada ejecución queda numerada, con su commit, su log, quién la lanzó, cuánto tardó y qué produjo. Cuando algo falla en producción, puedes ir a la ejecución #142 y ver qué se probó.
 - **Estados con significado**: un script devuelve 0 o distinto de 0. Un pipeline distingue entre "todo bien", "todo se ejecutó pero hay pruebas rojas", "se rompió a mitad" y "alguien lo canceló", y reacciona distinto en cada caso.
 - **Credenciales gestionadas**: el script tiene el token en una variable de entorno o, peor, en el propio fichero. El orquestador lo guarda cifrado, lo inyecta solo en la etapa que lo necesita y lo enmascara en el log.
-- **Condiciones y paralelismo**: "esto solo en `main`", "esto solo si cambió `Dockerfile`", "lint y test a la vez". En bash se puede, pero cada condición es un `if` más que nadie prueba.
+- **Condiciones y paralelismo**: "esto solo en `main`", "esto solo si cambió `Dockerfile`", "lint (el análisis estático del código, sin ejecutarlo) y test a la vez". En bash se puede, pero cada condición es un `if` más que nadie prueba.
 - **Disparo automático** desde el repositorio y **límites** (tiempo máximo, no concurrencia) que evitan que dos despliegues pisen el mismo estado de OpenTofu.
 
 ## Elegir el orquestador
+
+Jenkins no es la única opción, y en una empresa el orquestador no se elige por costumbre. Aquí comparamos los cuatro que os vais a encontrar con los criterios que pide el módulo, para que sepáis defender la elección delante de quien pregunte y para que reconozcáis los otros tres cuando cambiéis de empresa.
 
 |  | **Jenkins** | **GitLab CI** | **GitHub Actions** | **Gitea Actions** |
 |----|----|----|----|----|
@@ -87,11 +118,13 @@ En el módulo usamos **Jenkins** por su flexibilidad y porque obliga a entender 
 
 ## Instalar y asegurar Jenkins
 
+Este apartado deja Jenkins instalado en un contenedor, accesible por HTTPS con un certificado que el aula acepta, con usuarios y roles, y con su configuración en un YAML versionado. Vamos en ese orden porque cada paso protege al siguiente: sin TLS las contraseñas viajan en claro, sin roles cualquiera administra, y sin el YAML nadie sabe reconstruirlo cuando se rompa.
+
 ### Despliegue en contenedor
 
 Jenkins es una aplicación Java que escucha en el puerto 8080 por HTTP. La imagen oficial `jenkins/jenkins:lts-jdk21` (la variante `lts-jdk17` sigue publicándose) trae el controlador y nada más: ni Docker, ni Git en versión útil, ni plugins. Todo su estado (configuración, jobs, credenciales cifradas, historial) vive en `/var/jenkins_home`, y ese directorio es lo único que hay que conservar.
 
-Hay dos formas de poner TLS delante. La primera es la que traía el guion original: Jenkins carga un keystore Java y sirve HTTPS él mismo.
+Hay dos formas de poner TLS delante. La primera es la que traía el guion original: Jenkins carga un keystore Java (un fichero que guarda certificado y clave en el formato que entiende Java) y sirve HTTPS él mismo.
 
 === "Keystore en Jenkins"
 
@@ -172,13 +205,13 @@ Hay dos formas de poner TLS delante. La primera es la que traía el guion origin
     }
     ```
 
-    Es la que prefiero y la que se ve en las empresas: nginx (o Traefik, o el balanceador del proveedor) termina TLS con un certificado normal en PEM, el mismo que usaríais para cualquier otro servicio, y Jenkins habla HTTP por la red interna del compose. Cambiar el certificado no toca a Jenkins, y el mismo nginx puede servir el registry y Gitea en otros `server`. La única condición es configurar en Jenkins la URL pública (`https://jenkins.lab/`) y pasar las cabeceras `X-Forwarded-*`; si no, Jenkins genera enlaces con `http://jenkins:8080` y os saldrá el aviso "It appears that your reverse proxy set up is broken".
+    Es la que prefiero y la que se ve en las empresas: nginx (o Traefik, o el balanceador del proveedor) termina TLS con un certificado normal en PEM (el formato de texto habitual para certificados y claves), el mismo que usaríais para cualquier otro servicio, y Jenkins habla HTTP por la red interna del compose. Cambiar el certificado no toca a Jenkins, y el mismo nginx puede servir el registry y Gitea en otros `server`. La única condición es configurar en Jenkins la URL pública (`https://jenkins.lab/`) y pasar las cabeceras `X-Forwarded-*`; si no, Jenkins genera enlaces con `http://jenkins:8080` y os saldrá el aviso "It appears that your reverse proxy set up is broken".
 
-Sin JCasC, la contraseña inicial está en `/var/jenkins_home/secrets/initialAdminPassword` (`docker compose exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword`). Jenkins vive en la subred de gestión de la VPC (en nuestro laboratorio, `10.0.20.0/24`), nunca en la DMZ externa: contiene credenciales de todo lo demás y no lo necesita nadie de fuera.
+Sin JCasC (el plugin que carga la configuración desde un YAML, lo vemos unos párrafos más abajo), la contraseña inicial está en `/var/jenkins_home/secrets/initialAdminPassword` (`docker compose exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword`). Jenkins vive en la subred de gestión de la VPC (en nuestro laboratorio, `10.0.20.0/24`), nunca en la DMZ externa: contiene credenciales de todo lo demás y no lo necesita nadie de fuera.
 
 ### Certificados
 
-Certificado propio firmado por una CA interna (openssl o `step-ca`), importado en el keystore Java o entregado a nginx en PEM. La CA se instala en los navegadores del aula y en el almacén del sistema de las máquinas que van a hablar con Jenkins y con el registry (`/usr/local/share/ca-certificates/lab-ca.crt` y `update-ca-certificates` en Debian/Ubuntu). En producción, certificado de la CA corporativa o Let's Encrypt tras un proxy inverso; Let's Encrypt exige que el nombre resuelva públicamente y que el validador llegue al puerto 80 o que hagáis la validación por DNS, y como Jenkins no debe ser accesible desde Internet, lo habitual es la CA corporativa.
+Certificado propio firmado por una CA interna (openssl o `step-ca`, una CA pequeña que se administra desde la línea de comandos), importado en el keystore Java o entregado a nginx en PEM. La CA se instala en los navegadores del aula y en el almacén del sistema de las máquinas que van a hablar con Jenkins y con el registry (`/usr/local/share/ca-certificates/lab-ca.crt` y `update-ca-certificates` en Debian/Ubuntu). En producción, certificado de la CA corporativa o Let's Encrypt tras un proxy inverso; Let's Encrypt exige que el nombre resuelva públicamente y que el validador llegue al puerto 80 o que hagáis la validación por DNS, y como Jenkins no debe ser accesible desde Internet, lo habitual es la CA corporativa.
 
 Una CA mínima en tres comandos, suficiente para el laboratorio:
 
@@ -198,8 +231,8 @@ openssl x509 -req -in jenkins.csr -CA ca.crt -CAkey ca.key -CAcreateserial \
 
 - Manage Jenkins → Security → Authorization: **Matrix-based security** o el plugin **Role-based Authorization Strategy**. La matriz vale para tres usuarios; en cuanto hay carpetas y equipos, los roles se gestionan mejor.
 - Roles: administrador (pocos, dos personas como máximo), desarrollador (construir y ver), lector (solo ver), cuentas de servicio (solo lo que su tarea necesita, por ejemplo un rol que solo puede lanzar un job concreto desde el webhook).
-- Autenticación contra LDAP/AD o GitLab cuando exista (plugins `ldap` y `gitlab-oauth`); usuarios locales solo en el laboratorio. Cuando alguien deja la empresa, su cuenta se desactiva en un sitio, no en quince.
-- Desactivar el registro abierto de usuarios, activar la protección **CSRF** (el *crumb issuer*; viene activada y hay tutoriales antiguos que enseñan a desactivarla para que funcione un `curl`: no lo hagáis, pasad el crumb o usad un token de API), limitar el acceso a la **script console** (Manage Jenkins → Script Console ejecuta Groovy arbitrario con los permisos del proceso de Jenkins; quien tiene `Overall/Administer` tiene eso, por eso hay que dar tan pocos).
+- Autenticación contra LDAP/AD (el directorio de usuarios de la empresa) o GitLab cuando exista (plugins `ldap` y `gitlab-oauth`); usuarios locales solo en el laboratorio. Cuando alguien deja la empresa, su cuenta se desactiva en un sitio, no en quince.
+- Desactivar el registro abierto de usuarios, activar la protección **CSRF** (contra la falsificación de peticiones desde otro sitio: que una web ajena use tu navegador, ya autenticado, para lanzar acciones en Jenkins; la implementa el *crumb issuer*, viene activada y hay tutoriales antiguos que enseñan a desactivarla para que funcione un `curl`: no lo hagáis, pasad el crumb o usad un token de API), limitar el acceso a la **script console** (Manage Jenkins → Script Console ejecuta Groovy, el lenguaje en que están escritos Jenkins y los `Jenkinsfile`, sin restricción y con los permisos del proceso de Jenkins; quien tiene `Overall/Administer` tiene eso, por eso hay que dar tan pocos).
 
 ### Hardening del controlador
 
@@ -208,6 +241,8 @@ openssl x509 -req -in jenkins.csr -CA ca.crt -CAkey ca.key -CAcreateserial \
 - **Actualizaciones**: el controlador con la LTS (una versión cada doce semanas con parches entre medias) y los plugins revisados al menos una vez al mes. El panel de plugins marca en rojo los que tienen avisos de seguridad publicados en [jenkins.io/security](https://www.jenkins.io/security/).
 - **Backup** de `jenkins_home` (configuración, jobs, credenciales cifradas). Con JCasC, la configuración ya está en Git; lo que queda por salvar es el historial de ejecuciones y, sobre todo, `secrets/master.key` y `secrets/hudson.util.Secret`, sin los cuales las credenciales cifradas del backup no sirven. Un `tar` del volumen con el contenedor parado, o el plugin `thinBackup`, cada noche.
 - **Configuration as Code** (plugin **JCasC**): la configuración de Jenkins en un YAML versionado. Es la diferencia entre un Jenkins que se reconstruye en cinco minutos y uno que nadie se atreve a tocar.
+
+El YAML siguiente es una configuración completa para el laboratorio. Fíjate en tres bloques: `securityRealm` y `authorizationStrategy` (quién entra y qué puede hacer), `nodes` (el agente que conectaremos en la sesión 33) y `credentials` (la clave SSH del agente, leída de una variable en vez de escrita).
 
 ```yaml
 # casc/jenkins.yaml
@@ -278,6 +313,8 @@ Los valores `${ADMIN_PASSWORD}` y `${AGENT_SSH_KEY}` los resuelve JCasC desde va
 
 ## Plugins
 
+Un Jenkins recién instalado no sabe clonar un repositorio, hablar con Docker ni leer un informe de pruebas: cada capacidad la aporta un plugin. Aquí decidimos cuáles hacen falta para el módulo y cómo dejarlos instalados de forma que el Jenkins se reconstruya siempre igual.
+
 Se instalan desde Manage Jenkins → Plugins, o mejor, desde una imagen propia que los deja preinstalados para que el Jenkins se reconstruya siempre igual:
 
 ```dockerfile
@@ -328,6 +365,8 @@ Hay dos maneras de "correr dentro de un contenedor" que se confunden mucho. La c
 En el `Jenkinsfile` se elige con `agent { label 'docker' }` o `agent { docker { image 'python:3.12'; label 'docker' } }`. Dónde corre cada etapa se decide así: si el `pipeline` declara `agent none`, cada `stage` tiene que declarar el suyo, y es la forma que recomiendo porque obliga a pensarlo. Si el `pipeline` declara `agent { label 'docker' }`, todas las etapas heredan ese agente y el workspace se comparte entre ellas sin `stash`; más cómodo, pero mezcla en la misma máquina la construcción y el despliegue, y por tanto sus credenciales.
 
 ## Proyectos, credenciales y webhooks
+
+Con Jenkins instalado y un agente conectado, falta engancharlo al repositorio: un proyecto que sepa dónde está el código, una credencial para leerlo y un webhook (el aviso HTTP que el servidor Git envía a Jenkins cuando alguien hace push) para que arranque solo. Esas tres cosas son este apartado, y las credenciales llevan su propia parte porque son lo primero que se intenta robar de un Jenkins.
 
 ### El proyecto
 
@@ -403,7 +442,7 @@ Queda el caso en que Jenkins no es accesible desde el servidor Git. Pasa cuando 
 
 ## Pipeline declarativo
 
-Este es el `Jenkinsfile` del servicio del curso. Léelo entero una vez y luego vamos sección a sección.
+Ya está todo montado; ahora toca escribir lo que Jenkins tiene que hacer con cada cambio. Este es el `Jenkinsfile` del servicio del curso. Léelo entero una vez y luego vamos sección a sección. Fíjate en tres cosas: cada `stage` declara su propio agente, ninguna contraseña aparece escrita, y la etapa `Deploy` solo corre si se pide con un parámetro. Con este fichero en la raíz del repositorio y el proyecto Multibranch del apartado anterior, cada push acaba en una ejecución con las cuatro etapas en verde (o tres, si nadie ha pedido desplegar).
 
 ```groovy
 pipeline {
@@ -480,15 +519,15 @@ pipeline {
 
 **`environment`.** Variables de entorno para todas las etapas. Se pueden definir también dentro de un `stage`, y pueden leer credenciales (`TOKEN = credentials('pve-token')`), pero prefiero `withCredentials` porque acota el secreto a un bloque. Las variables predefinidas que más usaréis: `BUILD_NUMBER`, `JOB_NAME`, `BUILD_URL`, `GIT_COMMIT`, `GIT_BRANCH`, `BRANCH_NAME` (esta solo en Multibranch), `WORKSPACE`.
 
-**`stages`, `stage`, `steps`.** Etapas y pasos, en secuencia. `stage('Checkout')` clona el repositorio con `checkout scm` (la configuración de SCM la aporta el job Multibranch, incluida la credencial `git-ro`) y guarda el árbol de fuentes con `stash 'src'`. **`stash / archiveArtifacts`**: `stash` pasa ficheros entre etapas que corren en agentes distintos (viaja por el controlador, así que no sirve para gigabytes); `archiveArtifacts` los guarda con la ejecución para descargarlos después.
+**`stages`, `stage`, `steps`.** Etapas y pasos, en secuencia. `stage('Checkout')` clona el repositorio con `checkout scm` (la configuración de SCM, *source code management*, es decir, el repositorio y su credencial, la aporta el job Multibranch, incluida la credencial `git-ro`) y guarda el árbol de fuentes con `stash 'src'`. **`stash / archiveArtifacts`**: `stash` pasa ficheros entre etapas que corren en agentes distintos (viaja por el controlador, así que no sirve para gigabytes); `archiveArtifacts` los guarda con la ejecución para descargarlos después.
 
-**`Build & Test`.** Corre en un contenedor `python:3.12` lanzado sobre un agente con etiqueta `docker`. `pytest --junitxml` deja el informe y el `post { always { junit ... } }` de la etapa lo publica pase lo que pase. Si hay pruebas rojas, `junit` marca la ejecución como UNSTABLE en lugar de FAILURE: se ejecutó todo, pero el resultado no es aceptable. Fijaos en que `pip install` sin caché descarga las dependencias en cada ejecución; con un `requirements.txt` grande se arregla con una imagen propia que ya las lleve, o con un volumen para la caché de pip.
+**`Build & Test`.** Corre en un contenedor `python:3.12` lanzado sobre un agente con etiqueta `docker`. `pytest` (el ejecutor de pruebas de Python) con `--junitxml` deja el informe y el `post { always { junit ... } }` de la etapa lo publica pase lo que pase. Si hay pruebas rojas, `junit` marca la ejecución como UNSTABLE en lugar de FAILURE: se ejecutó todo, pero el resultado no es aceptable. Fijaos en que `pip install` sin caché descarga las dependencias en cada ejecución; con un `requirements.txt` grande se arregla con una imagen propia que ya las lleve, o con un volumen para la caché de pip.
 
 **`Package`.** Construye la imagen con `docker.build`, etiquetada con los siete primeros caracteres del commit (`GIT_COMMIT.take(7)`), para que cada imagen sea trazable hasta la línea de código que contiene. `docker.withRegistry` hace `docker login` con la credencial `registry-cred` y `logout` al salir, y dentro se hacen dos `push`: la etiqueta del commit y `latest`. El bloque `script { }` es necesario porque `docker.build` es un paso de la sintaxis *scripted*; el declarativo lo permite dentro de `script`. El agente necesita el CLI de Docker y acceso al demonio.
 
 **`Deploy`.** `when { expression { params.RUN_DEPLOY } }` salta la etapa si el parámetro es falso, así el mismo pipeline sirve para validar cada push y para desplegar cuando alguien lo decide. Corre en un agente con etiqueta `terraform` (con `tofu`, `ansible` y las claves SSH de la UT5), recibe el token de Proxmox como `TF_VAR_pve_token` (OpenTofu lee cualquier variable `TF_VAR_x` como la variable `x`), y encadena los tres pasos de la UT5: `tofu init && tofu apply` en el directorio del entorno, el playbook con el inventario del entorno y el `test.sh`. Cualquiera de los tres que devuelva distinto de 0 hace fallar la etapa y el pipeline.
 
-**`post` del pipeline.** Qué hacer al terminar según resultado: `failure` avisa por correo (el paso `mail` es del plugin Mailer, que tiene que tener el SMTP configurado; en clase usaremos Telegram porque el correo del aula no sale), `success` deja un mensaje y `always` limpia el workspace con `cleanWs()`. Las condiciones disponibles son `always`, `success`, `failure`, `unstable`, `aborted`, `changed` (cambió respecto a la anterior), `fixed` (pasó de rojo a verde), `regression` y `cleanup` (el último de todos).
+**`post` del pipeline.** Qué hacer al terminar según resultado: `failure` avisa por correo (el paso `mail` es del plugin Mailer, que tiene que tener el SMTP, el servidor de correo saliente, configurado; en clase usaremos Telegram porque el correo del aula no sale), `success` deja un mensaje y `always` limpia el workspace con `cleanWs()`. Las condiciones disponibles son `always`, `success`, `failure`, `unstable`, `aborted`, `changed` (cambió respecto a la anterior), `fixed` (pasó de rojo a verde), `regression` y `cleanup` (el último de todos).
 
 ```mermaid
 flowchart TD
@@ -653,7 +692,7 @@ Para que veáis que lo aprendido se traslada, este es el equivalente del `Jenkin
 
 ## Package y el registry local
 
-La etapa `Package` necesita un registry al que subir la imagen. `registry:2` (el proyecto se llama ahora Distribution y publica también `registry:3`, compatible en lo que nos afecta) es un contenedor de un solo binario que almacena imágenes en un directorio. Sin TLS, Docker se niega a hablar con él salvo que lo declaréis como *insecure registry*, lo cual es una mala costumbre que luego alguien copia en producción. Con la CA del aula:
+La etapa `Package` necesita un registry al que subir la imagen. `registry:2` (el proyecto se llama ahora Distribution y publica también `registry:3`, compatible en lo que nos afecta) es un contenedor de un solo binario que almacena imágenes en un directorio. Sin TLS, Docker se niega a hablar con él salvo que lo declaréis como *insecure registry*, lo cual es una mala costumbre que luego alguien copia en producción. Con la CA del aula, el compose queda así, con TLS y con autenticación básica mediante un fichero `htpasswd` (usuario y contraseña cifrada, el mismo formato que usa Apache):
 
 ```yaml
 # registry/compose.yml
@@ -705,6 +744,8 @@ Herramientas para decidir qué hacer en cada caso:
 - **`catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE')`** para seguir aunque una etapa no crítica falle: la etapa queda en rojo, el pipeline en amarillo y las siguientes se ejecutan. Típico para el lint o para publicar una métrica.
 - **`sh`** termina el pipeline si el comando devuelve distinto de 0; capturar con `returnStatus: true` cuando se quiere decidir (`def rc = sh(script: 'bash test.sh', returnStatus: true)`), y `returnStdout: true` para leer la salida.
 - **`post { failure }`** notifica; **`post { always }`** limpia y archiva logs. Y `post { aborted }` merece su propio bloque cuando la etapa de despliegue puede quedar a medias.
+
+El fragmento siguiente reescribe las etapas `Package` y `Deploy` con esas herramientas. Fíjate en el `retry` alrededor del push (y no del `apply`), en el `returnStatus` que permite archivar evidencias antes de fallar y en el `post { aborted }` que guarda el estado de OpenTofu si alguien cancela a mitad.
 
 ```groovy
 stage('Package') {
@@ -763,7 +804,7 @@ Cinco casos, y para cada uno se anota cómo se provocó, el estado final del pip
 | Cancelación manual | Pulsar la X durante `Build & Test` | ABORTED | El contenedor `python:3.12` no queda en `docker ps -a`; el workspace está limpio |
 | Fallo en deploy | Un puerto equivocado en `test.sh` | FAILURE | El entorno queda en un estado conocido y documentado; el siguiente `apply` no destruye nada que no deba |
 
-El mismo criterio de "estado conocido" se aplica a los tres caminos del despliegue de la sesión 40: correcto, fallo en `apply` y fallo en el smoke test.
+El mismo criterio de "estado conocido" se aplica a los tres caminos del despliegue de la sesión 40: correcto, fallo en `apply` y fallo en el smoke test (la prueba mínima de que el servicio responde, aquí el `test.sh`).
 
 ## Mínimo privilegio
 

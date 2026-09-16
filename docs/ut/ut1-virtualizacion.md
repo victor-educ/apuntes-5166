@@ -2,7 +2,7 @@
 
 <p class="ut-meta">12 h · Sesiones 1 a 6 · RA1 CE a</p>
 
-Esta es la primera unidad del módulo y la que sostiene todas las demás. Todo lo que vais a desplegar en el curso (las VPC con SDN de la UT2, los cortafuegos y proxies de la UT3, los clústeres de contenedores, los pipelines de Jenkins) corre sobre máquinas virtuales, y esas máquinas virtuales corren sobre un hipervisor que tenéis que saber instalar, configurar y, sobre todo, entender. Vais a montar vuestro propio Proxmox VE, a crear una plantilla con cloud-init de la que saldrán decenas de VM en las próximas semanas y a medir qué aguanta y qué no aguanta vuestro laboratorio. En la UT2 cogeremos ese mismo Proxmox y le añadiremos redes definidas por software para construir una VPC como la de cualquier nube pública.
+Esta es la primera unidad del módulo y la que sostiene todas las demás. Todo lo que vais a desplegar en el curso (las VPC con SDN (redes definidas por software) de la UT2, los cortafuegos y proxies de la UT3, los clústeres de contenedores, los pipelines de Jenkins) corre sobre máquinas virtuales, y esas máquinas virtuales corren sobre un hipervisor que tenéis que saber instalar, configurar y, sobre todo, entender. Vais a montar vuestro propio Proxmox VE, a crear una plantilla con cloud-init (el servicio que configura una VM en su primer arranque) de la que saldrán decenas de VM en las próximas semanas y a medir qué aguanta y qué no aguanta vuestro laboratorio. En la UT2 cogeremos ese mismo Proxmox y le añadiremos redes definidas por software para construir una VPC como la de cualquier nube pública.
 
 ## Qué tienes que saber hacer al terminar
 
@@ -17,7 +17,35 @@ El criterio de evaluación de esta unidad es el RA1 a: instalar y configurar un 
 - Configurar la red del hipervisor: bridge con y sin interfaz física, VLAN-aware, NAT y bonding.
 - Medir la capacidad real del hipervisor (CPU, RAM, disco, red) con herramientas estándar y documentar sus límites.
 
+## Antes de entrar en detalle
+
+En la sesión 3 necesitáis dos máquinas nuevas, `app01` y `mon01`, porque al día siguiente empieza la asignatura de mantenimiento y las quiere funcionando. Instaladas desde una ISO son 20 minutos de instalador por máquina, y luego usuario, clave SSH e IP a mano, con la IP mal escrita a la tercera. En la UT2 harán falta seis o siete. Lo que queremos conseguir al final de esta unidad, en una frase: un servidor que fabrica máquinas virtuales ya configuradas en segundos, y saber hasta dónde aguanta antes de que se caiga todo.
+
+Los nombres que van a aparecer, antes de encontrároslos en el texto:
+
+| Herramienta o concepto | Qué es, en una frase | Para qué la usamos en esta unidad |
+|---|---|---|
+| Hipervisor | El programa que reparte un ordenador físico entre varios sistemas operativos a la vez, aislados entre sí | Es lo que vais a instalar, configurar y medir |
+| Proxmox VE | Un hipervisor libre basado en Debian con consola web, la nube privada del aula | El hipervisor del curso, de la sesión 1 hasta junio |
+| KVM y QEMU | KVM es la parte del kernel de Linux que deja a la VM usar la CPU real; QEMU es el programa que le inventa el resto del ordenador | Entender por qué una VM va rápida o lenta y qué significa cada opción al crearla |
+| virtio | Un atajo para que la VM hable con QEMU directamente en lugar de fingir que hay hardware real | El motivo de dejar disco y red en VirtIO y no en IDE o e1000 |
+| LVM-thin, ZFS, raw y qcow2 | Las maneras de guardar los discos de las VM en el host (LVM-thin, ZFS) y el formato de cada disco (raw, qcow2) | Elegir dónde viven los discos y no llenar el almacén sin darse cuenta |
+| Bridge Linux (`vmbr0`, `vmbr1`) y VLAN | Un switch virtual dentro del host al que se enchufan las VM; las VLAN son etiquetas que lo dividen en redes separadas | `vmbr0` da acceso al aula, `vmbr1` es la red interna del laboratorio |
+| cloud-init | Un servicio de la VM que en el primer arranque lee un fichero con usuario, clave SSH e IP y lo aplica solo | Configurar cada VM nueva sin entrar en ella |
+| Plantilla y clon | Una VM congelada de la que se sacan copias, enlazadas (comparten el disco base) o completas | Crear `web01`, `app01`, `mon01` y el resto de VM del curso desde una sola imagen |
+| Snapshot y vzdump | Un snapshot es una foto del disco a la que se puede volver; vzdump es la copia de seguridad a otro sitio | Probar cosas peligrosas sin miedo |
+| LXC | Contenedor de sistema: un Linux completo que comparte el kernel del host, más ligero que una VM y menos aislado | Compararlo con la VM con números |
+| stress-ng, fio, iperf3 | Programas que cargan a propósito CPU, disco y red para medir cuánto dan | Poner números a los límites de vuestro laboratorio |
+
+**Cómo está organizada la unidad.** Primero, qué es virtualizar y qué tipos de hipervisor hay. Después, cómo funcionan KVM y QEMU por debajo y qué es virtio: sin eso las opciones de Proxmox parecen arbitrarias. Sigue un repaso corto de requisitos hardware, porque el laboratorio es anidado y hay que activar cosas antes de instalar. Luego Proxmox en sí (arquitectura, almacenamiento, red, usuarios), el suelo sobre el que va todo lo demás, y encima las máquinas virtuales: crearlas, elegir la CPU, cloud-init, plantillas, snapshots y backups. Cierran LXC frente a VM con medidas, el clúster y las capacidades y limitaciones con las herramientas para medirlas, que es lo que pide la práctica evaluable.
+
+!!! info "Dónde se usa esto en la otra asignatura"
+    La asignatura de mantenimiento (5169) empieza el 6 de octubre, cuatro días después que esta, y su [UT1 Observabilidad](https://victor-educ.github.io/apuntes-5169/ut/ut1-observabilidad/) necesita desde la primera semana máquinas que vigilar; la VPC de la UT2 y el firewall de la UT3 no llegan hasta noviembre y diciembre. Por eso en la sesión 3 de esta unidad, junto a `web01`, clonáis de la misma plantilla cloud-init dos VM en el bridge del aula (`vmbr0`): `app01`, con el servicio del curso en compose, y `mon01`, donde 5169 levanta Prometheus, Alertmanager y Grafana con un compose que se da allí en su sesión 1. Se usan en 5169 al día siguiente, así que tienen que arrancar, coger IP y aceptar la clave SSH ese mismo día.
+    Ese es el entorno provisional de 5169 en octubre y noviembre. Cuando esta asignatura termine la UT2 (18 nov) y la UT3 (9 dic), las dos VM se mueven a la VPC dev detrás del firewall, y lo hace 5169 en su UT3 (26 nov a 10 dic). Todo lo que aprendáis aquí sobre cloud-init, snapshots y `qm` lo vais a repetir allí cada vez que una de esas VM se rompa.
+
 ## Qué es virtualizar y para qué sirve
+
+Este apartado pone el vocabulario mínimo: qué es una máquina virtual, quién la fabrica y por qué las empresas las usan en lugar de un servidor por aplicación. Sin esto, las tablas de tipos de hipervisor y de VM frente a contenedor que vienen después no se leen bien.
 
 Virtualizar es ejecutar varios sistemas operativos independientes sobre un mismo hardware físico. Un software llamado hipervisor reparte CPU, memoria, disco y red entre las máquinas virtuales (VM) y las mantiene aisladas entre sí. Cada VM cree que tiene un ordenador para ella sola: una BIOS o UEFI, una CPU con sus registros, una controladora de disco, una tarjeta de red. Nada de eso existe físicamente; es el hipervisor el que lo fabrica y el que decide en cada instante qué VM usa el núcleo físico número 3 o quién escribe en el disco.
 
@@ -46,6 +74,8 @@ En este curso los contenedores se ejecutan dentro de máquinas virtuales: el hip
 
 ## Tipos de hipervisor
 
+Aquí clasificamos los hipervisores en dos familias y explicamos por qué el curso usa Proxmox VE. Os interesa porque en el laboratorio vais a tener los dos tipos a la vez: uno en vuestro portátil y otro, Proxmox, dentro de él.
+
 <figure markdown="span">
   ![Hipervisor tipo 1 sobre el hardware frente a hipervisor tipo 2 sobre un sistema operativo anfitrión](../img/hipervisor-tipos.png){ width="640" }
   <figcaption>Hipervisor de tipo 1 (bare metal) frente a tipo 2 (hosted). Fuente: Scsami, CC0, vía Wikimedia Commons.</figcaption>
@@ -66,9 +96,9 @@ En el módulo usaremos Proxmox VE: libre (AGPLv3), basado en Debian, con KVM par
 
 Esto es lo que os diferencia de alguien que solo sabe hacer clic en "Create VM". Cuando arrancáis una VM en Proxmox, ocurren tres cosas a la vez.
 
-**KVM (Kernel-based Virtual Machine)** son dos módulos del kernel de Linux: `kvm.ko`, genérico, y `kvm_intel.ko` o `kvm_amd.ko`, específicos de cada fabricante. KVM no emula nada: lo que hace es usar las extensiones de virtualización de la CPU (Intel VT-x, AMD-V) para ejecutar el código del sistema operativo invitado directamente en el procesador físico, a velocidad nativa. Se dice a menudo que el hipervisor corre en "ring -1": la CPU tiene un modo adicional (VMX root en Intel) en el que corre el kernel del host con KVM, y un modo invitado (VMX non-root) en el que corre la VM con sus propios anillos 0 a 3. El kernel del invitado cree que está en ring 0 y ejecuta instrucciones privilegiadas con normalidad; cuando hace algo que el hipervisor necesita controlar (tocar una tabla de páginas, acceder a un puerto de E/S, ejecutar `cpuid`, recibir una interrupción) la CPU sale del modo invitado (un *VM exit*), KVM atiende la petición y vuelve a entrar (*VM entry*). Cada VM exit cuesta del orden de un microsegundo, y minimizar su número es la clave del rendimiento de cualquier VM. La memoria se gestiona con tablas de páginas anidadas (EPT en Intel, NPT o RVI en AMD), de forma que la traducción de direcciones del invitado a direcciones físicas la hace la MMU en hardware sin intervención del hipervisor.
+**KVM (Kernel-based Virtual Machine)** son dos módulos del kernel de Linux: `kvm.ko`, genérico, y `kvm_intel.ko` o `kvm_amd.ko`, específicos de cada fabricante. KVM no emula nada: lo que hace es usar las extensiones de virtualización de la CPU (Intel VT-x, AMD-V) para ejecutar el código del sistema operativo invitado directamente en el procesador físico, a velocidad nativa. Se dice a menudo que el hipervisor corre en "ring -1": la CPU tiene un modo adicional (VMX root en Intel) en el que corre el kernel del host con KVM, y un modo invitado (VMX non-root) en el que corre la VM con sus propios anillos 0 a 3. El kernel del invitado cree que está en ring 0 y ejecuta instrucciones privilegiadas con normalidad; cuando hace algo que el hipervisor necesita controlar (tocar una tabla de páginas, acceder a un puerto de E/S, ejecutar `cpuid`, recibir una interrupción) la CPU sale del modo invitado (un *VM exit*), KVM atiende la petición y vuelve a entrar (*VM entry*). Cada VM exit cuesta del orden de un microsegundo, y minimizar su número es la clave del rendimiento de cualquier VM. La memoria se gestiona con tablas de páginas anidadas (EPT en Intel, NPT o RVI en AMD), de forma que la traducción de direcciones del invitado a direcciones físicas la hace la MMU (la unidad de la CPU que traduce direcciones de memoria) en hardware sin intervención del hipervisor.
 
-**QEMU** es un proceso de usuario ordinario, uno por VM (lo veréis con `ps aux | grep kvm` en el host: `/usr/bin/kvm -id 101 -name web01 ...`). Abre `/dev/kvm`, crea la VM y sus vCPU mediante `ioctl()` y lanza un hilo por vCPU que se pasa la vida dentro de una llamada `KVM_RUN`. Mientras la VM ejecuta código normal, ese hilo está bloqueado en el kernel y QEMU no hace nada. Cuando se produce un VM exit que KVM no puede resolver solo (casi siempre E/S), la llamada vuelve a QEMU, que es quien emula los dispositivos: la placa base (i440fx o q35), la controladora SATA, la tarjeta de red, la VGA, el reloj, el firmware (SeaBIOS o OVMF para UEFI). QEMU puede emular una tarjeta Intel e1000 con tal fidelidad que el driver de Windows XP la reconoce; el problema es que cada acceso del driver a un registro de esa tarjeta ficticia es un VM exit y una vuelta a espacio de usuario.
+**QEMU** es un proceso de usuario ordinario, uno por VM (lo veréis con `ps aux | grep kvm` en el host: `/usr/bin/kvm -id 101 -name web01 ...`). Abre `/dev/kvm`, crea la VM y sus vCPU mediante `ioctl()` (la llamada con la que un proceso da órdenes a un driver del kernel) y lanza un hilo por vCPU que se pasa la vida dentro de una llamada `KVM_RUN`. Mientras la VM ejecuta código normal, ese hilo está bloqueado en el kernel y QEMU no hace nada. Cuando se produce un VM exit que KVM no puede resolver solo (casi siempre E/S), la llamada vuelve a QEMU, que es quien emula los dispositivos: la placa base (i440fx o q35), la controladora SATA, la tarjeta de red, la VGA, el reloj, el firmware (SeaBIOS o OVMF para UEFI). QEMU puede emular una tarjeta Intel e1000 con tal fidelidad que el driver de Windows XP la reconoce; el problema es que cada acceso del driver a un registro de esa tarjeta ficticia es un VM exit y una vuelta a espacio de usuario.
 
 ```mermaid
 flowchart LR
@@ -100,11 +130,11 @@ La tercera pieza es la **capa de gestión de Proxmox** (`pve-manager`, `pvedaemo
 
 Si QEMU puede emular cualquier tarjeta, ¿por qué no usamos siempre la e1000 que reconoce cualquier sistema? Porque emular hardware real es lento. Un driver de e1000 escribe en decenas de registros por paquete y cada escritura es un VM exit. Con 10 Gbit/s de tráfico, la CPU del host se pasaría el día saliendo y entrando de la VM.
 
-La alternativa es la **paravirtualización**: el sistema invitado sabe que está virtualizado y usa un driver diseñado para hablar con el hipervisor en lugar de fingir que hay hardware. El estándar en KVM es **virtio** (especificación de OASIS). Un dispositivo virtio no tiene registros que emular; tiene colas (*virtqueues*) en memoria compartida entre invitado y QEMU. El invitado encola descriptores de paquetes o de bloques, avisa una vez ("kick") y QEMU procesa el lote. El número de VM exits por operación baja de decenas a uno, o a cero cuando se combina con vhost (el procesado se hace en el kernel del host sin pasar por QEMU).
+La alternativa es la **paravirtualización**: el sistema invitado sabe que está virtualizado y usa un driver diseñado para hablar con el hipervisor en lugar de fingir que hay hardware. El estándar en KVM es **virtio** (una especificación abierta, publicada por el consorcio OASIS). Un dispositivo virtio no tiene registros que emular; tiene colas (*virtqueues*) en memoria compartida entre invitado y QEMU. El invitado encola descriptores de paquetes o de bloques, avisa una vez ("kick") y QEMU procesa el lote. El número de VM exits por operación baja de decenas a uno, o a cero cuando se combina con vhost (el procesado se hace en el kernel del host sin pasar por QEMU).
 
 Por eso en Proxmox las opciones por defecto son las que son y no hay que cambiarlas:
 
-- **Disco: VirtIO SCSI** (`scsihw: virtio-scsi-pci` o mejor `virtio-scsi-single`, que da un hilo de E/S por disco). Frente a IDE o SATA emulados, multiplica el rendimiento de E/S varias veces y añade soporte de descarte de bloques (TRIM), imprescindible con thin provisioning. Existe también `virtio-blk` (bus `virtio0`), algo más antiguo; SCSI es hoy el recomendado porque admite muchos discos por controladora y comandos SCSI reales.
+- **Disco: VirtIO SCSI** (`scsihw: virtio-scsi-pci` o mejor `virtio-scsi-single`, que da un hilo de E/S por disco). Frente a IDE o SATA emulados, multiplica el rendimiento de E/S varias veces y añade soporte de descarte de bloques (TRIM), imprescindible con thin provisioning (asignar a las VM más disco del que hay, contando con que no lo llenen). Existe también `virtio-blk` (bus `virtio0`), algo más antiguo; SCSI es hoy el recomendado porque admite muchos discos por controladora y comandos SCSI reales.
 - **Red: virtio (`virtio-net`)**. Es el único modelo que llega a las velocidades de la red física. Se usa `e1000` o `rtl8139` solo con sistemas antiguos sin drivers virtio.
 - **Memoria: virtio-balloon**, para el ballooning que veremos después.
 - **Consola y agente: virtio-serial**, por donde habla el agente QEMU.
@@ -113,14 +143,18 @@ Linux lleva los drivers virtio en el kernel desde hace más de una década, así
 
 ## Requisitos hardware
 
+Antes de instalar nada, esta lista dice qué tiene que tener el equipo y qué hay que activar en el hipervisor exterior. El punto de la virtualización anidada es el que más disgustos da en la sesión 1: si se salta, Proxmox se instala igual pero sus VM van a paso de tortuga.
+
 - CPU con extensiones de virtualización: Intel VT-x o AMD-V. Sin ellas KVM no funciona. Se comprueba con `egrep -c '(vmx|svm)' /proc/cpuinfo` (debe dar más de 0). Si da 0 en un equipo moderno, la causa casi siempre es que está desactivado en la BIOS/UEFI.
 - VT-d / AMD-Vi (IOMMU) para pasar dispositivos físicos a una VM (passthrough). Opcional.
 - Virtualización anidada: para instalar Proxmox dentro de una VM (lo que haremos en el laboratorio) hay que activarla en el hipervisor exterior. En un host Linux con KVM, `options kvm-intel nested=1` (o `kvm-amd`) en `/etc/modprobe.d/kvm.conf` y se comprueba con `cat /sys/module/kvm_intel/parameters/nested`. En VirtualBox, "Enable Nested VT-x/AMD-V" en la pestaña de procesador o `VBoxManage modifyvm pve --nested-hw-virt on`. En VMware Workstation, "Virtualize Intel VT-x/EPT or AMD-V/RVI". Si el hipervisor exterior es otro Proxmox, la VM debe tener tipo de CPU `host`. Sin esto, el Proxmox anidado instala pero al arrancar una VM dirá que KVM no está disponible y la ejecutará en emulación pura (TCG), a una velocidad diez o veinte veces menor.
-- RAM: el hipervisor consume poco (un Proxmox recién instalado usa alrededor de 1 GB), pero cada VM necesita la suya. Regla de aula: 2 GB por VM de servidor. Si usáis ZFS, sumad lo que reserve la caché ARC (el instalador de Proxmox la limita al 10 % de la RAM, con máximo de 16 GB, desde la 8.1).
+- RAM: el hipervisor consume poco (un Proxmox recién instalado usa alrededor de 1 GB), pero cada VM necesita la suya. Regla de aula: 2 GB por VM de servidor. Si usáis ZFS, sumad lo que reserve la caché ARC (la caché de lectura de ZFS en RAM; el instalador de Proxmox la limita al 10 % de la RAM, con máximo de 16 GB, desde la 8.1).
 - Almacenamiento: SSD. Proxmox usa por defecto LVM-thin (aprovisionamiento ligero: solo ocupa lo escrito). Un disco mecánico con cuatro VM haciendo E/S aleatoria a la vez es la experiencia más frustrante que os puede dar un laboratorio.
 - Red: una interfaz basta para empezar; dos permiten separar gestión y tráfico de VM, y tres o cuatro son lo normal en un servidor de producción (gestión, VM, almacenamiento, migración o corosync).
 
 ## Proxmox VE
+
+Este apartado recorre las cuatro piezas de Proxmox que vais a tocar en las sesiones 1 y 2: cómo está construido, dónde guarda los discos, cómo conecta las VM a la red y quién puede hacer qué. Cada una lleva sus órdenes de terminal; la web hace lo mismo con clics, pero saber la orden es lo que os permitirá automatizarlo en la UT5.
 
 ### Arquitectura
 
@@ -137,7 +171,7 @@ Debian + kernel Linux con KVM/QEMU (máquinas virtuales) + LXC (contenedores de 
 | `pvecm` | Clúster: crear, añadir nodos, ver quórum |
 | `pveperf` | Medida rápida de CPU y disco del host |
 
-Puertos que conviene tener en la cabeza: 8006 (web y API), 22 (SSH), 5900 a 5999 (consolas VNC), 3128 (proxy SPICE), 5405 a 5412 UDP (corosync, solo en clúster) y 60000 a 60050 (migraciones).
+Puertos que conviene tener en la cabeza: 8006 (web y API), 22 (SSH), 5900 a 5999 (consolas VNC), 3128 (proxy SPICE, un protocolo de consola remota), 5405 a 5412 UDP (corosync, la mensajería del clúster; solo en clúster) y 60000 a 60050 (migraciones).
 
 ### Almacenamiento
 
@@ -235,7 +269,7 @@ iface vmbr0 inet static
 
 ### Usuarios y permisos
 
-Los usuarios pertenecen a un realm (`pam` = usuarios Linux del host, `pve` = usuarios propios de Proxmox, almacenados en `/etc/pve/user.cfg`; también hay LDAP, Active Directory y OpenID Connect). Los permisos se asignan como un rol (conjunto de privilegios: `Administrator`, `PVEAdmin`, `PVEVMAdmin`, `PVEVMUser`, `PVEAuditor`, `PVEDatastoreUser`...) sobre una ruta del árbol de objetos (`/`, `/vms/100`, `/storage/local`, `/nodes/pve1`), con o sin propagación a los hijos. Buena práctica: no trabajar como `root@pam`; crear un usuario administrador en el realm `pve` y reservar root para lo que solo root puede hacer (algunas operaciones del nodo y la consola del host). Los tokens de API, que usaréis con OpenTofu en la UT5, se crean sobre un usuario y heredan o restringen sus permisos.
+Los usuarios pertenecen a un realm (`pam` = usuarios Linux del host, `pve` = usuarios propios de Proxmox, almacenados en `/etc/pve/user.cfg`; también se pueden enganchar directorios externos: LDAP, Active Directory y OpenID Connect). Los permisos se asignan como un rol (conjunto de privilegios: `Administrator`, `PVEAdmin`, `PVEVMAdmin`, `PVEVMUser`, `PVEAuditor`, `PVEDatastoreUser`...) sobre una ruta del árbol de objetos (`/`, `/vms/100`, `/storage/local`, `/nodes/pve1`), con o sin propagación a los hijos. Buena práctica: no trabajar como `root@pam`; crear un usuario administrador en el realm `pve` y reservar root para lo que solo root puede hacer (algunas operaciones del nodo y la consola del host). Los tokens de API (claves con las que un programa habla con Proxmox sin contraseña), que usaréis con OpenTofu en la UT5, se crean sobre un usuario y heredan o restringen sus permisos.
 
 ```bash
 pveum user add admin@pve --password 'CambiaEsto' --comment "Administrador del laboratorio"
@@ -246,6 +280,8 @@ pveum acl list
 
 ## Máquinas virtuales en Proxmox
 
+Con el hipervisor listo, aquí está el ciclo de vida completo de una VM: crearla con los parámetros correctos, elegir la CPU que expone, configurarla sola con cloud-init, convertirla en plantilla y clonarla, y protegerla con snapshots y backups. Es el apartado más largo y el que más vais a consultar durante el curso; las actividades A1.3 y A1.4 siguen este mismo orden.
+
 ### Crear una VM: los parámetros que importan
 
 - ID (100 en adelante, único en el clúster) y nombre. Reservad un rango para plantillas (9000 en adelante es la costumbre).
@@ -254,7 +290,7 @@ pveum acl list
 - CPU: número de núcleos (`cores`) y sockets (dejad 1 socket) y tipo, que tiene sección propia más abajo.
 - Memoria: fija o con ballooning (mínimo y máximo; el host reclama la que no se usa).
 - Red: modelo virtio, bridge y, si procede, etiqueta VLAN y cortafuegos de Proxmox activado.
-- Firmware y máquina: SeaBIOS con i440fx por defecto; OVMF (UEFI) con q35 si vais a hacer passthrough de PCIe, Secure Boot o Windows 11 (que además exige un TPM virtual).
+- Firmware y máquina (el tipo de BIOS y de placa base que QEMU emula): SeaBIOS con i440fx por defecto; OVMF (UEFI) con q35 si vais a hacer passthrough de PCIe, Secure Boot o Windows 11 (que además exige un TPM virtual, un chip de seguridad emulado).
 - Agente QEMU: instalarlo dentro de la VM (`apt install qemu-guest-agent`) y activarlo en la VM (`--agent enabled=1`) para que Proxmox vea su IP, pueda apagarla limpiamente, congelar el sistema de ficheros durante un backup y ejecutar `fstrim`.
 
 ```bash
@@ -295,7 +331,7 @@ qm cloudinit dump 101 network
 qm cloudinit dump 101 meta
 ```
 
-El `user-data` que genera Proxmox es deliberadamente corto (hostname, usuario, contraseña cifrada, claves SSH, `package_upgrade` si lo marcáis). Si necesitáis más (instalar el agente QEMU, crear varios usuarios, ejecutar comandos), escribís vuestro propio fichero YAML en el almacén `local` como snippet y lo referenciáis con `--cicustom "user=local:snippets/web.yaml"`; en ese caso Proxmox deja de generar el `user-data` y usa el vuestro tal cual, pero sigue generando la red. Esto es lo que haréis en la UT5 desde OpenTofu.
+El `user-data` que genera Proxmox es deliberadamente corto (hostname, usuario, contraseña cifrada, claves SSH, `package_upgrade` si lo marcáis). Si necesitáis más (instalar el agente QEMU, crear varios usuarios, ejecutar comandos), escribís vuestro propio fichero YAML en el almacén `local` como snippet (un fichero auxiliar que Proxmox guarda junto a las ISO) y lo referenciáis con `--cicustom "user=local:snippets/web.yaml"`; en ese caso Proxmox deja de generar el `user-data` y usa el vuestro tal cual, pero sigue generando la red. Esto es lo que haréis en la UT5 desde OpenTofu.
 
 ```yaml
 #cloud-config
@@ -439,9 +475,11 @@ La migración en vivo (`qm migrate 101 pve2 --online`) mueve una VM encendida de
 
 ## Capacidades y limitaciones, y cómo medirlas
 
+El criterio de evaluación pide conocer las capacidades y limitaciones del hipervisor, y eso no se aprende leyendo: se mide. Primero va la tabla de qué permite hacer un hipervisor y dónde está el riesgo de cada cosa, y después las herramientas con las que tomaréis vuestras propias medidas para la práctica evaluable.
+
 | Capacidad | Qué permite | Límite o riesgo |
 |----|----|----|
-| Sobreasignación de CPU | Dar más vCPU en total que núcleos físicos (4:1 es habitual en cargas de oficina) | Si todas trabajan a la vez, se degrada todo; el *steal time* dentro de las VM lo delata |
+| Sobreasignación de CPU | Dar más vCPU en total que núcleos físicos (4:1 es habitual en cargas de oficina) | Si todas trabajan a la vez, se degrada todo; el *steal time* (tiempo que la vCPU esperó a que el host le diera un núcleo) dentro de las VM lo delata |
 | Ballooning de RAM | Recuperar memoria no usada (Proxmox empieza a reclamarla cuando el host pasa del 80 %) | Nunca sobreasignar más de lo físico + swap; el invitado necesita el driver virtio-balloon, y la RAM reclamada sale de su caché de disco, así que rinde peor |
 | KSM | Deduplicar páginas idénticas entre VM (mismo SO, mismas bibliotecas) | Consume CPU en el host y puede filtrar información entre VM por canales laterales; en entornos multi-inquilino se desactiva |
 | Hotplug | Añadir disco, red, CPU o RAM en caliente | Depende del SO invitado; RAM requiere `numa=1` y que el invitado active los DIMM nuevos; la CPU en caliente solo con `vcpus` menor que `cores` |
@@ -453,7 +491,7 @@ La migración en vivo (`qm migrate 101 pve2 --online`) mueve una VM encendida de
 
 Regla de oro: medir antes de sobreasignar. Un hipervisor de aula con 32 GB no debe albergar 20 VM de 2 GB "porque no las usamos todas a la vez". Tarde o temprano se usan, y lo que ocurre entonces (el kernel del host mata la VM que más memoria tiene, sin avisar, con el OOM killer) es mucho peor que haber puesto 12.
 
-Lo que os pido en la práctica evaluable es precisamente una tabla como la de arriba, pero con las medidas de vuestro laboratorio. Herramientas, todas en los repositorios de Debian (`apt install stress-ng fio iperf3 sysstat`):
+Lo que os pido en la práctica evaluable es precisamente una tabla como la de arriba, pero con las medidas de vuestro laboratorio. Herramientas, todas en los repositorios de Debian (`apt install stress-ng fio iperf3 sysstat`; `stress-ng` carga la CPU, `fio` mide el disco, `iperf3` la red y `sysstat` trae `iostat` y `sar` para observar el host):
 
 ```bash
 # Inventario del host

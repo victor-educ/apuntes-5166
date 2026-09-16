@@ -2,7 +2,7 @@
 
 <p class="ut-meta">14 h · Sesiones 7 a 13 · RA1 CE b, c</p>
 
-En la UT1 dejamos un Proxmox funcionando, una plantilla Debian con cloud-init (ID 9000) y un par de bridges. Hasta ahora las máquinas que clonábamos caían todas en la misma red, la del aula, y eso vale para probar pero no para lo que viene. En esta unidad construimos la red de verdad: tres entornos (dev, pre, pro) separados, cada uno con sus subredes por capa, su router, su DHCP y su DNS interno, y con la garantía de que lo que pasa en dev no puede tocar pro. Todo lo que montemos aquí es el suelo sobre el que la UT3 pone cortafuegos, DMZ y proxy inverso, y lo que en la UT5 volveremos a crear desde cero con OpenTofu sin pasar por la consola web. Por eso la última sesión de contenido es la de la CLI y la API: si sabes hacerlo a mano con `pvesh`, el provider de Terraform deja de ser magia.
+En la UT1 dejamos un Proxmox funcionando, una plantilla Debian con cloud-init (ID 9000; cloud-init es lo que configura nombre, red y usuario en el primer arranque de cada clon) y un par de bridges (los switches virtuales del nodo). Hasta ahora las máquinas que clonábamos caían todas en la misma red, la del aula, y eso vale para probar pero no para lo que viene. En esta unidad construimos la red de verdad: tres entornos (dev, pre, pro) separados, cada uno con sus subredes por capa, su router, su DHCP y su DNS interno, y con la garantía de que lo que pasa en dev no puede tocar pro. Todo lo que montemos aquí es el suelo sobre el que la UT3 pone cortafuegos, DMZ y proxy inverso, y lo que en la UT5 volveremos a crear desde cero con OpenTofu sin pasar por la consola web. Por eso la última sesión de contenido es la de la CLI y la API: si sabes hacerlo a mano con `pvesh` (el cliente de la API de Proxmox que va en el propio nodo), el provider de Terraform deja de ser magia.
 
 ## Qué tienes que saber hacer al terminar
 
@@ -12,16 +12,43 @@ En la UT1 dejamos un Proxmox funcionando, una plantilla Debian con cloud-init (I
 - Conseguir que dos subredes del mismo entorno se hablen y que dos entornos distintos no se vean, y demostrarlo con pruebas documentadas (CE b, c).
 - Recrear un entorno completo desde un script con `qm`, `pct` y `pvesh`, y borrarlo, de forma idempotente (CE b).
 
+## Antes de entrar en detalle
+
+Hoy todas las VM del aula cuelgan del mismo bridge, `vmbr0`: tu `app01` ve el `app01` de tu compañero, un `nmap` lanzado "para probar" recorre la red entera del instituto, y si alguien levanta un DHCP por error en su VM, media clase se queda sin IP. En una empresa con dev, pre y pro en la misma red pasa lo mismo, pero lo que cae es producción. Lo que queremos al terminar cabe en una frase: que cada uno tenga tres redes propias (dev, pre y pro), separadas entre sí, cada una con sus subredes y un router que reparte direcciones y nombres, y que todo eso se cree y se borre con un script.
+
+| Herramienta o concepto | Qué es, en una frase | Para qué la usamos en esta unidad |
+|---|---|---|
+| VPC (nube privada virtual) | Una red privada propia dentro de una infraestructura compartida, con su rango de direcciones y su salida a Internet | Es lo que construimos: una por entorno |
+| CIDR y RFC 1918 | La notación `10.10.1.0/24` para escribir redes y la lista de rangos privados que cualquiera puede usar en casa | Diseñar el direccionamiento sin que dos redes choquen |
+| SDN de Proxmox | El módulo de Proxmox que crea redes virtuales desde la consola central (zona, VNet, subnet) | Crear la red de cada entorno y enchufar las VM |
+| VLAN y VXLAN | Dos formas de llevar varias redes separadas por el mismo cable: etiquetando la trama o envolviéndola en un paquete IP | Elegir el tipo de zona del SDN |
+| Router de entorno | Una VM Debian con una pata en cada subred que reenvía paquetes entre ellas y hacia fuera | Que front hable con back y que el entorno salga a Internet |
+| nftables | El cortafuegos y traductor de direcciones que trae Debian, sucesor de iptables | Hacer NAT de salida en el router |
+| dnsmasq | Un programa pequeño que reparte IP (DHCP) y resuelve nombres (DNS) a la vez, el mismo que lleva tu router de casa | Dar IP, gateway y nombre a cada VM sin tocarlas una a una |
+| cloud-init | El agente que configura una VM en el primer arranque con lo que le pasa Proxmox (nombre, red, clave SSH) | Que cada clon pida IP por DHCP y se registre en el DNS solo |
+| ping, traceroute, dig, nmap, tcpdump | Las herramientas clásicas para comprobar una red: alcance, camino, nombres, puertos y tráfico real | Demostrar con evidencias que la red hace lo que dices |
+| qm, pct y pvesh | Los tres mandos de Proxmox desde la terminal: VM, contenedores y cualquier ruta de la API | Crear y destruir un entorno con un script |
+| API REST con token | La misma puerta que usa la consola web, llamada por HTTP desde fuera con una credencial revocable | Preparar lo que OpenTofu (UT5) y Jenkins (UT6) harán solos |
+
+Cómo está organizada la unidad: primero qué es una VPC y qué piezas tiene, porque los nombres se repiten en Proxmox, AWS y Azure. Sigue el diseño del direccionamiento, porque una red mal numerada no se arregla después. Con el plano hecho se construye la red en el SDN y se le ponen los servicios que la hacen usable: router, NAT, DHCP y DNS. El aislamiento explica por qué dev no llega a pre sin que nadie lo prohíba, y las pruebas enseñan a leer lo que devuelven las herramientas, que es lo que la evaluable pide. Cierra la CLI y la API, que repiten todo lo anterior por script y abren la puerta a la UT5.
+
+!!! info "Dónde se usa esto en la otra asignatura"
+    Mientras haces esta unidad (28 oct a 18 nov), en Mantenimiento estás en la [UT2 de alarmas](https://victor-educ.github.io/apuntes-5169/ut/ut2-alarmas/) con `app01` y `mon01`, las dos VM del bridge del aula (`vmbr0`) que clonaste en la UT1. Están ahí de forma provisional porque la VPC que construyes aquí no existía.
+    Cuando termines la VPC dev, esas dos VM se mueven a sus subredes: `app01` a back (`10.10.2.10`, con pata de gestión en `10.10.0.11`) y `mon01` a gestión (`10.10.0.20`). El traslado se hace en la [UT3 de Mantenimiento](https://victor-educ.github.io/apuntes-5169/ut/ut3-seguridad-monitorizacion/) (26 nov a 10 dic), que coincide con la UT3 de aquí y aprovecha que ya hay cortafuegos.
+    Por eso conviene que las reservas por MAC y los registros DNS de `dev.conf` incluyan a `app01` y `mon01` desde ahora: al llegar a la VPC tienen que seguir llamándose igual, o Prometheus dejará de encontrar sus targets.
+
 ## Qué es una VPC
 
-Una Virtual Private Cloud es una red privada, aislada y definida por software dentro de una infraestructura que se comparte con otros. En nube pública (AWS, Azure, Google Cloud) es el primer recurso que se crea: dentro de ella van las subredes, las instancias, los balanceadores y las bases de datos gestionadas. En una nube privada como Proxmox u OpenStack el concepto es idéntico aunque el nombre cambie (SDN, red de proyecto, red de tenant). La idea de fondo es que tú decides el rango de direcciones, cómo se trocea, qué sale a Internet y qué no, y nadie fuera de tu VPC puede alcanzar tus máquinas salvo que tú abras la puerta.
+Antes de crear nada en Proxmox conviene saber qué estamos imitando. Todo lo que hagamos en esta unidad tiene un nombre y un equivalente en cualquier nube pública, y quien entienda las piezas aquí no tendrá que volver a aprenderlas en la UT4.
+
+Una Virtual Private Cloud es una red privada, aislada y definida por software dentro de una infraestructura que se comparte con otros. En nube pública (AWS, Azure, Google Cloud) es el primer recurso que se crea: dentro de ella van las subredes, las instancias, los balanceadores y las bases de datos gestionadas. En una nube privada como Proxmox u OpenStack el concepto es idéntico aunque el nombre cambie (SDN, red definida por software; red de proyecto; red de tenant, es decir, de cliente). La idea de fondo es que tú decides el rango de direcciones, cómo se trocea, qué sale a Internet y qué no, y nadie fuera de tu VPC puede alcanzar tus máquinas salvo que tú abras la puerta.
 
 <figure markdown="span">
   ![Esquema de una VPC con subredes públicas y privadas](../img/vpc-esquema.svg){ width="640" }
   <figcaption>Esquema de una VPC con subredes. Fuente: Sam Johnston, CC BY-SA 3.0, vía Wikimedia Commons.</figcaption>
 </figure>
 
-Los componentes son siempre los mismos, cambie el proveedor que cambie:
+Los componentes son siempre los mismos, cambie el proveedor que cambie. En la tabla salen siglas (CIDR, NAT, SNAT, EVPN) que se explican con calma en los apartados siguientes; de momento quédate con la columna del medio:
 
 | Componente | Qué es | Equivalente en Proxmox |
 |---|---|---|
@@ -88,7 +115,7 @@ Hosts/Net: 1022                  Class A, Private Internet
 
 ### RFC 1918 y el problema del solapamiento
 
-La [RFC 1918](https://www.rfc-editor.org/rfc/rfc1918) reserva tres rangos que nunca se enrutan en Internet y que cualquiera puede usar dentro de casa: `10.0.0.0/8` (16 millones de direcciones), `172.16.0.0/12` (de 172.16.0.0 a 172.31.255.255, un millón) y `192.168.0.0/16` (65 536). Además existe `100.64.0.0/10` ([RFC 6598](https://www.rfc-editor.org/rfc/rfc6598)), pensado para CGNAT de operadores, que algunas empresas usan para redes de tránsito precisamente porque nadie lo pone en una oficina.
+La [RFC 1918](https://www.rfc-editor.org/rfc/rfc1918) reserva tres rangos que nunca se enrutan en Internet y que cualquiera puede usar dentro de casa: `10.0.0.0/8` (16 millones de direcciones), `172.16.0.0/12` (de 172.16.0.0 a 172.31.255.255, un millón) y `192.168.0.0/16` (65 536). Además existe `100.64.0.0/10` ([RFC 6598](https://www.rfc-editor.org/rfc/rfc6598)), pensado para el CGNAT de los operadores (el NAT a gran escala que hace tu proveedor de fibra), que algunas empresas usan para redes de tránsito precisamente porque nadie lo pone en una oficina.
 
 El error clásico es elegir el rango sin pensar en el futuro. Dos redes que hoy están separadas pueden tener que hablarse mañana: dev con pre para promocionar una imagen, la VPC de la empresa con la del proveedor por VPN, tu nube privada con AWS por peering. Si las dos usan `192.168.1.0/24` (y lo usan, es la red por defecto de medio mundo), una máquina de un lado que quiera hablar con `192.168.1.10` del otro lado no tiene forma de saber a cuál se refiere: la tabla de rutas le dice que esa red es local y el paquete nunca sale. La solución en ese momento es NAT doble (traducir un lado a un rango ficticio), y quien lo haya tenido que mantener no lo repite. Por eso:
 
@@ -98,7 +125,7 @@ El error clásico es elegir el rango sin pensar en el futuro. Dos redes que hoy 
 
 ### Por qué /16 por entorno y /24 por subred
 
-Un /16 son 65 534 direcciones y en dev vais a tener seis máquinas. Parece un desperdicio, pero el espacio privado no cuesta dinero y lo que sí cuesta es renumerar. Con un /16 tienes 256 subredes /24 posibles por entorno, así que puedes dar una a cada capa, otra a cada zona de disponibilidad (front-a, front-b), otra a cada cliente si el entorno se vuelve multi-tenant, y aún te sobran doscientas. Un /24 por subred da 254 hosts, más que suficiente para una capa, y tiene la ventaja de que se lee de un vistazo: en `10.10.2.37` sabes que es dev (10.10), back (.2) y un servidor fijo (.37) sin mirar ninguna tabla. Ese "se lee de un vistazo" es lo que os va a salvar cuando estéis leyendo una captura de tcpdump a las cinco de la tarde.
+Un /16 son 65 534 direcciones y en dev vais a tener seis máquinas. Parece un desperdicio, pero el espacio privado no cuesta dinero y lo que sí cuesta es renumerar. Con un /16 tienes 256 subredes /24 posibles por entorno, así que puedes dar una a cada capa, otra a cada zona de disponibilidad (front-a, front-b), otra a cada cliente si el entorno se vuelve multi-tenant (varios clientes sobre el mismo hardware), y aún te sobran doscientas. Un /24 por subred da 254 hosts, más que suficiente para una capa, y tiene la ventaja de que se lee de un vistazo: en `10.10.2.37` sabes que es dev (10.10), back (.2) y un servidor fijo (.37) sin mirar ninguna tabla. Ese "se lee de un vistazo" es lo que os va a salvar cuando estéis leyendo una captura de tcpdump a las cinco de la tarde.
 
 Ejemplo que usaremos en el curso (en la A2.1 tenéis que inventar el vuestro):
 
@@ -137,6 +164,8 @@ Entre dev y pre no hay ninguna línea. Eso es el aislamiento: no es una regla de
 
 ## SDN en Proxmox
 
+Con el plano en papel toca construirlo. Vamos a crear la red de cada entorno desde la consola de Proxmox y a entender qué pasa por debajo cuando pulsas Apply, porque cuando el SDN falla (y falla) hay que saber dónde mirar.
+
 Proxmox VE incorpora desde la versión 8 un módulo de redes definidas por software, en Datacenter → SDN, que sustituye al trabajo manual de crear bridges en cada nodo. La jerarquía tiene tres niveles y conviene tenerla clara porque el provider de OpenTofu usa exactamente los mismos objetos:
 
 - Zona: define el tipo de red y en qué nodos existe. Es el "cómo se transporta el tráfico".
@@ -153,7 +182,7 @@ Además hay dos objetos transversales: IPAM (el registro de qué IP está asigna
 | VLAN | Cada VNet es un tag 802.1Q sobre un bridge físico existente (vmbr0). El switch físico tiene que dejar pasar esas VLAN. | Todo el clúster, si el switch está configurado | Empresa pequeña con switches gestionables; lo más habitual en producción on-premise |
 | QinQ | VLAN dentro de VLAN (802.1ad). Una VLAN de servicio por zona y VLAN de cliente por VNet. | Clúster | Proveedores que necesitan más de 4094 segmentos o aislar clientes que a su vez usan VLAN |
 | VXLAN | Encapsula tramas Ethernet en UDP (puerto 4789) entre los nodos. No necesita nada del switch físico. | Clúster (túnel entre las IP de los nodos) | Clúster de varios nodos sin control sobre la red física; nube |
-| EVPN | VXLAN más BGP (FRR) para anunciar MAC e IP entre nodos, con enrutado distribuido: cada nodo es gateway de sus VM. | Clúster, y puede salir a routers externos | Cuando quieres que el SDN enrute entre VNets sin una VM router; es lo más parecido a una VPC de nube |
+| EVPN | VXLAN más BGP (el protocolo de enrutado de Internet, aquí hablado por el software FRR) para anunciar MAC e IP entre nodos, con enrutado distribuido: cada nodo es gateway de sus VM. | Clúster, y puede salir a routers externos | Cuando quieres que el SDN enrute entre VNets sin una VM router; es lo más parecido a una VPC de nube |
 
 Elegir bien la zona es la decisión más importante de esta unidad y la que menos se puede deshacer, porque cambiar de zona implica recrear las VNets. Mi criterio: en clase usaremos Simple porque tenemos un nodo por persona y no controlamos el switch del aula; en una empresa con dos o tres nodos y switches propios usaría VLAN, que es lo que el equipo de redes ya entiende; VXLAN cuando los nodos están en sitios distintos o la red física no es mía; EVPN solo si de verdad necesito que el enrutado sea distribuido, porque añade BGP y FRR a la ecuación y eso se depura peor.
 
@@ -161,11 +190,11 @@ Elegir bien la zona es la decisión más importante de esta unidad y la que meno
 
 Una VLAN añade 4 bytes a la trama Ethernet con un identificador de 12 bits: 4094 redes posibles. Es un estándar de capa 2 que entienden todos los switches gestionables, es barato de procesar y se depura con `tcpdump -e` viendo el tag. Su limitación es que la VLAN tiene que existir en cada switch por el que pasa el tráfico, así que depende de que el equipo de redes te la configure, y no cruza un router (por definición de capa 2).
 
-VXLAN ([RFC 7348](https://www.rfc-editor.org/rfc/rfc7348)) mete la trama Ethernet completa dentro de un paquete UDP/IP con un identificador de 24 bits (16 millones de redes). Como es IP, atraviesa routers y no necesita que el switch sepa nada: solo que los nodos Proxmox se alcancen entre sí por el puerto 4789. El precio son 50 bytes de cabecera extra, lo que obliga a bajar la MTU de las VM a 1450 si la red física va a 1500 (o subir la física a 1550 o más, que es lo correcto si se puede). Si se os olvida la MTU, los ping pequeños funcionan y las transferencias grandes se cuelgan; es el síntoma más engañoso de esta unidad.
+VXLAN ([RFC 7348](https://www.rfc-editor.org/rfc/rfc7348)) mete la trama Ethernet completa dentro de un paquete UDP/IP con un identificador de 24 bits (16 millones de redes). Como es IP, atraviesa routers y no necesita que el switch sepa nada: solo que los nodos Proxmox se alcancen entre sí por el puerto 4789. El precio son 50 bytes de cabecera extra, lo que obliga a bajar la MTU (el tamaño máximo de paquete que admite una interfaz) de las VM a 1450 si la red física va a 1500 (o subir la física a 1550 o más, que es lo correcto si se puede). Si se os olvida la MTU, los ping pequeños funcionan y las transferencias grandes se cuelgan; es el síntoma más engañoso de esta unidad.
 
 ### Qué hace Apply por debajo
 
-La configuración del SDN se escribe en `/etc/pve/sdn/` (ficheros `zones.cfg`, `vnets.cfg`, `subnets.cfg`), que está en el sistema de ficheros del clúster y por tanto se replica a todos los nodos. Pero escribir ahí no cambia nada en la red. Al pulsar Apply (o `pvesh set /cluster/sdn`), cada nodo genera el fichero `/etc/network/interfaces.d/sdn` con los bridges, VLAN o túneles VXLAN que le tocan y ejecuta `ifreload -a` (ifupdown2), que aplica los cambios sin reiniciar la red. Un ejemplo de lo que aparece para una zona Simple con la VNet `vdev`:
+La configuración del SDN se escribe en `/etc/pve/sdn/` (ficheros `zones.cfg`, `vnets.cfg`, `subnets.cfg`), que está en el sistema de ficheros del clúster y por tanto se replica a todos los nodos. Pero escribir ahí no cambia nada en la red. Al pulsar Apply (o `pvesh set /cluster/sdn`), cada nodo genera el fichero `/etc/network/interfaces.d/sdn` con los bridges, VLAN o túneles VXLAN que le tocan y ejecuta `ifreload -a` (de ifupdown2, la herramienta que gestiona las interfaces de red en Proxmox), que aplica los cambios sin reiniciar la red. Un ejemplo de lo que aparece para una zona Simple con la VNet `vdev`:
 
 ```text
 auto vdev
@@ -198,9 +227,11 @@ Lo que existía antes del SDN sigue funcionando y es lo mismo hecho a mano: en `
 
 ## Servicios de red: enrutado, NAT, DHCP y DNS
 
+Una VNet recién creada es un cable al que se conectan máquinas y nada más: nadie reparte direcciones, nadie resuelve nombres y nadie saca el tráfico a Internet. Montamos la VM que hace esas tres cosas para cada entorno, y de paso separamos dos ideas que se confunden siempre, enrutar y hacer NAT. Es el apartado con más configuración de la unidad; la A2.3 y la A2.4 salen de aquí.
+
 ### Router de entorno
 
-Una VM Debian 13 clonada de la plantilla, con una interfaz por subred y otra hacia el exterior. En Proxmox las interfaces virtio aparecen en la VM como `ens18`, `ens19`, `ens20`... en el orden de `net0`, `net1`, `net2`. Convención del curso: `ens18` exterior (vmbr0, IP del aula por DHCP), `ens19` gestión (`.0.1`), `ens20` front (`.1.1`), `ens21` back (`.2.1`).
+Una VM Debian 13 clonada de la plantilla, con una interfaz por subred y otra hacia el exterior. En Proxmox las interfaces virtio (las tarjetas de red paravirtualizadas, las más rápidas para una VM) aparecen en la VM como `ens18`, `ens19`, `ens20`... en el orden de `net0`, `net1`, `net2`. Convención del curso: `ens18` exterior (vmbr0, IP del aula por DHCP), `ens19` gestión (`.0.1`), `ens20` front (`.1.1`), `ens21` back (`.2.1`).
 
 Lo primero es activar el reenvío IP, que en Debian viene apagado. Sin esto la VM acepta paquetes dirigidos a ella y descarta los demás, así que front y back no se hablan aunque el router tenga pata en las dos:
 
@@ -234,9 +265,9 @@ nft add rule ip nat postrouting oifname "ens18" masquerade
 
 ### dnsmasq: DHCP y DNS en uno
 
-dnsmasq es un servidor DHCP, DNS cacheador y servidor TFTP en un solo binario de medio megabyte, y es lo que hay dentro de casi todos los routers domésticos, de OpenWrt, de libvirt y del propio SDN de Proxmox. Para una VPC de laboratorio es la herramienta correcta: hace DHCP con opciones por subred, sirve nombres para las máquinas internas y reenvía el resto a un DNS público. En una empresa grande lo sustituyen Kea o un dominio Windows para DHCP y BIND, PowerDNS o Route 53 para DNS, pero los conceptos son los mismos.
+dnsmasq es un servidor DHCP, DNS cacheador y servidor TFTP (arranque por red) en un solo binario de medio megabyte, y es lo que hay dentro de casi todos los routers domésticos, de OpenWrt, de libvirt y del propio SDN de Proxmox. Para una VPC de laboratorio es la herramienta correcta: hace DHCP con opciones por subred, sirve nombres para las máquinas internas y reenvía el resto a un DNS público. En una empresa grande lo sustituyen Kea o un dominio Windows para DHCP y BIND, PowerDNS o Route 53 para DNS, pero los conceptos son los mismos.
 
-Se instala con `apt install dnsmasq` en la VM router y toda la configuración va en `/etc/dnsmasq.d/`. El fichero del entorno dev, comentado línea a línea:
+Se instala con `apt install dnsmasq` en la VM router y toda la configuración va en `/etc/dnsmasq.d/`. El fichero del entorno dev, comentado línea a línea. Fíjate sobre todo en tres bloques: las interfaces en las que escucha, los rangos DHCP con su etiqueta por subred y las reservas por MAC; el resto son opciones de DNS que se explican justo después:
 
 ```ini
 # /etc/dnsmasq.d/dev.conf
@@ -282,8 +313,8 @@ log-queries
 
 Cosas que conviene entender de ese fichero:
 
-- Los tags. `dhcp-range=set:front,...` etiqueta con `front` a cualquier cliente que reciba IP de ese rango, y `dhcp-option=tag:front,...` aplica esa opción solo a los etiquetados. Así cada subred recibe su propio router (`.1`) aunque el DNS sea el mismo para todas. dnsmasq elige el rango por la interfaz de llegada de la petición DHCP, por eso da igual que las tres subredes estén en el mismo fichero. Se pueden poner tags también por fabricante de la MAC o por nombre del cliente, y montar cosas como "los Raspberry arrancan por PXE" en dos líneas.
-- Las reservas (`dhcp-host`). La MAC de una VM de Proxmox se ve en el hardware de la VM o con `qm config 200 | grep net0`. El prefijo `bc:24:11` es el OUI que usa Proxmox por defecto. Al reservar, la IP queda fuera del rango dinámico (`.10`, no `.100`) para que no haya conflicto, y de regalo dnsmasq crea el registro DNS `web01.dev.lab` con esa IP.
+- Los tags. `dhcp-range=set:front,...` etiqueta con `front` a cualquier cliente que reciba IP de ese rango, y `dhcp-option=tag:front,...` aplica esa opción solo a los etiquetados. Así cada subred recibe su propio router (`.1`) aunque el DNS sea el mismo para todas. dnsmasq elige el rango por la interfaz de llegada de la petición DHCP, por eso da igual que las tres subredes estén en el mismo fichero. Se pueden poner tags también por fabricante de la MAC o por nombre del cliente, y montar cosas como "los Raspberry arrancan por PXE" (arranque por red) en dos líneas.
+- Las reservas (`dhcp-host`). La MAC de una VM de Proxmox se ve en el hardware de la VM o con `qm config 200 | grep net0`. El prefijo `bc:24:11` es el OUI (los tres primeros bytes de la MAC, que identifican al fabricante) que usa Proxmox por defecto. Al reservar, la IP queda fuera del rango dinámico (`.10`, no `.100`) para que no haya conflicto, y de regalo dnsmasq crea el registro DNS `web01.dev.lab` con esa IP.
 - `expand-hosts` y `domain`. Cuando un cliente manda su nombre de host en la petición DHCP (cloud-init lo hace), dnsmasq lo registra en DNS; con `expand-hosts` le añade el dominio, así `web01` es también `web01.dev.lab`. Sin esa línea solo respondería al nombre corto.
 - `local=/dev.lab/` dice que dnsmasq es autoritativo para ese dominio y no reenvía preguntas sobre él a los `server=`. Sin esta línea, preguntar por `noexiste.dev.lab` acabaría en Cloudflare, con la latencia y la fuga de información que eso supone.
 - `no-resolv` evita que dnsmasq lea `/etc/resolv.conf` del propio router, que en Debian con DHCP en `ens18` apunta al DNS del aula. Queremos control explícito.
@@ -297,7 +328,7 @@ systemctl restart dnsmasq
 journalctl -u dnsmasq -f
 ```
 
-Las concesiones activas están en `/var/lib/misc/dnsmasq.leases` (una línea por cliente: expiración en epoch, MAC, IP, nombre, client-id). Es el primer sitio al que mirar cuando "esta VM no tiene IP". Con `log-dhcp` el diálogo completo queda en el journal:
+Las concesiones activas están en `/var/lib/misc/dnsmasq.leases` (una línea por cliente: expiración en epoch, o segundos desde 1970, MAC, IP, nombre, client-id). Es el primer sitio al que mirar cuando "esta VM no tiene IP". Con `log-dhcp` el diálogo completo queda en el journal:
 
 ```text
 dnsmasq-dhcp[612]: DHCPDISCOVER(ens20) bc:24:11:aa:bb:cc
@@ -357,11 +388,11 @@ Una red que "funciona" sin pruebas escritas no vale en esta asignatura ni en una
 | Aislamiento | `nmap -sn 10.20.0.0/16` desde dev | Debe no encontrar nada |
 | Tráfico real | `tcpdump -i ens21 port 5432` | Qué pasa de verdad por el cable |
 
-`ping` manda ICMP echo y espera la respuesta. Que responda demuestra ruta de ida, ruta de vuelta y que el destino no filtra ICMP. Que no responda no demuestra casi nada: puede ser ruta, firewall, o que el destino está apagado. `Destination Host Unreachable` desde tu propia IP significa que no hay ARP, es decir, el destino está (o debería estar) en tu misma subred y no contesta; desde la IP del router significa que el router no tiene ruta. Un `100% packet loss` sin más mensaje suele ser un firewall que descarta en silencio.
+`ping` manda ICMP echo y espera la respuesta. Que responda demuestra ruta de ida, ruta de vuelta y que el destino no filtra ICMP. Que no responda no demuestra casi nada: puede ser ruta, firewall, o que el destino está apagado. `Destination Host Unreachable` desde tu propia IP significa que no hay ARP (el protocolo que traduce una IP a una MAC dentro de la misma subred), es decir, el destino está (o debería estar) en tu misma subred y no contesta; desde la IP del router significa que el router no tiene ruta. Un `100% packet loss` sin más mensaje suele ser un firewall que descarta en silencio.
 
-`traceroute` (o `tracepath`, que viene instalado en Debian sin paquetes extra) enseña por qué routers pasa el paquete usando el TTL. En el laboratorio, de `web01` a `db01` debe salir exactamente un salto intermedio, `10.10.1.1`. Si salen asteriscos después del router es que el router no reenvía (falta `ip_forward`) o no tiene ruta.
+`traceroute` (o `tracepath`, que viene instalado en Debian sin paquetes extra) enseña por qué routers pasa el paquete usando el TTL (el contador de saltos que cada router resta al paquete). En el laboratorio, de `web01` a `db01` debe salir exactamente un salto intermedio, `10.10.1.1`. Si salen asteriscos después del router es que el router no reenvía (falta `ip_forward`) o no tiene ruta.
 
-`ss -tlnp` (sockets TCP en escucha, numérico, con proceso) se ejecuta en la máquina destino y dice qué está escuchando y en qué dirección. `0.0.0.0:5432` escucha en todas; `127.0.0.1:5432` solo en local, y ese es el motivo número uno de "el puerto está abierto pero desde fuera no conecta". `nmap -sT -p- host` desde otra máquina hace la comprobación complementaria: `open` es que el servicio contesta, `closed` es que la máquina responde con RST (hay ruta, no hay servicio), `filtered` es que no responde nada (firewall o sin ruta). Para la prueba de aislamiento se usa `nmap -sn`, que solo descubre hosts sin escanear puertos; el resultado esperado desde dev contra 10.20.0.0/16 es `0 hosts up`. Cuidado con una trampa: si nmap se ejecuta como root en la misma capa 2 usa ARP en vez de ICMP, y ARP no cruza routers, así que un `0 hosts up` contra una red remota no prueba aislamiento por sí solo. Complementadlo con un `ping` a la IP del router de pre y un `traceroute`, y anotad el motivo en la memoria.
+`ss -tlnp` (sockets TCP en escucha, numérico, con proceso) se ejecuta en la máquina destino y dice qué está escuchando y en qué dirección. `0.0.0.0:5432` escucha en todas; `127.0.0.1:5432` solo en local, y ese es el motivo número uno de "el puerto está abierto pero desde fuera no conecta". `nmap -sT -p- host` desde otra máquina hace la comprobación complementaria: `open` es que el servicio contesta, `closed` es que la máquina responde con RST (el paquete TCP de rechazo: hay ruta, no hay servicio), `filtered` es que no responde nada (firewall o sin ruta). Para la prueba de aislamiento se usa `nmap -sn`, que solo descubre hosts sin escanear puertos; el resultado esperado desde dev contra 10.20.0.0/16 es `0 hosts up`. Cuidado con una trampa: si nmap se ejecuta como root en la misma capa 2 usa ARP en vez de ICMP, y ARP no cruza routers, así que un `0 hosts up` contra una red remota no prueba aislamiento por sí solo. Complementadlo con un `ping` a la IP del router de pre y un `traceroute`, y anotad el motivo en la memoria.
 
 `dig` es la herramienta para DNS; `nslookup` sirve, pero `dig` enseña más. Lo que importa de su salida:
 
@@ -401,11 +432,11 @@ Evidencia: captura dig-db01.png
 
 ## Automatizar con la CLI y la API
 
-Todo lo que hace la consola web de Proxmox pasa por la misma API REST, y hay tres formas de llamarla desde la línea de comandos: `qm` para VM, `pct` para contenedores LXC y `pvesh` para cualquier ruta de la API (incluido el SDN, para el que no hay comando dedicado). Cuando en la UT5 escribáis `resource "proxmox_virtual_environment_vm"`, el provider hará exactamente las llamadas que aquí vais a hacer con `pvesh` y `curl`. Saberlas os permite leer los errores del provider.
+Todo lo que hace la consola web de Proxmox pasa por la misma API REST (una API que se llama por HTTP, con rutas como las de una web, y responde en JSON), y hay tres formas de llamarla desde la línea de comandos: `qm` para VM, `pct` para contenedores LXC (contenedores de sistema completo, más ligeros que una VM y distintos de los de Docker) y `pvesh` para cualquier ruta de la API (incluido el SDN, para el que no hay comando dedicado). Cuando en la UT5 escribáis `resource "proxmox_virtual_environment_vm"`, el provider hará exactamente las llamadas que aquí vais a hacer con `pvesh` y `curl`. Saberlas os permite leer los errores del provider.
 
 ### qm y pct
 
-Script de creación de un entorno, ampliado respecto al del enunciado original para que sea idempotente (ejecutarlo dos veces no da error ni duplica nada) y admita el nombre del entorno como argumento:
+Script de creación de un entorno, ampliado respecto al del enunciado original para que sea idempotente (ejecutarlo dos veces no da error ni duplica nada) y admita el nombre del entorno como argumento. Lo que hace es clonar tres VM de la plantilla, conectarlas a la VNet del entorno y arrancarlas; fíjate en la comprobación con `qm status` antes de clonar, que es lo que lo hace idempotente:
 
 ```bash
 #!/bin/bash
@@ -483,7 +514,7 @@ pveum acl modify / --users tofu@pve --roles PVEAdmin
 pveum user token add tofu@pve lab --privsep 0
 ```
 
-El último comando imprime el secreto una sola vez. `--privsep 0` hace que el token herede los permisos del usuario; con `1` (el valor por defecto) el token tiene sus propios ACL y hay que asignárselos aparte. Guardad el secreto en un gestor de contraseñas o en un fichero `.env` fuera del repositorio; nunca en el script y nunca en Git. Con eso, la misma llamada que hacía `pvesh` desde cualquier sitio con `curl`:
+El último comando imprime el secreto una sola vez. `--privsep 0` hace que el token herede los permisos del usuario; con `1` (el valor por defecto) el token tiene sus propios ACL (listas de permisos) y hay que asignárselos aparte. Guardad el secreto en un gestor de contraseñas o en un fichero `.env` fuera del repositorio; nunca en el script y nunca en Git. Con eso, la misma llamada que hacía `pvesh` desde cualquier sitio con `curl`:
 
 ```bash
 export PVE_TOKEN='PVEAPIToken=tofu@pve!lab=4f3a1c2e-...-9b7d'

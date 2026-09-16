@@ -11,11 +11,39 @@ En UT2 y UT3 montasteis la VPC y el cortafuegos dos veces: primero a mano en la 
 - Encadenar despliegue, configuración, smoke tests y comprobación de configuración en un script que devuelve 0 o distinto de 0, y saber leer un plan antes de aplicarlo (CE c).
 - Pasar checkov, trivy y gitleaks sobre el repositorio, corregir o justificar cada hallazgo, y tener el token de la API fuera del código y del historial de Git (CE d).
 
+## Antes de entrar en detalle
+
+Un jueves de diciembre, a las tres de la tarde, el nodo Proxmox del aula se reinicia por una actualización y la VPC dev que montasteis en noviembre vuelve sin dos de las tres VM. Quien las creó a mano en UT2 tiene que recordar la RAM, el puente, la IP y la clave SSH de cada una, y pierde una tarde en dejarlo parecido. Con el script de UT3 va más rápido, pero el script no sabe qué sobrevivió: o lo lanzas entero y crea duplicados, o vas comentando líneas. Lo que queremos conseguir cabe en una frase: que cualquiera del grupo, con un `git clone` y tres comandos, levante el entorno completo con el servicio funcionando, y que un script diga si está bien.
+
+| Herramienta o concepto | Qué es, en una frase | Para qué la usamos en esta unidad |
+|----|----|----|
+| OpenTofu (y Terraform) | Programa que lee ficheros con la infraestructura deseada, la compara con lo que existe y crea, cambia o borra lo que haga falta | Crear las VM del servicio en Proxmox a partir de código |
+| HCL | El lenguaje de esos ficheros: bloques con atributos, parecido a un JSON con variables | Todo el código `.tf` de la unidad |
+| Provider (bpg/proxmox) | El complemento que enseña a OpenTofu a hablar con una plataforma, como un driver de impresora | Que OpenTofu sepa crear y borrar VM en el Proxmox del aula |
+| Estado y backend remoto (MinIO) | El fichero donde OpenTofu apunta qué ha creado; el backend es dónde se guarda, y MinIO un servidor de ficheros compatible con S3 | Que OpenTofu recuerde qué VM son suyas y que dos personas no se pisen |
+| cloud-init | Lo que configura una VM recién clonada en su primer arranque (IP, usuario, clave SSH), visto en UT1 | Que las VM nazcan accesibles por SSH sin tocar la consola |
+| Ansible | Programa que entra por SSH en las máquinas y las deja como se le pide (paquetes, ficheros, servicios), sin instalar nada en ellas | Instalar Docker y desplegar el compose del servicio en las VM creadas |
+| Playbook e inventario | El playbook es la lista de tareas en YAML; el inventario, la lista de máquinas y sus grupos | Decir a Ansible qué hacer y en qué hosts |
+| Ansible Vault, sops y age | Formas de guardar contraseñas cifradas dentro del repositorio | Que la contraseña de la base de datos vaya en Git sin estar en claro |
+| checkov, trivy config y tfsec | Escáneres que leen el código y avisan de configuraciones inseguras, como un corrector ortográfico de seguridad | Encontrar puertos abiertos de más, versiones sin fijar y permisos excesivos |
+| gitleaks | Escáner que busca contraseñas y tokens en los ficheros y en todo el historial de Git | Comprobar que ningún secreto ha entrado en el repositorio |
+| pre-commit | Programa que ejecuta comprobaciones antes de cada commit y lo bloquea si fallan | Que un commit con un token dentro no llegue a existir |
+| jq | Filtro de JSON para la línea de comandos | Convertir las salidas de OpenTofu en el inventario de Ansible |
+
+**Cómo está organizada la unidad.** Empezamos por el concepto (IaC, declarativo frente a imperativo, idempotencia) porque sin él los comandos son magia. Después pasamos de los requisitos del servicio a variables, que es lo primero que se escribe en un proyecto real. Con eso instalamos OpenTofu y aprendemos su ciclo `init`, `plan`, `apply`, y solo entonces entramos en HCL, que se entiende mejor cuando ya has visto un plan. Sigue el estado, porque sin entenderlo no se trabaja en equipo. Con lenguaje y estado montamos las tres VM completas y las empaquetamos en módulos y entornos. Ansible llega cuando ya hay máquinas que configurar, las pruebas cuando hay algo que probar, y la seguridad al final, cuando existe un repositorio que escanear. Las actividades siguen ese orden, una por sesión.
+
+!!! info "Dónde se usa esto en la otra asignatura"
+    - Esta unidad coincide con la [UT4 de Mantenimiento (KPI y pruebas)](https://victor-educ.github.io/apuntes-5169/ut/ut4-kpi-pruebas/), del 15 de diciembre al 2 de febrero: allí se prueba el servicio, aquí se crea la infraestructura sobre la que corre.
+    - El entorno `pre` que creáis en A5.4 (`envs/pre`) no es un ejercicio de un día: es el que la [UT7 de Mantenimiento](https://victor-educ.github.io/apuntes-5169/ut/ut7-actualizacion-vulnerabilidades/) actualiza de febrero a marzo. A principios de febrero tiene que existir, desplegado con `tofu apply` desde el repositorio y no a mano.
+    - La [UT8 de Mantenimiento](https://victor-educ.github.io/apuntes-5169/ut/ut8-terminacion-segura/) (marzo y abril) da de baja ese entorno con `tofu destroy`, y necesita el repositorio, el estado remoto y el token de Proxmox tal como los dejáis aquí. No borréis el estado cuando termine la práctica.
+
 ## Infraestructura como código
 
-IaC es describir la infraestructura (máquinas, redes, discos, reglas de cortafuegos, registros DNS) en ficheros de texto que una herramienta aplica automáticamente. Los ficheros van a un repositorio Git como cualquier otro código: se revisan en un pull request, se versionan, se prueban y se pueden volver a aplicar en otro sitio. Frente a clicar en la consola, aporta cuatro cosas concretas:
+Este primer apartado es de conceptos: qué significa describir la infraestructura en ficheros y por qué la idempotencia es la propiedad que vamos a exigir a todo lo que escribáis.
 
-- Reproducible: dev, pre y pro salen iguales porque nacen del mismo código con distintos valores. Se acaba el "en mi entorno funciona".
+IaC es describir la infraestructura (máquinas, redes, discos, reglas de cortafuegos, registros DNS) en ficheros de texto que una herramienta aplica automáticamente. Los ficheros van a un repositorio Git como cualquier otro código: se revisan en un pull request (la petición de revisión de cambios de GitLab o GitHub), se versionan, se prueban y se pueden volver a aplicar en otro sitio. Frente a clicar en la consola, aporta cuatro cosas concretas:
+
+- Reproducible: dev, pre y pro salen iguales porque nacen del mismo código con distintos valores.
 - Rápido: un entorno completo (tres VM, red, configuración del servicio) tarda minutos, y el tiempo lo pone la máquina, no una persona.
 - Auditable: el historial de Git dice quién cambió qué y cuándo, y el plan dice qué va a pasar antes de que pase.
 - Recuperable: si se pierde el entorno (un nodo Proxmox que muere, un becario que borra la VM equivocada), se vuelve a aplicar el código.
@@ -35,18 +63,18 @@ Lo que une a las dos columnas buenas es la idempotencia: aplicar el código dos 
 
 ### Herramientas
 
-- Terraform (HashiCorp) y su bifurcación libre OpenTofu ![Logo de Terraform](../img/terraform-logo.svg){ .logo-inline } aprovisionan infraestructura (VM, redes, DNS, recursos de nube) a través de providers, en lenguaje HCL. Es la herramienta de referencia del sector y la que usamos.
+- Terraform (HashiCorp) y su bifurcación libre OpenTofu ![Logo de Terraform](../img/terraform-logo.svg){ .logo-inline } aprovisionan infraestructura (VM, redes, DNS, recursos de nube) a través de providers (el complemento que sabe hablar con cada plataforma: Proxmox, AWS, Cloudflare), en HCL (su propio lenguaje de configuración). Es la herramienta de referencia del sector y la que usamos.
 - Ansible ![Logo de Ansible](../img/ansible-logo.svg){ .logo-inline } (Red Hat) configura lo que hay dentro de las máquinas (paquetes, ficheros, servicios) por SSH, sin agente, en YAML. Complementa a Terraform: uno crea la máquina, el otro la deja útil.
 - Pulumi: mismo modelo que Terraform pero el código se escribe en Python, TypeScript o Go. Gusta a equipos de desarrollo que no quieren aprender otro lenguaje; en operaciones se ve menos.
 - CloudFormation, Bicep y Deployment Manager: los lenguajes propios de AWS, Azure y GCP. Solo sirven en su nube; Terraform sirve en todas y en Proxmox, que es lo que tenemos en el laboratorio.
 
-El patrón del curso, que es también el más habitual en empresas medianas: Terraform crea las VM en Proxmox con cloud-init; Ansible instala Docker y despliega el servicio; un script de pruebas comprueba que todo responde.
+El patrón del curso, que es también el más habitual en empresas medianas: Terraform crea las VM en Proxmox con cloud-init (la configuración del primer arranque que ya usasteis en la plantilla de UT1); Ansible instala Docker y despliega el servicio; un script de pruebas comprueba que todo responde.
 
 ### Por qué existen Terraform y OpenTofu
 
 Terraform nació en 2014 con licencia MPL 2.0, libre. En agosto de 2023 HashiCorp cambió la licencia de todos sus productos a BSL 1.1 (Business Source License), que prohíbe usar el código para ofrecer un producto que compita con HashiCorp. Para un usuario final no cambia nada, pero para las empresas que habían construido productos sobre Terraform (Spacelift, env0, Scalr, Gruntwork y otras) era un problema serio. En semanas publicaron el manifiesto OpenTF, bifurcaron la última versión MPL y en septiembre de 2023 el proyecto entró en la Linux Foundation con el nombre OpenTofu. La 1.6 salió en enero de 2024 y desde entonces evoluciona por su cuenta: cifrado del estado, evaluación temprana de variables en `backend` y `source` de módulos, `for_each` en providers, la opción `-exclude` en plan y apply. En 2025 IBM completó la compra de HashiCorp, lo que no cambió la licencia de Terraform.
 
-Para nosotros la consecuencia práctica es que el lenguaje, los providers y los ficheros son los mismos. Donde un tutorial diga `terraform plan` tú escribes `tofu plan`, y viceversa. Los providers se descargan de registry.opentofu.org en lugar de registry.terraform.io, pero son los mismos binarios publicados por los mismos autores. En clase usamos OpenTofu porque es libre y porque es lo que vais a poder instalar sin preguntar a nadie; en una empresa os encontraréis las dos cosas y no debe daros ningún reparo.
+Para nosotros la consecuencia práctica es que el lenguaje, los providers y los ficheros son los mismos. Donde un tutorial diga `terraform plan` tú escribes `tofu plan`, y viceversa. Los providers se descargan de registry.opentofu.org en lugar de registry.terraform.io, pero son los mismos binarios. En clase usamos OpenTofu porque es libre; en una empresa os encontraréis las dos cosas.
 
 ## De los requisitos al código
 
@@ -61,9 +89,11 @@ Antes de escribir una línea de HCL hay que saber qué necesita el servicio, y d
 | Disponibilidad | Dos instancias de app tras el proxy | Acuerdo de servicio |
 | Backup | Snapshot diario de la BD | Política de la empresa |
 
-La columna "origen del dato" no es decorativa. Cuando dentro de seis meses alguien pregunte por qué la BD tiene 4 GB, la respuesta tiene que estar escrita en el README, no en la cabeza de quien se fue. Y cada fila acaba siendo una variable en el código, con tipo, descripción y una validación que impida valores absurdos. Un `memory = 512` para PostgreSQL debería fallar en `tofu plan`, no a las tres de la mañana en producción.
+La columna "origen del dato" no es decorativa. Cuando dentro de seis meses alguien pregunte por qué la BD tiene 4 GB, la respuesta tiene que estar en el README. Y cada fila acaba siendo una variable en el código, con tipo, descripción y una validación que impida valores absurdos. Un `memory = 512` para PostgreSQL debería fallar en `tofu plan`, no a las tres de la mañana en producción.
 
 ## OpenTofu: instalación y primer proyecto
+
+Aquí instalamos la herramienta y aprendemos su ciclo de trabajo: cómo se organiza un proyecto en ficheros, qué hacen `init`, `plan` y `apply`, y cómo se lee un plan antes de decir que sí. Cada actividad empieza con esos tres comandos.
 
 ```bash
 # OpenTofu en Debian/Ubuntu (instala el repositorio APT oficial)
@@ -100,7 +130,7 @@ flowchart LR
     E -.-> G[tofu destroy]
 ```
 
-1. `tofu init`: descarga los providers al directorio `.terraform/`, escribe el fichero de bloqueo y configura el backend del estado. Hay que repetirlo cuando cambias de backend o añades un provider o módulo.
+1. `tofu init`: descarga los providers al directorio `.terraform/`, escribe el fichero de bloqueo y configura el backend del estado (dónde se guarda el fichero en que OpenTofu apunta lo que ha creado; tiene su apartado más abajo). Hay que repetirlo cuando cambias de backend o añades un provider o módulo.
 2. `tofu fmt` y `tofu validate`: formato canónico y comprobación sintáctica y de tipos, sin hablar con Proxmox. Son los dos primeros pasos del pipeline en UT6.
 3. `tofu plan`: lee el estado, consulta a la API qué existe de verdad (refresh), compara con el código y muestra qué crearía, cambiaría o destruiría. Siempre se lee antes de aplicar. Con `-out=plan.bin` el plan se guarda y `apply` ejecuta exactamente eso, no un plan recalculado.
 4. `tofu apply`: aplica el plan. Sin fichero de plan lo recalcula y pide confirmación; con `-auto-approve` no la pide (solo en scripts y en CI).
@@ -116,11 +146,13 @@ El plan resume cada recurso con un símbolo, y hay que saber leerlos antes de es
 | `~` update in-place | Cambia atributos sin recrear (memoria, nombre) | Normal; leer qué atributo |
 | `-` destroy | Se elimina | Solo si lo has pedido tú |
 | `-/+` replace | Se destruye y se crea de nuevo | Peligro: se pierde el disco y su contenido |
-| `<=` read | Un `data` que se lee en apply | Inofensivo |
+| `<=` read | Un `data` (bloque de solo lectura) que se consulta en apply | Inofensivo |
 
 La línea `# forces replacement` junto a un atributo es la que más disgustos da. Significa que el provider no sabe cambiar ese atributo en caliente (por ejemplo el nodo donde vive la VM, el `vm_id` o el datastore del disco) y va a resolverlo destruyendo la VM y creando otra. Para una VM web sin estado es molesto; para `db01` es perder la base de datos. El resumen final `Plan: 1 to add, 0 to change, 1 to destroy` cuando esperabas `0 to destroy` es motivo suficiente para parar. Dos protecciones: el bloque `lifecycle { prevent_destroy = true }` en los recursos con datos, que hace fallar el plan en lugar de destruir, y `tofu plan -detailed-exitcode` en CI, que devuelve 2 cuando hay cambios y permite exigir revisión humana.
 
 ## El lenguaje HCL
+
+Aquí vemos la sintaxis con la que se escribe todo lo anterior. No hace falta memorizarla entera: con los tipos de bloque, los tipos de dato, `for_each` y media docena de funciones se escribe casi todo un proyecto.
 
 HCL (HashiCorp Configuration Language) es un lenguaje declarativo de bloques y atributos. Un fichero `.tf` es una serie de bloques `tipo "etiqueta" "etiqueta" { atributo = expresión }`. Los tipos de bloque que vais a usar:
 
@@ -217,9 +249,11 @@ Las validaciones se evalúan en `plan`, así que un tfvars mal escrito falla en 
 
 ### El grafo de dependencias
 
-OpenTofu no ejecuta los bloques en el orden del fichero. Construye un grafo dirigido: cada referencia (`proxmox_virtual_environment_vm.db.ipv4_addresses` dentro de otro recurso) es una arista, y los recursos sin dependencias entre sí se crean en paralelo (10 a la vez por defecto, `-parallelism=n`). Por eso las tres VM del laboratorio se crean a la vez y por eso el orden de destrucción es el inverso. Cuando una dependencia existe pero no se ve en el código (un recurso que necesita que otro exista aunque no use ninguno de sus atributos), se declara con `depends_on = [recurso]`. `tofu graph | dot -Tsvg > graph.svg` dibuja el grafo, útil para entender por qué un cambio arrastra a otros.
+OpenTofu no ejecuta los bloques en el orden del fichero. Construye un grafo dirigido: cada referencia (`proxmox_virtual_environment_vm.db.ipv4_addresses` dentro de otro recurso) es una arista, y los recursos sin dependencias entre sí se crean en paralelo (10 a la vez por defecto, `-parallelism=n`). Por eso las tres VM del laboratorio se crean a la vez y por eso el orden de destrucción es el inverso. Cuando una dependencia existe pero no se ve en el código (un recurso que necesita que otro exista aunque no use ninguno de sus atributos), se declara con `depends_on = [recurso]`. `tofu graph | dot -Tsvg > graph.svg` dibuja el grafo.
 
 ## El estado a fondo
+
+El estado es la pieza que hace que OpenTofu sea declarativo, y también la que más disgustos da cuando se trabaja en equipo. Vemos qué contiene, dónde guardarlo para que dos personas no se pisen y qué comandos lo tocan sin romperlo.
 
 `terraform.tfstate` es un JSON con la correspondencia entre cada bloque `resource` del código y el objeto real: su ID en Proxmox, todos sus atributos tal como el provider los leyó la última vez, las dependencias y la versión del provider. Sin estado OpenTofu no sabe que `vm["web01"]` es el VMID 105 y en el siguiente apply intentaría crear otra. Como guarda los atributos, guarda también las contraseñas de cloud-init, tokens y cualquier valor que un recurso devuelva: es un fichero sensible. Reglas:
 
@@ -249,9 +283,9 @@ terraform {
 }
 ```
 
-Las credenciales van en `AWS_ACCESS_KEY_ID` y `AWS_SECRET_ACCESS_KEY` (o en `-backend-config=` en `init`), nunca en el bloque. `use_lockfile = true` implementa el bloqueo con un fichero `.tflock` junto al estado mediante escrituras condicionales de S3, sin necesidad de DynamoDB; requiere una versión reciente de MinIO. El bloqueo hace que un segundo `apply` simultáneo falle con `Error acquiring the state lock` en lugar de pisar el estado. Si alguien pierde la conexión con el bloqueo tomado, `tofu force-unlock ID` lo libera, solo después de comprobar que nadie está aplicando de verdad. Como alternativa en clase puede usarse el backend `http` que ofrece GitLab, que también bloquea.
+Las credenciales van en `AWS_ACCESS_KEY_ID` y `AWS_SECRET_ACCESS_KEY` (o en `-backend-config=` en `init`), nunca en el bloque. `use_lockfile = true` implementa el bloqueo con un fichero `.tflock` junto al estado mediante escrituras condicionales de S3, sin necesidad de DynamoDB (la tabla de AWS que Terraform usaba para el bloqueo); requiere una versión reciente de MinIO. El bloqueo hace que un segundo `apply` simultáneo falle con `Error acquiring the state lock` en lugar de pisar el estado. Si alguien pierde la conexión con el bloqueo tomado, `tofu force-unlock ID` lo libera, solo después de comprobar que nadie está aplicando de verdad. Como alternativa en clase puede usarse el backend `http` que ofrece GitLab, que también bloquea.
 
-OpenTofu añade algo que Terraform no tiene: cifrado del estado en cliente, con un bloque `encryption` dentro de `terraform {}` y una clave derivada de una passphrase o de un KMS. Con eso, lo que llega a MinIO ya va cifrado. Documentado en https://opentofu.org/docs/language/state/encryption/.
+OpenTofu añade algo que Terraform no tiene: cifrado del estado en cliente, con un bloque `encryption` dentro de `terraform {}` y una clave derivada de una passphrase o de un KMS (un servicio de gestión de claves). Con eso, lo que llega a MinIO ya va cifrado. Documentado en https://opentofu.org/docs/language/state/encryption/.
 
 ### Manipular el estado
 
@@ -267,7 +301,9 @@ tofu import 'proxmox_virtual_environment_vm.legacy' pve/105  # adopta una VM que
 
 ## Provider Proxmox y una VM completa
 
-Hay dos providers para Proxmox con uso real: `Telmate/proxmox`, el histórico, y `bpg/proxmox`, más completo y mantenido, que es el que usamos. El ejemplo del curso, completo:
+Con el lenguaje y el estado vistos, toca crear máquinas de verdad: un proyecto completo que clona la plantilla cloud-init de UT1 tres veces en la VPC dev, base de las actividades A5.3 y A5.4.
+
+Hay dos providers para Proxmox con uso real: `Telmate/proxmox`, el histórico, y `bpg/proxmox`, más completo y mantenido, que es el que usamos. El ejemplo del curso, completo. Fíjate en tres cosas: el token entra por variable y no por fichero, `for_each` sobre el mapa `vms` hace que un solo bloque `resource` cree las tres VM, y el bloque `initialization` es lo que cloud-init aplica en el primer arranque (IP, puerta de enlace, usuario y clave SSH):
 
 ```hcl
 # providers.tf
@@ -351,7 +387,9 @@ El token va en la variable de entorno `TF_VAR_pve_token`, no en ningún fichero.
 
 ## Módulos, entornos y estructura del repositorio
 
-Un módulo es un directorio con ficheros `.tf` que recibe variables y devuelve outputs. Cualquier proyecto es ya un módulo (el raíz); un módulo hijo se llama con `module "app" { source = "./modules/vm" ... }` y se accede a sus salidas con `module.app.ip`. Sirve para no copiar tres veces los cuarenta atributos de una VM, y para que el equipo de plataforma publique "así se hace una VM aquí" y los demás solo pasen nombre, tamaño y red. Dos reglas de diseño: un módulo hace una cosa (una VM, una subred, un bucket) y no configura su propio provider, que hereda del raíz.
+Con un proyecto que ya funciona, el siguiente problema es no repetirlo: tres VM en dev, cuatro en pre, otras en pro, cada una con los mismos cuarenta atributos. Aquí empaquetamos la VM en un módulo y separamos los entornos de forma que un error en dev no pueda tocar pro.
+
+Un módulo es un directorio con ficheros `.tf` que recibe variables y devuelve outputs. Cualquier proyecto es ya un módulo (el raíz); un módulo hijo se llama con `module "app" { source = "./modules/vm" ... }` y se accede a sus salidas con `module.app.ip`. Sirve para que el equipo de plataforma publique "así se hace una VM aquí" y los demás solo pasen nombre, tamaño y red. Dos reglas de diseño: un módulo hace una cosa (una VM, una subred, un bucket) y no configura su propio provider, que hereda del raíz.
 
 Para los entornos hay dos caminos. Los workspaces (`tofu workspace new pre`) mantienen varios estados para el mismo código y exponen `terraform.workspace` como variable; sirven cuando la única diferencia entre entornos son valores. El directorio por entorno (`envs/dev`, `envs/pre`, `envs/pro`), cada uno con su backend, su tfvars y sus llamadas a los módulos comunes, es lo que prefieren la mayoría de los equipos, y lo que usamos: se ve de un vistazo qué hay en cada entorno, un error en `dev` no puede tocar el estado de `pro`, los permisos del backend se dan por directorio y el pipeline solo tiene que hacer `cd envs/pre`. Los workspaces comparten backend y credenciales, y es fácil aplicar en el workspace equivocado.
 
@@ -373,7 +411,7 @@ El módulo `vm` expone como mínimo `name`, `cores`, `memory`, `disk`, `bridge`,
 
 ## Ansible
 
-Ansible configura las máquinas que OpenTofu ha creado. No instala agente: necesita SSH y un intérprete de Python en el destino, cosa que cualquier imagen cloud de Debian o Ubuntu trae. Desde la máquina de control (tu portátil, o el agente de Jenkins en UT6) se conecta a cada host, copia un pequeño programa Python (el módulo), lo ejecuta y recoge el resultado en JSON. Instalación con `pipx install ansible` o el paquete de la distribución; `ansible --version` debe indicar core 2.18 o superior.
+Ansible configura las máquinas que OpenTofu ha creado. No instala agente: necesita SSH y un intérprete de Python en el destino, cosa que cualquier imagen cloud de Debian o Ubuntu trae. Desde la máquina de control (tu portátil, o el agente de Jenkins en UT6) se conecta a cada host, copia un pequeño programa Python (el módulo), lo ejecuta y recoge el resultado en JSON. Instalación con `pipx install ansible` (pipx instala herramientas Python cada una en su entorno aislado) o el paquete de la distribución; `ansible --version` debe indicar core 2.18 o superior.
 
 ### Inventario
 
@@ -400,7 +438,7 @@ ansible_user=ops
 ansible_python_interpreter=/usr/bin/python3
 ```
 
-El mismo inventario en YAML, que es el que ansible-lint prefiere:
+El mismo inventario en YAML, que es el que ansible-lint (el revisor de estilo de Ansible, al final de este apartado) prefiere:
 
 ```yaml
 all:
@@ -416,7 +454,7 @@ all:
 
 ### Inventario generado desde los outputs de OpenTofu
 
-Escribir el inventario a mano duplica lo que ya está en tfvars, y se desincroniza a la primera. `tofu output -json` devuelve todos los outputs en JSON, y con `jq` se convierte en inventario en cinco líneas:
+Escribir el inventario a mano duplica lo que ya está en tfvars, y se desincroniza a la primera. `tofu output -json` devuelve todos los outputs en JSON, y con `jq` (el filtro de JSON de la línea de comandos) se convierte en inventario en cinco líneas:
 
 ```bash
 #!/usr/bin/env bash
@@ -432,7 +470,7 @@ tofu output -json ips | jq -r '
 printf '\n[all:vars]\nansible_user=ops\n' >> ../../ansible/inventory.ini
 ```
 
-Agrupa por el nombre sin el número final (`web01` va al grupo `web`, `db01` a `db`) y quita el `/24` de la IP. En proyectos más grandes se usa el plugin de inventario `cloud.terraform.terraform_state`, que lee el estado directamente, pero el script tiene la ventaja de que se entiende entero.
+Agrupa por el nombre sin el número final (`web01` va al grupo `web`, `db01` a `db`) y quita el `/24` de la IP. En proyectos más grandes se usa el plugin de inventario `cloud.terraform.terraform_state`, que lee el estado directamente; el script se entiende entero.
 
 ### Comandos ad hoc y playbooks
 
@@ -444,7 +482,7 @@ ansible -i inventory.ini db -m setup -a 'filter=ansible_memtotal_mb'
 ansible -i inventory.ini app -b -m apt -a 'name=htop state=present'
 ```
 
-Un playbook es un fichero YAML con una o más jugadas (plays), cada una con un grupo de hosts y una lista de tareas:
+Un playbook es un fichero YAML con una o más jugadas (plays), cada una con un grupo de hosts y una lista de tareas. El de abajo deja el servicio del curso corriendo en `app01`; fíjate en que cada tarea tiene nombre, usa el nombre completo del módulo y describe un estado (`present`, `directory`), no una acción:
 
 ```yaml
 # site.yml
@@ -489,7 +527,7 @@ Un playbook es un fichero YAML con una o más jugadas (plays), cada una con un g
 
 ### Módulos idempotentes y handlers
 
-Cada módulo compara el estado pedido con el real antes de tocar nada: `apt` consulta dpkg, `copy` compara el hash del fichero, `service` pregunta a systemd, `user` lee `/etc/passwd`. `command` y `shell` no pueden saber nada de eso, así que siempre informan `changed`; se usan solo cuando no hay módulo, con `creates: /ruta` (no ejecutar si existe) o `changed_when: false` (es una consulta). Los handlers son tareas que solo se ejecutan si alguna tarea con `notify` ha cambiado algo, y una sola vez al final de la jugada aunque las notifiquen cinco tareas. Es el mecanismo para "reinicia nginx solo si ha cambiado la configuración". Los nombres completos de los módulos (`ansible.builtin.apt` en lugar de `apt`) son obligatorios para ansible-lint y evitan ambigüedades con colecciones instaladas. Las colecciones que no vienen con `ansible-core` se instalan con `ansible-galaxy collection install community.docker` o, mejor, con un `requirements.yml` en el repositorio.
+Cada módulo compara el estado pedido con el real antes de tocar nada: `apt` consulta dpkg, `copy` compara el hash del fichero, `service` pregunta a systemd, `user` lee `/etc/passwd`. `command` y `shell` no pueden saber nada de eso, así que siempre informan `changed`; se usan solo cuando no hay módulo, con `creates: /ruta` (no ejecutar si existe) o `changed_when: false` (es una consulta). Los handlers son tareas que solo se ejecutan si alguna tarea con `notify` ha cambiado algo, y una sola vez al final de la jugada aunque las notifiquen cinco tareas. Los nombres completos de los módulos (`ansible.builtin.apt` en lugar de `apt`) son obligatorios para ansible-lint y evitan ambigüedades con colecciones instaladas. Las colecciones (paquetes de módulos, como `community.docker`) que no vienen con `ansible-core` se instalan con `ansible-galaxy collection install community.docker` o, mejor, con un `requirements.yml` en el repositorio.
 
 ### Roles, variables y group_vars
 
@@ -501,7 +539,7 @@ roles/docker/
   handlers/main.yml     # los handlers
   defaults/main.yml     # variables con la prioridad más baja (el usuario las sobreescribe)
   vars/main.yml         # variables internas del rol
-  templates/            # ficheros Jinja2 (.j2) para el módulo template
+  templates/            # ficheros Jinja2 (.j2), plantillas con variables, para el módulo template
   files/                # ficheros que se copian tal cual
   meta/main.yml         # dependencias de otros roles
 ```
@@ -526,6 +564,8 @@ El fichero cifrado sí se sube a Git (empieza por `$ANSIBLE_VAULT;1.1;AES256` y 
 
 ## Pruebas del despliegue
 
+Un despliegue que no se prueba no está terminado: OpenTofu puede acabar sin error con una VM que no arranca, y Ansible puede decir `ok` con un servicio que no responde. Aquí montamos la cadena que va del `apply` a un código de salida 0 o distinto de 0, que es lo que el pipeline de UT6 ejecutará en cada commit.
+
 ```mermaid
 flowchart LR
     T[tofu apply] --> O[tofu output -json]
@@ -544,7 +584,7 @@ Probar infraestructura es probar por niveles, del más barato al más caro. Cada
 |----|----|----|----|
 | Estático | Sintaxis, formato, buenas prácticas | `tofu fmt -check`, `tofu validate`, `ansible-lint`, `checkov` | En cada commit, en segundos, sin credenciales |
 | Plan | Que el plan sea el esperado y nada se destruya por sorpresa | Leer `tofu plan`; `tofu plan -detailed-exitcode` en CI (0 sin cambios, 2 con cambios, 1 error) | Antes de cada apply |
-| Unitario | Que un módulo produce los recursos que debe con unas entradas dadas | `tofu test` con ficheros `.tftest.hcl`; Molecule para roles | Al cambiar el módulo o el rol |
+| Unitario | Que un módulo produce los recursos que debe con unas entradas dadas | `tofu test` con ficheros `.tftest.hcl`; Molecule (el marco de pruebas de roles de Ansible) para roles | Al cambiar el módulo o el rol |
 | Servicio | Que lo desplegado funciona de verdad | Smoke test: `curl -f https://app.lab/health`, `nc -zv 10.10.3.10 5432` | Después de cada apply |
 | Configuración | Que la máquina es como se pidió | `ansible -m setup` y comparar `ansible_processor_vcpus`, `ansible_memtotal_mb`, tamaño de disco con los requisitos | Después de cada apply |
 | Idempotencia | Segunda ejecución sin cambios | `tofu plan` = "No changes"; `ansible-playbook` con `changed=0` | Después de cada apply |
@@ -603,7 +643,7 @@ run "memoria_minima" {
 }
 ```
 
-Con `command = plan` no crea nada y sirve para probar módulos en CI sin Proxmox. Molecule hace lo mismo para roles de Ansible: levanta un contenedor o una VM, aplica el rol, lo vuelve a aplicar para comprobar idempotencia y ejecuta verificaciones. Para este curso basta con conocer que existen; en la práctica evaluable no se piden.
+Con `command = plan` no crea nada y sirve para probar módulos en CI sin Proxmox. Molecule hace lo mismo para roles de Ansible: levanta un contenedor o una VM, aplica el rol dos veces y ejecuta verificaciones. En la práctica evaluable no se piden.
 
 ## Seguridad del IaC
 
@@ -625,7 +665,7 @@ Cuatro herramientas, cada una con su foco. En el laboratorio pasamos las cuatro:
 | tfsec | Específico de Terraform; sus reglas se han integrado en trivy y el proyecto está en mantenimiento | binario de GitHub | `tfsec .` |
 | gitleaks | Secretos en el árbol de trabajo y en todo el historial de Git, por patrones y entropía | `brew install gitleaks` o binario | `gitleaks detect -v` (o `gitleaks git` en versiones recientes) |
 
-checkov y trivy se solapan bastante; se pasan los dos porque las reglas no son idénticas y porque en una empresa os pedirán uno u otro según el fabricante que hayan contratado. gitleaks es de otra categoría: no mira la calidad del código, mira si has filtrado algo, y es el único que revisa commits antiguos.
+checkov y trivy se solapan bastante; se pasan los dos porque las reglas no son idénticas y porque en una empresa os pedirán uno u otro. gitleaks es de otra categoría: no mira la calidad del código, mira si has filtrado algo, y es el único que revisa commits antiguos.
 
 ### Cómo leer un hallazgo y cómo suprimirlo
 
@@ -648,14 +688,14 @@ resource "proxmox_virtual_environment_vm" "vm" {
 }
 ```
 
-tfsec usa `#tfsec:ignore:regla` con la misma idea, y gitleaks un fichero `.gitleaksignore` con la huella del hallazgo (commit:fichero:regla:línea). Una supresión sin justificación no vale; en la práctica evaluable cuenta como hallazgo sin corregir. Y un hallazgo de gitleaks sobre un secreto real nunca se suprime: se rota el secreto (se revoca el token en Proxmox y se crea otro) y, si el repositorio no es público, se reescribe el historial con `git filter-repo`. Si es público, se da por quemado aunque reescribas.
+tfsec usa `#tfsec:ignore:regla` con la misma idea, y gitleaks un fichero `.gitleaksignore` con la huella del hallazgo (commit:fichero:regla:línea). Una supresión sin justificación no vale; en la práctica evaluable cuenta como hallazgo sin corregir. Y un hallazgo de gitleaks sobre un secreto real nunca se suprime: se rota el secreto (se revoca el token en Proxmox y se crea otro) y, si el repositorio no es público, se reescribe el historial con `git filter-repo` (la herramienta que reescribe todos los commits para quitar el fichero o la línea). Si es público, se da por quemado aunque reescribas.
 
 ### Gestión de secretos
 
 Del más simple al más serio, y todos se usan:
 
 - Variables de entorno en local: `export TF_VAR_pve_token=...` en la sesión, o en un fichero `.env` que está en `.gitignore` y se carga con `source`. Suficiente para un portátil; no sirve para compartir.
-- sops con age: cifra ficheros YAML o JSON campo a campo, de modo que las claves siguen legibles y solo los valores van cifrados. El fichero cifrado se sube a Git y se descifra con la clave privada de cada persona autorizada. `age-keygen -o ~/.config/sops/age/keys.txt`, un `.sops.yaml` en el repositorio con las claves públicas del equipo, `sops -e secrets.yaml > secrets.enc.yaml` y `sops -d` para leer. Terraform lo lee con el provider `carlpett/sops` (`data "sops_file"`), Ansible con la colección `community.sops`. Es la opción que recomiendo para equipos pequeños.
+- sops con age (age es un cifrador de ficheros con par de claves, como SSH; sops es el editor que lo aplica campo a campo): cifra ficheros YAML o JSON campo a campo, de modo que las claves siguen legibles y solo los valores van cifrados. El fichero cifrado se sube a Git y se descifra con la clave privada de cada persona autorizada. `age-keygen -o ~/.config/sops/age/keys.txt`, un `.sops.yaml` en el repositorio con las claves públicas del equipo, `sops -e secrets.yaml > secrets.enc.yaml` y `sops -d` para leer. Terraform lo lee con el provider `carlpett/sops` (`data "sops_file"`), Ansible con la colección `community.sops`. Es la opción que recomiendo para equipos pequeños.
 - HashiCorp Vault (u OpenBao, su fork libre por la misma razón que OpenTofu): un servidor de secretos con autenticación, políticas, rotación y auditoría. Terraform los lee con el provider `vault` y Ansible con `community.hashi_vault`. Es lo que veréis en empresas grandes; montarlo bien es un proyecto en sí.
 - En el pipeline (UT6) los secretos los guarda Jenkins como credenciales y los inyecta como variables de entorno en el job, de modo que nunca están en disco en el agente.
 
