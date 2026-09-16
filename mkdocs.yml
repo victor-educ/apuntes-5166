@@ -4,7 +4,7 @@ site_url: https://victor-educ.github.io/apuntes-5166/
 repo_url: https://github.com/victor-educ/apuntes-5166
 repo_name: victor-educ/apuntes-5166
 edit_uri: edit/main/docs/
-copyright: Víctor Sellés · CC BY-SA 4.0
+copyright: Víctor Sellés, con apoyo de Claude (Anthropic) · CC BY-SA 4.0
 
 theme:
   name: material

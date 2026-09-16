@@ -16,6 +16,10 @@ mkdocs serve        # vista previa en http://127.0.0.1:8000
 Cada push a `main` lanza el workflow de `.github/workflows/deploy.yml`, que construye el sitio
 y lo publica en GitHub Pages.
 
+## Autoría
+
+Los apuntes los ha escrito Víctor Sellés apoyándose en Claude, el asistente de IA de Anthropic, para redactar, ampliar y revisar el material a partir de sus apuntes originales y de la planificación del curso. El contenido está revisado por el autor.
+
 ## Licencia
 
 Texto e imágenes propias: [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/deed.es).

@@ -87,6 +87,10 @@ Cada práctica evaluable lleva su tabla de criterios y pesos al final de la unid
 | Monitorización | Prometheus, Alertmanager, Grafana | Zabbix, Loki, servicios de nube |
 | Análisis de seguridad | checkov, trivy, gitleaks | tfsec, semgrep |
 
+## Sobre el material
+
+Estos apuntes los he escrito yo apoyándome en Claude, el asistente de IA de Anthropic: partí de mis apuntes en Word y de la planificación de sesiones, y usé la herramienta para redactar, ampliar y revisar cada unidad. Lo digo porque no quiero que haya dudas sobre cómo se ha hecho. La revisión final y los errores que queden son míos, y los iré corrigiendo durante el curso.
+
 ## Metodología
 
 Cada sesión de dos horas tiene una parte corta de explicación y una parte larga de laboratorio. Los apuntes cubren la explicación con más profundidad de la que da tiempo en clase, así que conviene leerlos antes de la sesión. En el laboratorio se trabaja por parejas sobre un hipervisor por persona; las prácticas evaluables son individuales salvo que se indique lo contrario.
