@@ -59,3 +59,19 @@
 .cal-tip-entrega { border-top: 1px dashed var(--md-default-fg-color--lightest); padding-top: .3em; }
 .cal-tip-pie { margin-top: .4em; font-size: .6rem; color: var(--md-default-fg-color--light); font-style: italic; }
 @media (max-width: 600px) { .cal-etq { display: none; } .cal-dia { min-height: 2em; } }
+
+/* ---------- Desplegables en las pestañas ---------- */
+.md-tabs__item--dropdown { position: relative; }
+.md-tabs__caret { font-size: .6em; opacity: .7; margin-left: .15em; }
+.md-tabs__dropdown { display: none; position: absolute; top: 100%; left: -.6rem; z-index: 3; min-width: 15rem; margin: 0; padding: .4rem 0; list-style: none;
+  background: var(--md-default-bg-color); color: var(--md-default-fg-color); border-radius: 0 0 .2rem .2rem;
+  box-shadow: var(--md-shadow-z2); }
+.md-tabs__item--dropdown:hover .md-tabs__dropdown, .md-tabs__item--dropdown:focus-within .md-tabs__dropdown { display: block; }
+.md-tabs__dropdown li { margin: 0; padding: 0; }
+.md-tabs__dropdown-group { padding: .35rem .8rem .1rem; font-size: .6rem; text-transform: uppercase; letter-spacing: .05em; color: var(--md-default-fg-color--light); }
+.md-tabs__dropdown-link { display: block; padding: .3rem .8rem; font-size: .7rem; line-height: 1.3; color: var(--md-default-fg-color); white-space: nowrap; }
+.md-tabs__dropdown-link:hover, .md-tabs__dropdown-link:focus { background: var(--md-default-fg-color--lightest); color: var(--md-accent-fg-color); }
+.md-tabs__dropdown-link--active { color: var(--md-accent-fg-color); font-weight: 600; }
+.md-tabs, .md-tabs__list { overflow: visible; }
+.md-tabs__list { contain: none; }
+.md-tabs { position: relative; z-index: 4; }

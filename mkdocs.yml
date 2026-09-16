@@ -8,6 +8,7 @@ copyright: Apuntes del módulo 5166 · Víctor Sellés · CC BY-SA 4.0
 
 theme:
   name: material
+  custom_dir: overrides
   language: es
   logo: assets/logo.svg
   favicon: assets/logo.svg
@@ -81,10 +82,9 @@ plugins:
 
 nav:
   - Inicio: index.md
-  - El módulo:
-      - Presentación y evaluación: modulo.md
-      - Calendario de sesiones: calendario.md
-      - Laboratorio: laboratorio.md
+  - El módulo: modulo.md
+  - Calendario: calendario.md
+  - Laboratorio: laboratorio.md
   - Unidades:
       - UT1 · Virtualización e hipervisores: ut/ut1-virtualizacion.md
       - UT2 · Nubes privadas virtuales (VPC): ut/ut2-vpc.md
