@@ -40,10 +40,25 @@ Los nombres que van a aparecer, antes de encontrároslos en el texto:
 **Cómo está organizada la unidad.** Primero, qué es virtualizar y qué tipos de hipervisor hay. Después, cómo funcionan KVM y QEMU por debajo y qué es virtio: sin eso las opciones de Proxmox parecen arbitrarias. Sigue un repaso corto de requisitos hardware, porque el laboratorio es anidado y hay que activar cosas antes de instalar. Luego Proxmox en sí (arquitectura, almacenamiento, red, usuarios), el suelo sobre el que va todo lo demás, y encima las máquinas virtuales: crearlas, elegir la CPU, cloud-init, plantillas, snapshots y backups. Cierran LXC frente a VM con medidas, el clúster y las capacidades y limitaciones con las herramientas para medirlas, que es lo que pide la práctica evaluable.
 
 !!! info "Dónde se usa esto en la otra asignatura"
-    La asignatura de mantenimiento (5169) empieza el 29 de septiembre, cuatro días después que esta, y su [UT1 Observabilidad](https://victor-educ.github.io/apuntes-5169/ut/ut1-observabilidad/) necesita desde la primera semana máquinas que vigilar; la VPC de la UT2 y el firewall de la UT3 no llegan hasta noviembre y diciembre. Por eso en la sesión 3 de esta unidad, junto a `web01`, clonáis de la misma plantilla cloud-init dos VM en el bridge del aula (`vmbr0`): `app01`, con el servicio del curso en compose, y `mon01`, donde 5169 levanta Prometheus, Alertmanager y Grafana con un compose que se da allí en su sesión 1. Se usan en 5169 al día siguiente, así que tienen que arrancar, coger IP y aceptar la clave SSH ese mismo día.
-    Ese es el entorno provisional de 5169 en octubre y noviembre. Cuando esta asignatura termine la UT2 (11 nov) y la UT3 (2 dic), las dos VM se mueven a la VPC dev detrás del firewall, y lo hace 5169 en su UT3 (19 nov a 1 dic). Todo lo que aprendáis aquí sobre cloud-init, snapshots y `qm` lo vais a repetir allí cada vez que una de esas VM se rompa.
+    La asignatura de mantenimiento (5169) empieza el 1 de octubre, un día antes que esta, y su [UT1 Observabilidad](https://victor-educ.github.io/apuntes-5169/ut/ut1-observabilidad/) necesita desde la primera semana máquinas que vigilar; la VPC de la UT2 y el firewall de la UT3 no llegan hasta noviembre y diciembre. Por eso en la sesión 3 de esta unidad, junto a `web01`, clonáis de la misma plantilla cloud-init dos VM en el bridge del aula (`vmbr0`): `app01`, con el servicio del curso en compose, y `mon01`, donde 5169 levanta Prometheus, Alertmanager y Grafana con un compose que se da allí en su sesión 1. Se usan en 5169 al día siguiente, así que tienen que arrancar, coger IP y aceptar la clave SSH ese mismo día.
+    Ese es el entorno provisional de 5169 en octubre y noviembre. Cuando esta asignatura termine la UT2 (13 nov) y la UT3 (4 dic), las dos VM se mueven a la VPC dev detrás del firewall, y lo hace 5169 en su UT3 (24 nov a 3 dic). Todo lo que aprendáis aquí sobre cloud-init, snapshots y `qm` lo vais a repetir allí cada vez que una de esas VM se rompa.
+
+## Plan de sesiones
+
+Cada sesión de dos horas empieza con una explicación corta y sigue con laboratorio. La columna "Se explica" es lo que cuento yo al principio (con su duración aproximada); la columna "Se practica" es lo que hacéis vosotros con el material de práctica de esta unidad. Las sesiones marcadas solo como práctica no traen teoría nueva.
+
+| Sesión | Fecha | Tipo | Se explica | Se practica |
+|---:|-------|------|------------|-------------|
+| [1](#a11-instalar-proxmox-ve-sesion-1) | 2 oct | Teoría y práctica | Presentación del módulo, evaluación y laboratorio (20 min). Qué es virtualizar; hipervisores tipo 1 y 2; qué es Proxmox y por qué lo usamos (25 min). | Comprobar VT-x/AMD-V, crear la VM anidada e instalar Proxmox VE desde la ISO. Al final: consola web accesible en el puerto 8006. |
+| [2](#a12-configuracion-inicial-sesion-2) | 7 oct | Teoría y práctica | Repositorios, almacenamiento (local, LVM-thin), bridges y realms de usuarios: qué es cada cosa y para qué sirve (25 min). | Cambiar repositorios y actualizar, crear usuario admin en realm pve, crear vmbr1 sin interfaz física, revisar los almacenes. |
+| [3](#a13-plantilla-cloud-init-y-clonado-sesion-3) | 14 oct | Teoría y práctica | cloud-init, plantillas y clon completo frente a enlazado (20 min). | Crear la plantilla 9000 desde la imagen cloud de Debian, clonar web01, app01 y mon01 (las dos últimas para Mantenimiento), acceder por SSH. |
+| [4](#a14-vm-frente-a-lxc-snapshots-sesion-4) | 16 oct | Teoría y práctica | Cómo funcionan KVM/QEMU y virtio; LXC frente a VM; qué es un snapshot en LVM-thin y qué no es (25 min). | Crear un LXC y compararlo con la VM; snapshot, romper e instalar nginx, rollback; backup con vzdump. |
+| [5](#a15-redes-vlan-sesion-5) | 21 oct | Teoría y práctica | Bridge, VLAN-aware bridge, bond y NAT: qué resuelve cada uno (20 min). | vmbr1 VLAN aware, tres VM en dos VLAN, comprobar con ping quién ve a quién. Medir CPU, disco y red con stress-ng, fio e iperf3. |
+| [6](#practica-evaluable) | 23 oct | Práctica evaluable | Aclaración del enunciado (10 min). | Desplegar app-eval desde la plantilla con los parámetros dados y redactar el informe de capacidades y limitaciones con medidas reales. |
 
 ## Qué es virtualizar y para qué sirve
+
+*Se explica en la sesión 1 (unos 12 min). El resto del apartado es material de consulta para la práctica.*
 
 Este apartado pone el vocabulario mínimo: qué es una máquina virtual, quién la fabrica y por qué las empresas las usan en lugar de un servidor por aplicación. Sin esto, las tablas de tipos de hipervisor y de VM frente a contenedor que vienen después no se leen bien.
 
@@ -74,6 +89,8 @@ En este curso los contenedores se ejecutan dentro de máquinas virtuales: el hip
 
 ## Tipos de hipervisor
 
+*Se explica en la sesión 1 (unos 13 min). El resto del apartado es material de consulta para la práctica.*
+
 Aquí clasificamos los hipervisores en dos familias y explicamos por qué el curso usa Proxmox VE. Os interesa porque en el laboratorio vais a tener los dos tipos a la vez: uno en vuestro portátil y otro, Proxmox, dentro de él.
 
 <figure markdown="span">
@@ -93,6 +110,8 @@ La clasificación es útil pero tiene una trampa que os preguntaré en clase: KV
 En el módulo usaremos Proxmox VE: libre (AGPLv3), basado en Debian, con KVM para VM y LXC para contenedores de sistema, y con una consola web completa. Es lo más parecido a una nube privada que se puede montar en un aula, y desde que Broadcom cambió el licenciamiento de VMware en 2024 es también lo que muchas pymes y centros educativos han adoptado en producción. Proxmox VE 8 está construido sobre Debian 12 (bookworm) y Proxmox VE 9 sobre Debian 13 (trixie); en el laboratorio instalaremos la 9, pero todo lo que hay en estos apuntes vale para las dos salvo donde se indique.
 
 ## Cómo funciona KVM/QEMU por debajo
+
+*Se explica en la sesión 4 (unos 10 min). El resto del apartado es material de consulta para la práctica.*
 
 Esto es lo que os diferencia de alguien que solo sabe hacer clic en "Create VM". Cuando arrancáis una VM en Proxmox, ocurren tres cosas a la vez.
 
@@ -143,6 +162,8 @@ Linux lleva los drivers virtio en el kernel desde hace más de una década, así
 
 ## Requisitos hardware
 
+*No se explica en clase: es material de consulta para las prácticas y para ampliar.*
+
 Antes de instalar nada, esta lista dice qué tiene que tener el equipo y qué hay que activar en el hipervisor exterior. El punto de la virtualización anidada es el que más disgustos da en la sesión 1: si se salta, Proxmox se instala igual pero sus VM van a paso de tortuga.
 
 - CPU con extensiones de virtualización: Intel VT-x o AMD-V. Sin ellas KVM no funciona. Se comprueba con `egrep -c '(vmx|svm)' /proc/cpuinfo` (debe dar más de 0). Si da 0 en un equipo moderno, la causa casi siempre es que está desactivado en la BIOS/UEFI.
@@ -153,6 +174,8 @@ Antes de instalar nada, esta lista dice qué tiene que tener el equipo y qué ha
 - Red: una interfaz basta para empezar; dos permiten separar gestión y tráfico de VM, y tres o cuatro son lo normal en un servidor de producción (gestión, VM, almacenamiento, migración o corosync).
 
 ## Proxmox VE
+
+*Se explica en la sesión 2 (unos 25 min). El resto del apartado es material de consulta para la práctica.*
 
 Este apartado recorre las cuatro piezas de Proxmox que vais a tocar en las sesiones 1 y 2: cómo está construido, dónde guarda los discos, cómo conecta las VM a la red y quién puede hacer qué. Cada una lleva sus órdenes de terminal; la web hace lo mismo con clics, pero saber la orden es lo que os permitirá automatizarlo en la UT5.
 
@@ -279,6 +302,8 @@ pveum acl list
 ```
 
 ## Máquinas virtuales en Proxmox
+
+*Se explica en la sesión 3 (unos 20 min). El resto del apartado es material de consulta para la práctica.*
 
 Con el hipervisor listo, aquí está el ciclo de vida completo de una VM: crearla con los parámetros correctos, elegir la CPU que expone, configurarla sola con cloud-init, convertirla en plantilla y clonarla, y protegerla con snapshots y backups. Es el apartado más largo y el que más vais a consultar durante el curso; las actividades A1.3 y A1.4 siguen este mismo orden.
 
@@ -427,6 +452,8 @@ El problema de vzdump a ficheros es que cada backup es completo: 20 VM de 20 GB 
 
 ## LXC frente a VM, con números
 
+*Se explica en la sesión 4 (unos 10 min). El resto del apartado es material de consulta para la práctica.*
+
 Proxmox ofrece contenedores de sistema LXC junto a las VM. Un contenedor LXC no es un contenedor Docker: ejecuta un sistema operativo completo desde `init` (systemd, sshd, cron), no un solo proceso, pero sin kernel propio. Comparte el kernel del host con aislamiento por namespaces y cgroups, igual que Docker, y Proxmox lo gestiona como si fuera una VM ligera (consola, snapshots, backups, migración en frío).
 
 ```bash
@@ -462,6 +489,8 @@ La regla práctica: servicios de infraestructura pequeños y Linux (DNS, un prox
 
 ## Clúster y migración en vivo
 
+*No se explica en clase: es material de consulta para las prácticas y para ampliar.*
+
 No lo montaremos en el laboratorio (haría falta un segundo nodo con la misma red y, para que tenga sentido, almacenamiento compartido), pero es lo primero que veréis en una empresa y explica varias decisiones de diseño de esta unidad.
 
 <figure markdown="span">
@@ -474,6 +503,8 @@ Varios nodos Proxmox se unen en un clúster (`pvecm create`, `pvecm add`) que co
 La migración en vivo (`qm migrate 101 pve2 --online`) mueve una VM encendida de un nodo a otro sin que los usuarios lo noten: QEMU copia la RAM al destino mientras la VM sigue trabajando, va recopiando las páginas que se ensucian, y cuando queda poco por copiar pausa la VM unas decenas de milisegundos, transfiere el resto y el estado de la CPU, y la reanuda en el destino. Con almacenamiento compartido (NFS, Ceph, iSCSI) el disco no se mueve; con almacenamiento local Proxmox también puede copiarlo (`--with-local-disks`), pero tardará lo que tarde el disco. Aquí es donde el tipo de CPU importa: si la VM es `host` y los dos nodos tienen CPU distintas, la migración se rechaza o el invitado se rompe al llegar. Y sobre el clúster se monta la alta disponibilidad (HA): si un nodo muere, sus VM marcadas como HA se arrancan automáticamente en otro, cosa que también exige almacenamiento compartido y, en Proxmox, *fencing* por watchdog para asegurarse de que el nodo caído no siga escribiendo.
 
 ## Capacidades y limitaciones, y cómo medirlas
+
+*No se explica en clase: es material de consulta para las prácticas y para ampliar.*
 
 El criterio de evaluación pide conocer las capacidades y limitaciones del hipervisor, y eso no se aprende leyendo: se mide. Primero va la tabla de qué permite hacer un hipervisor y dónde está el riesgo de cada cosa, y después las herramientas con las que tomaréis vuestras propias medidas para la práctica evaluable.
 
@@ -545,69 +576,286 @@ Anotad no solo el resultado sino la condición: "fio 4k aleatorio 70/30 en web01
 
 **"illegal instruction" en un programa dentro de la VM tras moverla de portátil.** La VM tenía CPU `host` en un equipo con AVX y ahora corre en uno sin él. Cambiad a `x86-64-v2-AES` y apagad y encended.
 
-## Actividades
+## Material de práctica
 
 Todas se hacen en el laboratorio. Entrega: capturas y respuestas en un documento breve (una página por actividad) salvo que se indique otra cosa.
 
 ### A1.1 Instalar Proxmox VE (sesión 1)
 
-1. Comprueba en tu equipo que hay virtualización activada (`egrep -c '(vmx|svm)' /proc/cpuinfo` en Linux, o en la BIOS/UEFI; en Windows, la pestaña Rendimiento del Administrador de tareas muestra "Virtualización: habilitado").
-2. Crea una VM en VirtualBox/VMware con 4 vCPU, 8 GB de RAM, 60 GB de disco, virtualización anidada activada, red en modo puente.
-3. Instala Proxmox desde la ISO (la última 9.x de la web de Proxmox). Deja el sistema de ficheros por defecto (ext4 con LVM-thin). Anota: IP de gestión, nombre de host, contraseña de root.
-4. Accede a `https://IP:8006` (el certificado autofirmado dará aviso; es normal) y captura el panel principal.
+**Sesión 1 · 2 de octubre · Teoría y práctica · unos 75 min de práctica**
 
-Preguntas: ¿qué tipo de hipervisor es Proxmox? ¿Y el que has usado para alojarlo? ¿Qué devuelve `cat /sys/module/kvm_intel/parameters/nested` (o `kvm_amd`) dentro de tu Proxmox, y qué significa?
+**Objetivo.** Al terminar tienes un Proxmox VE 9 instalado dentro de una VM de tu portátil y entras en su consola web en el puerto 8006.
+
+**Antes de empezar.**
+
+- VirtualBox o VMware Workstation instalado en tu equipo, con 16 GB de RAM y al menos 80 GB libres en un SSD.
+- La ISO de Proxmox VE 9 (la última 9.x de la web de Proxmox, alrededor de 1,5 GB). Descárgala antes de clase si puedes; la red del aula se resiente cuando la bajan treinta personas a la vez.
+- Lo explicado al principio de la sesión: [qué es virtualizar](#que-es-virtualizar-y-para-que-sirve) y [tipos de hipervisor](#tipos-de-hipervisor). Los [requisitos hardware](#requisitos-hardware) no se explican en clase: lee ese apartado antes del paso 2, sobre todo el punto de la virtualización anidada.
+
+**Pasos.**
+
+1. Comprueba que tu equipo tiene virtualización activada. En Linux, `egrep -c '(vmx|svm)' /proc/cpuinfo` tiene que dar más de 0. En Windows, la pestaña Rendimiento del Administrador de tareas muestra "Virtualización: habilitado". Si da 0 o "deshabilitado", actívalo en la BIOS/UEFI antes de seguir; sin esto no hay práctica.
+2. Crea la VM exterior: tipo Linux Debian 64 bits, 4 vCPU, 8 GB de RAM, 60 GB de disco, red en modo puente (bridged) y virtualización anidada activada. En VirtualBox es Sistema > Procesador > "Enable Nested VT-x/AMD-V", o desde terminal:
+   ```bash
+   VBoxManage modifyvm pve --nested-hw-virt on
+   ```
+   En VMware Workstation es Processors > "Virtualize Intel VT-x/EPT or AMD-V/RVI".
+3. Arranca la VM con la ISO y sigue el instalador: acepta la licencia, deja el disco y el sistema de ficheros por defecto (ext4 con LVM-thin), país y zona horaria, contraseña de root y un correo. En la pantalla de red anota el nombre de host (por ejemplo `pve.lab.local`), la IP de gestión que propone y la puerta de enlace. Al terminar se reinicia y muestra en la consola la URL de acceso.
+4. Desde el navegador de tu portátil abre `https://IP:8006`. El certificado es autofirmado y el navegador avisará; acepta la excepción. Entra como `root` con el realm `Linux PAM` y cierra el aviso de suscripción.
+5. Abre la shell del nodo (nodo > Shell) y comprueba la anidada:
+   ```bash
+   nproc
+   cat /sys/module/kvm_intel/parameters/nested   # o kvm_amd
+   ```
+
+**Comprobación.** La consola web muestra el nodo con su CPU, su RAM y los almacenes `local` y `local-lvm`; `nproc` devuelve 4 y el fichero `nested` devuelve `Y` (o `1`). Si devuelve `N`, revisa el paso 2 antes de la sesión 2: es el error más habitual de la unidad y está descrito en [Errores frecuentes](#errores-frecuentes-en-el-laboratorio).
+
+**Entrega.** Una página en el documento de la unidad con la captura del panel principal, la IP y el nombre de host, y la respuesta a tres preguntas: ¿qué tipo de hipervisor es Proxmox? ¿Y el que has usado para alojarlo? ¿Qué devuelve `cat /sys/module/kvm_intel/parameters/nested` (o `kvm_amd`) dentro de tu Proxmox, y qué significa?
+
+**Si te sobra tiempo.** En la shell del nodo, `pveversion -v` te dice qué kernel y qué versión de QEMU lleva tu Proxmox. Abre `/etc/network/interfaces` con `cat` y compáralo con el ejemplo del [apartado de red](#red): ya tienes un `vmbr0` con la tarjeta física como puerto.
 
 ### A1.2 Configuración inicial (sesión 2)
 
-1. Cambia los repositorios a los "no-subscription" (desactiva `pve-enterprise` y `ceph` enterprise, añade `pve-no-subscription`) y actualiza (`apt update && apt full-upgrade`). Reinicia si ha cambiado el kernel.
-2. Revisa el almacenamiento: qué contenido admite `local` y qué admite `local-lvm`. Anota el tamaño del pool thin (`lvs pve/data`).
-3. Crea un usuario `admin` en el realm `pve` con rol `Administrator` sobre `/`. A partir de ahora, entra con él.
-4. Crea un segundo bridge `vmbr1` sin interfaz física (será la red interna), con dirección `10.10.10.1/24` en el host.
-5. Instala en el host `stress-ng`, `fio` e `iperf3`; los usarás en la práctica.
+**Sesión 2 · 7 de octubre · Teoría y práctica · unos 95 min de práctica**
 
-Entrega: captura de `/etc/network/interfaces` y de la lista de usuarios (`pveum user list`).
+**Objetivo.** Un Proxmox actualizado, con un usuario administrador que no es root, un segundo bridge interno y las herramientas de medida instaladas.
+
+**Antes de empezar.**
+
+- El Proxmox de A1.1 arrancado y accesible en el puerto 8006, con `nested` en `Y`.
+- Lo explicado al principio de la sesión: [arquitectura y herramientas](#arquitectura), [almacenamiento](#almacenamiento), [red](#red) y [usuarios y permisos](#usuarios-y-permisos).
+
+**Pasos.**
+
+1. Repositorios. En la web, nodo > Updates > Repositories: desactiva `pve-enterprise` y el `ceph` enterprise (botón Disable) y añade `No-Subscription` (botón Add). En Proxmox VE 9 quedan como ficheros en `/etc/apt/sources.list.d/*.sources`; míralos desde la shell.
+2. Actualiza desde la shell del nodo:
+   ```bash
+   apt update && apt full-upgrade -y
+   ```
+   Si ha entrado un kernel nuevo (aparece un paquete `proxmox-kernel-...` en la salida), reinicia con `reboot` y vuelve a entrar.
+3. Almacenamiento. En Datacenter > Storage mira qué contenido admite `local` (ISO, plantillas de contenedor, backups, snippets) y qué admite `local-lvm` (discos de VM y contenedores). Desde la shell:
+   ```bash
+   pvesm status
+   lvs pve/data
+   ```
+   Anota el tamaño del pool thin y las columnas `Data%` y `Meta%`.
+4. Usuario administrador:
+   ```bash
+   pveum user add admin@pve --password 'CambiaEsto' --comment "Administrador del laboratorio"
+   pveum acl modify / --users admin@pve --roles Administrator
+   pveum user list
+   pveum acl list
+   ```
+   Cierra sesión y entra con `admin` en el realm `Proxmox VE authentication server`. A partir de ahora trabajas con él.
+5. Segundo bridge. En nodo > Network > Create > Linux Bridge: nombre `vmbr1`, IPv4/CIDR `10.10.10.1/24`, el campo Bridge ports vacío. Pulsa Apply Configuration. Equivale a añadir esto a `/etc/network/interfaces` y ejecutar `ifreload -a`:
+   ```text
+   auto vmbr1
+   iface vmbr1 inet static
+       address 10.10.10.1/24
+       bridge-ports none
+       bridge-stp off
+       bridge-fd 0
+   ```
+6. Herramientas de medida en el host:
+   ```bash
+   apt install -y stress-ng fio iperf3 sysstat
+   ```
+
+**Comprobación.** `apt update` termina sin errores 401; `pveum user list` muestra `admin@pve`; `ip -br addr` muestra `vmbr0` con la IP del aula y `vmbr1` con `10.10.10.1/24`; `fio --version` responde.
+
+**Entrega.** Captura de `/etc/network/interfaces` y de la lista de usuarios (`pveum user list`), más el tamaño del pool thin, en el documento de la unidad.
+
+**Si te sobra tiempo.** Descarga ya en `/root` la imagen cloud de Debian 13 que usarás en la sesión 3 (el `wget` del paso 1 de A1.3) para no depender de la red del aula ese día. Crea un segundo usuario con rol `PVEAuditor` sobre `/`, entra con él y anota qué puede ver y qué no puede tocar.
 
 ### A1.3 Plantilla cloud-init y clonado (sesión 3)
 
-Con Debian 13 (trixie); si tu Proxmox es 8, la imagen de bookworm (`debian-12-genericcloud-amd64.qcow2`) funciona igual.
+**Sesión 3 · 14 de octubre · Teoría y práctica · unos 100 min de práctica**
 
-```bash
-wget https://cloud.debian.org/images/cloud/trixie/latest/debian-13-genericcloud-amd64.qcow2
-qm create 9000 --name debian-tpl --memory 2048 --cores 2 --cpu x86-64-v2-AES \
-   --net0 virtio,bridge=vmbr0 --scsihw virtio-scsi-single --ostype l26
-qm set 9000 --scsi0 local-lvm:0,import-from=/root/debian-13-genericcloud-amd64.qcow2,discard=on,ssd=1
-qm set 9000 --ide2 local-lvm:cloudinit --boot order=scsi0 --agent enabled=1 --serial0 socket --vga serial0
-qm set 9000 --ciuser alumno --sshkeys ~/.ssh/id_ed25519.pub --ipconfig0 ip=dhcp
-qm disk resize 9000 scsi0 20G
-qm template 9000
-qm clone 9000 101 --name web01 --full
-qm start 101
-qm guest cmd 101 network-get-interfaces   # fallará hasta que instales el agente dentro
-```
+**Objetivo.** Una plantilla cloud-init (VM 9000) de la que salen `web01`, `app01` y `mon01`, las tres con IP y acceso SSH con tu clave, y `app01` y `mon01` listas para Mantenimiento mañana.
 
-Antes de convertir en plantilla, genera el par de claves en el host si no lo tienes (`ssh-keygen -t ed25519`). Tras arrancar `web01`, entra por SSH como `alumno`, instala `qemu-guest-agent` y comprueba en la web que Proxmox muestra la IP de la VM. Opcional: haz lo mismo con un snippet `--cicustom` que instale el agente automáticamente.
+**Antes de empezar.**
 
-Entrega: acceso por SSH a `web01`, salida de `qm list` y de `cloud-init status --long` dentro de la VM. Explica la diferencia entre clon completo y enlazado, y comprueba con `lvs pve` cuánto ocupa cada uno tras crear un linked clone (`qm clone 9000 102 --name web02`, sin `--full`).
+- Proxmox actualizado, `vmbr1` creado y usuario `admin` (A1.2).
+- Par de claves SSH en el host Proxmox. Si `ls ~/.ssh/id_ed25519.pub` no existe, créalo con `ssh-keygen -t ed25519` (sin contraseña, es un laboratorio).
+- Lo explicado al principio de la sesión: [cloud-init](#cloud-init) y [plantillas y clonado](#plantillas-y-clonado). Para entender cada parámetro del `qm create`, [crear una VM](#crear-una-vm-los-parametros-que-importan) y [tipos de CPU](#tipos-de-cpu-y-su-efecto-en-la-migracion).
+
+**Pasos.**
+
+1. Descarga la imagen cloud en el host. Con Debian 13 (trixie); si tu Proxmox es 8, la imagen de bookworm (`debian-12-genericcloud-amd64.qcow2`) funciona igual.
+   ```bash
+   cd /root
+   wget https://cloud.debian.org/images/cloud/trixie/latest/debian-13-genericcloud-amd64.qcow2
+   ```
+2. Crea la VM 9000 e importa la imagen como su disco:
+   ```bash
+   qm create 9000 --name debian-tpl --memory 2048 --cores 2 --cpu x86-64-v2-AES \
+      --net0 virtio,bridge=vmbr0 --scsihw virtio-scsi-single --ostype l26
+   qm set 9000 --scsi0 local-lvm:0,import-from=/root/debian-13-genericcloud-amd64.qcow2,discard=on,ssd=1
+   ```
+3. Añade el disco cloud-init, el orden de arranque, el agente y la consola serie:
+   ```bash
+   qm set 9000 --ide2 local-lvm:cloudinit --boot order=scsi0 --agent enabled=1 --serial0 socket --vga serial0
+   ```
+4. Configura cloud-init y amplía el disco. El `resize` va antes del primer arranque, que es cuando cloud-init redimensiona el sistema de ficheros:
+   ```bash
+   qm set 9000 --ciuser alumno --sshkeys ~/.ssh/id_ed25519.pub --ipconfig0 ip=dhcp
+   qm disk resize 9000 scsi0 20G
+   qm cloudinit dump 9000 user
+   ```
+   Revisa que la salida del `dump` contiene tu clave pública en una sola línea y con el `ssh-ed25519` inicial.
+5. Convierte en plantilla sin haberla arrancado nunca:
+   ```bash
+   qm template 9000
+   ```
+6. Clona `web01` y arráncala:
+   ```bash
+   qm clone 9000 101 --name web01 --full
+   qm start 101
+   qm guest cmd 101 network-get-interfaces   # fallará hasta que instales el agente dentro
+   ```
+   Espera un minuto, mira en la consola noVNC de la VM (o con `qm terminal 101`, se sale con Ctrl+O) la IP que ha cogido por DHCP y entra desde el host: `ssh alumno@IP`.
+7. Dentro de `web01` instala el agente y comprueba cloud-init:
+   ```bash
+   sudo apt update && sudo apt install -y qemu-guest-agent
+   sudo systemctl enable --now qemu-guest-agent
+   cloud-init status --long
+   ```
+   Al volver a la web, Proxmox muestra la IP de la VM en Summary y `qm guest cmd 101 network-get-interfaces` ya responde.
+8. Clona `app01` (ID 103) y `mon01` (ID 104) igual que `web01`, con `--full` y en `vmbr0`, arráncalas e instala el agente en cada una. Estas dos las usa Mantenimiento mañana: tienen que arrancar, coger IP y aceptar la clave hoy.
+9. Crea también un linked clone para comparar, y mira el almacén antes y después:
+   ```bash
+   lvs pve
+   qm clone 9000 102 --name web02
+   lvs pve
+   ```
+
+**Comprobación.** `qm list` muestra 9000 como plantilla y las VM 101 a 104; entras por SSH en `web01`, `app01` y `mon01` como `alumno` sin contraseña; `cloud-init status --long` dice `done`; en `lvs pve` el disco de `web02` aparece como volumen que depende de `base-9000-disk-0`, y el de `web01` como volumen independiente.
+
+**Entrega.** Salida de `qm list`, de `cloud-init status --long` dentro de `web01` y de `lvs pve` con los clones, más una explicación de dos o tres líneas de la diferencia entre clon completo y enlazado con lo que ocupa cada uno. Anota las IP de `app01` y `mon01`: las necesitas mañana en 5169.
+
+**Si te sobra tiempo.** Escribe un snippet `--cicustom` que instale el agente automáticamente: activa el contenido `snippets` en `local` (Datacenter > Storage > local > Edit), guarda el YAML del [apartado de cloud-init](#cloud-init) en `/var/lib/vz/snippets/web.yaml`, clona una VM con `--cicustom "user=local:snippets/web.yaml"` y comprueba que arranca ya con el agente. Rompe algo a propósito: clona una VM sin `--ipconfig0` y depúrala con `cloud-init status --long` y `/var/log/cloud-init.log`.
 
 ### A1.4 VM frente a LXC, snapshots (sesión 4)
 
-1. Crea un contenedor LXC Debian (`pct create`, no privilegiado) con 512 MB de RAM. Compara con la VM: tiempo de arranque (`systemd-analyze` dentro de cada uno, o cronómetro hasta que responda SSH), RAM usada en el host (`free -h` antes y después de arrancar cada uno) y `uname -r` en ambos.
-2. Haz un snapshot de `web01`, instala nginx, vuelve al snapshot. ¿Sigue nginx? Mira `lvs pve` antes y después del snapshot y explica qué volumen apareció.
-3. Lanza un backup de `web01` a `local` en modo snapshot y localiza el fichero. Anota tamaño y tiempo. Restáuralo como VM 111.
+**Sesión 4 · 16 de octubre · Teoría y práctica · unos 95 min de práctica**
 
-Entrega: tabla comparativa VM/LXC con tus medidas y capturas.
+**Objetivo.** Una tabla con tus medidas de VM frente a LXC, un snapshot de `web01` al que has vuelto y un backup restaurado como VM 111.
+
+**Antes de empezar.**
+
+- `web01` funcionando con agente QEMU y acceso SSH (A1.3).
+- Lo explicado al principio de la sesión: [KVM/QEMU y virtio](#como-funciona-kvmqemu-por-debajo), [LXC frente a VM](#lxc-frente-a-vm-con-numeros) y [snapshots](#snapshots). Para el paso del backup, [vzdump](#backups-con-vzdump-y-proxmox-backup-server) es material de consulta.
+
+**Pasos.**
+
+1. Medida de partida. Con `web01` apagada (`qm shutdown 101`), anota en el host la RAM usada con `free -h`.
+2. Arranca `web01` con cronómetro y toma sus medidas:
+   ```bash
+   date +%T; qm start 101
+   # repite esto hasta que responda; la diferencia con la hora anterior es el tiempo de arranque
+   ssh alumno@IP-de-web01 'systemd-analyze; uname -r'
+   free -h
+   ```
+3. Crea el contenedor, no privilegiado y con 512 MB, y mide lo mismo:
+   ```bash
+   pveam update
+   pveam available --section system | grep debian
+   pveam download local debian-12-standard_12.7-1_amd64.tar.zst
+   pct create 200 local:vztmpl/debian-12-standard_12.7-1_amd64.tar.zst \
+     --hostname ct01 --memory 512 --cores 1 --rootfs local-lvm:4 \
+     --net0 name=eth0,bridge=vmbr0,ip=dhcp --unprivileged 1 --features nesting=1
+   free -h
+   time pct start 200
+   pct exec 200 -- systemd-analyze
+   pct exec 200 -- uname -r
+   free -h
+   ```
+   Si el nombre de la plantilla ha cambiado, usa el que muestre `pveam available`. Compara `uname -r` de los dos con el del host.
+4. Snapshot de `web01`: mira el almacén, haz el snapshot y vuelve a mirarlo:
+   ```bash
+   lvs pve
+   qm snapshot 101 antes-nginx --description "Antes de instalar nginx"
+   lvs pve
+   ```
+   Dentro de `web01`, `sudo apt install -y nginx` y `curl -s localhost | head -3` para ver que sirve la página. Luego, en el host:
+   ```bash
+   qm listsnapshot 101
+   qm rollback 101 antes-nginx
+   qm start 101
+   ```
+   Entra otra vez y comprueba si nginx sigue (`systemctl status nginx`).
+5. Backup de `web01` a `local` en modo snapshot, y restauración como VM 111:
+   ```bash
+   time vzdump 101 --storage local --mode snapshot --compress zstd
+   ls -lh /var/lib/vz/dump/
+   qmrestore /var/lib/vz/dump/vzdump-qemu-101-*.vma.zst 111 --storage local-lvm
+   ```
+   Arranca la 111 con `web01` apagada: las dos tienen la misma dirección MAC y en el mismo bridge se pisarían.
+
+**Comprobación.** Tienes tiempo de arranque, RAM en el host y `uname -r` para la VM y para el LXC (el LXC muestra el kernel del host); tras el rollback, nginx no está en `web01`; en `lvs pve` apareció `snap_vm-101-disk-0_antes-nginx` al crear el snapshot; `qm list` muestra la 111 y arranca.
+
+**Entrega.** Tabla comparativa VM/LXC con tus medidas y capturas; capturas de `lvs pve` antes y después del snapshot con una explicación del volumen que apareció; tamaño y tiempo del backup.
+
+**Si te sobra tiempo.** Borra el snapshot (`qm delsnapshot 101 antes-nginx`) y comprueba en `lvs pve` que el volumen desaparece. Con `web01` encendida, `ps aux | grep 'kvm -id 101'` en el host te enseña la línea de QEMU completa que Proxmox ha construido desde `/etc/pve/qemu-server/101.conf`: localiza en ella el disco virtio-scsi, la tarjeta virtio-net y el tipo de CPU.
 
 ### A1.5 Redes: VLAN (sesión 5)
 
-1. Marca `vmbr1` como VLAN aware.
-2. Clona dos VM (net0 en `vmbr1`, tag 10) y una tercera con tag 20. IPs manuales por cloud-init: `192.168.10.11/24`, `192.168.10.12/24` y `192.168.20.11/24`.
-3. Comprueba que las de la VLAN 10 se ven entre sí y no ven a la 20. Con `bridge vlan show` en el host, identifica en qué VLAN está cada interfaz `tap`.
-4. Opcional: mide con `iperf3` el ancho de banda entre las dos VM de la VLAN 10.
+**Sesión 5 · 21 de octubre · Teoría y práctica · unos 100 min de práctica**
 
-Entrega: esquema (Mermaid o dibujo) y capturas de ping.
+**Objetivo.** Tres VM en `vmbr1` repartidas en dos VLAN que solo se ven dentro de su VLAN, y las primeras medidas de CPU, disco y red de tu laboratorio.
+
+**Antes de empezar.**
+
+- Plantilla 9000 y `vmbr1` (A1.2 y A1.3); `web01` y `app01` funcionando en `vmbr0`; `stress-ng`, `fio` e `iperf3` instalados en el host.
+- Lo explicado al principio de la sesión: [red](#red) (bridge simple, VLAN-aware, bond y NAT). Para las medidas, [capacidades y limitaciones](#capacidades-y-limitaciones-y-como-medirlas) es material de consulta: lee los comandos de ese apartado antes del paso 5.
+
+**Pasos.**
+
+1. Marca `vmbr1` como VLAN aware: nodo > Network > `vmbr1` > Edit > VLAN aware, y Apply Configuration. En `/etc/network/interfaces` aparecen `bridge-vlan-aware yes` y `bridge-vids 2-4094`.
+2. Clona tres VM con net0 en `vmbr1`, dos con tag 10 y una con tag 20, con IP manual por cloud-init. En `vmbr1` no hay DHCP ni salida a Internet, así que ponles también una contraseña para poder entrar por la consola:
+   ```bash
+   qm clone 9000 120 --name vlan10a --full
+   qm clone 9000 121 --name vlan10b --full
+   qm clone 9000 122 --name vlan20a --full
+   qm set 120 --net0 virtio,bridge=vmbr1,tag=10 --ipconfig0 ip=192.168.10.11/24 --cipassword 'lab'
+   qm set 121 --net0 virtio,bridge=vmbr1,tag=10 --ipconfig0 ip=192.168.10.12/24 --cipassword 'lab'
+   qm set 122 --net0 virtio,bridge=vmbr1,tag=20 --ipconfig0 ip=192.168.20.11/24 --cipassword 'lab'
+   for i in 120 121 122; do qm start $i; done
+   ```
+3. Entra en `vlan10a` con `qm terminal 120` (usuario `alumno`, contraseña `lab`; se sale con Ctrl+O) y comprueba quién ve a quién:
+   ```bash
+   ip -br addr
+   ping -c 3 192.168.10.12    # misma VLAN: responde
+   ping -c 3 192.168.20.11    # otra VLAN: no responde
+   ```
+   Repite desde `vlan20a` hacia `192.168.10.11`.
+4. En el host, identifica en qué VLAN está cada interfaz `tap`:
+   ```bash
+   bridge vlan show
+   ```
+   Tienen que aparecer `tap120i0` y `tap121i0` en la VLAN 10 y `tap122i0` en la 20.
+5. Medidas de capacidad, sobre `web01` y `app01` (están en `vmbr0` y pueden instalar paquetes). Dentro de cada una, `sudo apt install -y stress-ng fio iperf3`. Después:
+   ```bash
+   # CPU: primero en web01 sola, después en web01 y app01 a la vez; compara los bogo ops/s
+   stress-ng --cpu 2 --timeout 60s --metrics-brief
+   # Disco: dentro de web01, con app01 parada y luego con app01 haciendo lo mismo a la vez
+   fio --name=rand4k --ioengine=libaio --rw=randrw --rwmixread=70 --bs=4k --size=1G \
+       --numjobs=1 --iodepth=32 --direct=1 --runtime=60 --time_based --group_reporting
+   # Red entre dos VM del mismo bridge
+   iperf3 -s                            # en app01
+   iperf3 -c IP-de-app01 -t 30 -P 4     # desde web01
+   ```
+   Anota junto a cada número la condición en que lo tomaste; el número con las dos VM cargando a la vez es el límite del hipervisor, el otro solo es lo que hace un SSD o un cable.
+
+**Comprobación.** El ping funciona entre `192.168.10.11` y `192.168.10.12` y falla hacia `192.168.20.11`; `bridge vlan show` coloca cada `tap` en su VLAN; tienes un valor de bogo ops/s, de IOPS y de Gbit/s con y sin carga simultánea.
+
+**Entrega.** Esquema (Mermaid o dibujo) de las tres VM, el bridge y las VLAN; capturas de ping y de `bridge vlan show`; y una tabla con las medidas de CPU, disco y red indicando la condición de cada una. Esa tabla es el borrador de la que pide la práctica evaluable.
+
+**Si te sobra tiempo.** Mide con `iperf3` el ancho de banda entre las dos VM de la VLAN 10: para instalarlo necesitan Internet, así que añade a cada una una segunda tarjeta temporal en `vmbr0` (`qm set 120 --net1 virtio,bridge=vmbr0`, dentro `sudo dhclient` sobre la interfaz nueva que muestre `ip -br link`), instala, quita la tarjeta (`qm set 120 --delete net1`) y mide entre `192.168.10.11` y `192.168.10.12`. Cambia `vlan20a` a tag 10 (`qm set 122 --net0 virtio,bridge=vmbr1,tag=10`) y comprueba que ahora sí responde al ping desde `vlan10a`.
 
 ## Práctica evaluable
+
+**Sesión 6 · 23 de octubre · Práctica evaluable · unos 110 min de práctica**
 
 Se realiza en la sesión 6 (23 de octubre) sobre el Proxmox que has montado en las sesiones anteriores.
 

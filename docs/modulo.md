@@ -1,6 +1,6 @@
 # Presentación y evaluación
 
-<p class="ut-meta">Módulo 5166 · Despliegue de plataformas de ejecución de contenedores · 116 h · Clases miércoles y viernes, 2 h por sesión</p>
+<p class="ut-meta">Módulo 5166 · Despliegue de plataformas de ejecución de contenedores · 112 h · Clases miércoles y viernes, 2 h por sesión</p>
 
 ## De qué va el módulo
 
@@ -93,6 +93,6 @@ Estos apuntes los he escrito yo apoyándome en Claude, el asistente de IA de Ant
 
 ## Metodología
 
-Cada sesión de dos horas tiene una parte corta de explicación y una parte larga de laboratorio. Los apuntes cubren la explicación con más profundidad de la que da tiempo en clase, así que conviene leerlos antes de la sesión. En el laboratorio se trabaja por parejas sobre un hipervisor por persona; las prácticas evaluables son individuales salvo que se indique lo contrario.
+Cada sesión de dos horas tiene una parte corta de explicación (entre 10 y 30 minutos, según la sesión) y una parte larga de laboratorio. El [calendario](calendario.md) y el plan de sesiones de cada unidad dicen, sesión a sesión, qué se explica y qué se practica, y de qué tipo es cada sesión: teoría y práctica, solo práctica, práctica evaluable o examen. En cada unidad, los apartados de contenido son lo que explico en clase y sirven de consulta; la sección de material de práctica tiene una hoja por sesión con objetivo, requisitos previos, pasos, comprobación y entrega, pensada para seguirla de arriba abajo en el laboratorio. Los apuntes cubren la explicación con más profundidad de la que da tiempo en clase, así que conviene leerlos antes de la sesión. En el laboratorio se trabaja por parejas sobre un hipervisor por persona; las prácticas evaluables son individuales salvo que se indique lo contrario.
 
 Todo lo que se hace se documenta en el momento: una captura con la fecha, la salida de un comando, el fichero de configuración. Al final de cada unidad esa documentación es la práctica evaluable, así que el que lo va apuntando sobre la marcha tiene el trabajo casi hecho.

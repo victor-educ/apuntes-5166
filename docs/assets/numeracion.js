@@ -31,7 +31,7 @@
   raiz.querySelectorAll("h2, h3").forEach(function (h) {
     if (h.tagName === "H2") {
       n2 += 1; n3 = 0;
-      saltarSub = /^actividades/i.test(h.textContent.trim());
+      saltarSub = /^(actividades|material de pr)/i.test(h.textContent.trim());
       etiqueta(h, n2 + ".");
     } else if (!saltarSub && n2 > 0) {
       n3 += 1;

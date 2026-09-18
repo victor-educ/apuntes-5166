@@ -65,7 +65,21 @@
       cab.appendChild(el("span", "cal-tip-n", "Sesión " + s.n + " · " + fechaLarga(s.fecha)));
       tip.appendChild(cab);
       tip.appendChild(el("div", "cal-tip-titulo", s.titulo));
-      tip.appendChild(el("div", "cal-tip-que", s.que));
+      if (s.tipo) tip.appendChild(el("div", "cal-tip-tipo", s.tipo));
+      if (s.teoria) {
+        var t = el("div", "cal-tip-bloque");
+        t.appendChild(el("strong", null, "Teoría: "));
+        t.appendChild(document.createTextNode(s.teoria));
+        tip.appendChild(t);
+      }
+      if (s.practica) {
+        var pr = el("div", "cal-tip-bloque");
+        pr.appendChild(el("strong", null, "Práctica: "));
+        pr.appendChild(document.createTextNode(s.practica));
+        tip.appendChild(pr);
+      } else if (s.que) {
+        tip.appendChild(el("div", "cal-tip-que", s.que));
+      }
       if (s.entregable) {
         var e = el("div", "cal-tip-entrega");
         e.appendChild(el("strong", null, "Entregable: "));
