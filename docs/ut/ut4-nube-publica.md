@@ -4,7 +4,11 @@
 
 Esta unidad no se cursa en el centro. Se hace en la empresa, durante el periodo de formación, y la plataforma la decide el tutor de empresa: puede ser AWS, Azure, Google Cloud o alguna alternativa europea (OVHcloud, Hetzner, Scaleway). Lo que sigue es la guía de referencia que tienes que llevar leída el primer día y la lista de evidencias que debes traer de vuelta. Hasta aquí, en las UT1 a UT3, has montado todo a mano sobre Proxmox: hipervisor, VPC con subredes, OPNsense, DMZ, proxy inverso. La nube pública es ese mismo diseño alquilado por horas y expuesto por API (una interfaz a la que un programa le pide por HTTP que cree o liste recursos). Cuando vuelvas, en la UT5 (OpenTofu) y la UT6 (Jenkins) automatizarás sobre esa API lo que aquí vas a hacer con la consola, la CLI (la herramienta de línea de comandos del proveedor) y el SDK (la librería para hacer lo mismo desde código), así que conviene que salgas de la empresa con perfiles de CLI funcionando y credenciales bien gestionadas.
 
-## Qué tienes que saber hacer al terminar
+## Introducción
+
+Esta unidad se lee entera antes del primer día en la empresa y se vuelve a ella bloque a bloque: primero los conceptos que hacen falta para entender lo que vas a ver, y después cinco bloques de trabajo, uno por criterio de evaluación, cada uno con la teoría que necesita seguida de su hoja de actividad.
+
+### Qué tienes que saber hacer al terminar
 
 - Entrar en la consola del proveedor con un usuario con permisos limitados y MFA, e identificar en qué cuenta, suscripción o proyecto y en qué región estás trabajando (CE 2a).
 - Ajustar la interfaz: idioma, región por defecto, favoritos, unidades de coste y una alerta de presupuesto (CE 2b).
@@ -13,7 +17,7 @@ Esta unidad no se cursa en el centro. Se hace en la empresa, durante el periodo 
 - Instalar la librería cliente en Python o Node con el gestor de dependencias del proyecto y escribir un script que liste redes y máquinas reutilizando las credenciales de la CLI (CE 2e).
 - Explicar por escrito cómo está organizada la nube de la empresa y en qué se diferencia de la VPC del centro.
 
-## Antes de entrar en detalle
+### Los conceptos de la unidad
 
 El primer día en la empresa el tutor te da un usuario de la consola de AWS y te pide la lista de máquinas de desarrollo. Entras, ves un panel con doscientos servicios y no aparece ninguna máquina: estás en la región de Virginia y la empresa trabaja en Irlanda. Cuando por fin las ves, copias nombres e IP a mano, y a media tarde el tutor te pregunta si has activado el segundo factor, sin el cual no se puede trabajar. En el centro esto era `qm list`. Lo que queremos conseguir cabe en una frase: entrar en la nube de la empresa con la identidad correcta, sacar esa lista con un comando o con diez líneas de código, y no dejar atrás ni una clave suelta ni una máquina que cueste dinero.
 
@@ -32,7 +36,7 @@ El primer día en la empresa el tutor te da un usuario de la consola de AWS y te
 | JSON, JMESPath y `jq` | El formato en que responde la nube, y dos maneras de filtrarlo por columnas | Convertir varias pantallas de salida en una tabla legible |
 | gitleaks | Un escáner que busca claves y contraseñas en un repositorio Git | Comprobar que el script no lleva credenciales antes de subirlo |
 
-Cómo está organizada la unidad: primero qué es una nube pública y su correspondencia con Proxmox, porque sin ese mapa los nombres de cada proveedor no dicen nada. Después la identidad, porque sin saber quién eres nada funciona, y las etiquetas y los costes, que se deciden antes de crear nada. A partir de ahí el orden sigue los criterios de evaluación: consola (CE 2a y 2b), CLI y perfiles (CE 2c y 2d) y SDK (CE 2e), cada uno apoyado en el anterior: el SDK reutiliza las credenciales de la CLI, y la CLI la identidad con la que entraste en la consola.
+Cómo está organizada la unidad: no hay sesiones en el centro, así que la unidad sigue los cinco bloques de trabajo en el orden de los criterios de evaluación, y cada bloque trae primero la teoría que necesita y después su hoja de actividad. En el bloque 1 entras en la consola con MFA y pones nombre a lo que ves: regiones, cuenta o proyecto, identidad y etiquetas. En el bloque 2 dejas la consola configurada y una alerta de presupuesto, y descubres el shell integrado. En los bloques 3 y 4 instalas la CLI, te autenticas sin claves permanentes y montas dos perfiles entre los que saltas con el mecanismo nativo y con variables de entorno. En el bloque 5 el script con el SDK reutiliza esas credenciales sin llevar ninguna dentro, y la actividad de cierre lo recoge todo en un documento que compara la nube de la empresa con la VPC del centro.
 
 !!! info "Dónde se usa esto en la otra asignatura"
     En estas mismas semanas (29 de marzo a 9 de junio) haces en la empresa las dos unidades de 5169 que también se cursan allí:
@@ -43,21 +47,33 @@ Cómo está organizada la unidad: primero qué es una nube pública y su corresp
     la identidad con MFA y los perfiles de CLI de la A4.3 son los que usarás para entrar en las máquinas de 5169, y el
     almacenamiento de objetos de la tabla de correspondencias es el destino habitual de las copias de la UT6.
 
-## Qué es una nube pública y qué te alquila
+### Plan de trabajo
 
-*Material de consulta para la formación en empresa.*
+Las actividades no tienen sesión asignada: se hacen en la empresa durante la formación, en el orden que marque el tutor, y cada una se documenta en la [ficha de evidencias](#ficha-de-evidencias), que el tutor de empresa firma y con la que evalúa el profesor. Las capturas van sin datos sensibles: tapa números de cuenta completos, claves, IP públicas de producción y correos de terceros.
+
+| Bloque | CE | Qué se hace | Evidencia |
+|---|---|---|---|
+| [Bloque 1 · Acceso a la plataforma](#bloque-1-acceso-a-la-plataforma-ce-2a) | 2a | Entrar con MFA e identificar cuenta, región y política de etiquetas | Captura de la consola y párrafo con identificador, región y etiquetas (A4.1) |
+| [Bloque 2 · Configuración de la interfaz](#bloque-2-configuracion-de-la-interfaz-ce-2b) | 2b | Idioma, región, favoritos, moneda y alerta de presupuesto | Capturas de las preferencias y del presupuesto (A4.2) |
+| [Bloque 3 · Instalación de la CLI](#bloque-3-instalacion-de-la-cli-ce-2c) | 2c | Instalar la CLI, autenticarse sin claves permanentes y comprobar la identidad | Salidas de versión e identidad en texto (A4.3) |
+| [Bloque 4 · Gestión de perfiles](#bloque-4-gestion-de-perfiles-ce-2d) | 2d | Dos perfiles, cambio nativo y por variable de entorno, ficheros que hay debajo | Comandos, ficheros de configuración y tabla de redes por perfil (A4.4) |
+| [Bloque 5 · SDK](#bloque-5-sdk-ce-2e) | 2e | Script con el SDK sin credenciales, con dos perfiles y gitleaks limpio | Script, fichero de dependencias, salidas y gitleaks (A4.5) |
+| [Actividad de cierre](#actividad-de-cierre) | todos | Documento de dos páginas: la nube de la empresa frente a la VPC del centro | PDF en la carpeta de evidencias |
+| [Práctica evaluable](#practica-evaluable) | todos | Conjunto de las evidencias, con los pesos de cada criterio | Ficha de evidencias firmada |
+
+## Bloque 1 · Acceso a la plataforma (CE 2a)
+
+<p class="ut-meta">En la empresa · con el tutor</p>
+
+Al acabar este bloque entras en la consola de la empresa con tu usuario y el segundo factor activo, y sabes decir en qué cuenta, suscripción o proyecto estás, en qué región y qué etiquetas son obligatorias. Para la hoja A4.1 necesitas el mapa de la nube pública (regiones y correspondencia con Proxmox, que volverás a usar en la actividad de cierre), la identidad y la estructura de cuentas, y el apartado de etiquetado.
+
+### Qué es una nube pública y qué te alquila
 
 Aquí vas a poner nombre a lo que te vas a encontrar en la empresa y a relacionarlo con lo que ya has construido en Proxmox, porque cada proveedor llama distinto a las mismas piezas y sin ese mapa la consola parece un catálogo sin orden.
 
 Un proveedor de nube pública alquila por horas (en muchos servicios por segundos) la infraestructura que has construido en las UT1 a UT3: máquinas virtuales, redes privadas, discos, balanceadores, DNS, bases de datos y decenas de servicios gestionados que en el centro no tienes (colas, almacenamiento de objetos, funciones sin servidor). Se paga por uso, se crea y se destruye por API, y todo lo que se puede hacer desde la consola web se puede hacer desde la línea de comandos o desde código. La consola es para mirar y para el primer día; la CLI y el SDK son con lo que se trabaja.
 
-### El modelo de responsabilidad compartida
-
-Los tres grandes lo llaman modelo de responsabilidad compartida y lo resumen igual: el proveedor es responsable de la seguridad *de* la nube (centros de datos, hardware, hipervisor, red física, los servicios gestionados por dentro) y el cliente es responsable de la seguridad *en* la nube (sistema operativo de sus VM, parches, configuración de red, cortafuegos, identidades, cifrado de sus datos, y sobre todo qué expone a Internet).
-
-En Proxmox lo tenías todo: si el hipervisor se quedaba sin parchear era problema tuyo. En la nube el hipervisor deja de ser tu problema, pero el grupo de seguridad con `0.0.0.0/0` al puerto 22 sigue siéndolo, y también lo es la clave de acceso que alguien subió a un repositorio público. La línea se desplaza según el servicio: en una VM (EC2, Azure VM, Compute Engine) administras el sistema operativo; en un contenedor gestionado sin servidor (Fargate, Container Apps, Cloud Run) solo administras la imagen y su configuración; en una base de datos gestionada ni siquiera ves el sistema operativo. Cuanto más gestionado, menos responsabilidad operativa y menos control.
-
-### Regiones y zonas de disponibilidad
+#### Regiones y zonas de disponibilidad
 
 Una región es un conjunto de centros de datos en una zona geográfica, con nombre propio y catálogo de precios propio. Dentro de cada región hay varias zonas de disponibilidad (AZ), que son centros de datos físicamente separados (a kilómetros de distancia, con alimentación y red independientes) pero unidos por enlaces de baja latencia. Un desastre en una AZ no debería afectar a las otras de la misma región; un desastre regional sí afecta a todas.
 
@@ -89,7 +105,7 @@ flowchart TD
 
 La traducción a lo que hiciste en la UT2 es directa: la VPC es tu bridge con su rango, la subred pública es la DMZ, las subredes privadas son las redes internas, el Internet Gateway es la interfaz WAN de OPNsense y el NAT Gateway es la regla de NAT de salida. La diferencia es que en la nube cada una de esas piezas tiene precio, y el NAT Gateway en particular tiene un precio que sorprende.
 
-### Correspondencia con lo que ya sabes
+#### Correspondencia con lo que ya sabes
 
 | Concepto del curso (Proxmox) | AWS | Azure | Google Cloud |
 |---|---|---|---|
@@ -117,17 +133,15 @@ La traducción a lo que hiciste en la UT2 es directa: la VPC es tu bridge con su
 
 La fila de contenedores gestionados es solo un mapa: en este módulo no se despliega nada en ECS, AKS ni Cloud Run, pero conviene saber que ECS/Container Apps/Cloud Run son la opción "dame un contenedor y olvídate del clúster" y que EKS/AKS/GKE son Kubernetes gestionado (el plano de control lo lleva el proveedor, los nodos siguen siendo VM tuyas o gestionadas).
 
-## Identidad y estructura de cuentas
-
-*Material de consulta para la formación en empresa.*
+### Identidad y estructura de cuentas
 
 Aquí vas a entender con qué identidad entras en la nube de la empresa, qué permisos tiene y dentro de qué cuenta, suscripción o proyecto vive. Casi todos los errores de los apartados siguientes ("no veo nada", "acceso denegado", "soy otra persona") se explican por uno de esos tres conceptos, y la A4.1 te pide identificarlos por escrito.
 
-### El usuario raíz y por qué no lo vas a ver
+#### El usuario raíz y por qué no lo vas a ver
 
 Toda cuenta de nube nace con una identidad todopoderosa: el usuario raíz en AWS (el correo con el que se creó la cuenta), el administrador global del tenant en Entra ID (el directorio de identidades de la empresa en Azure), el propietario de la organización en GCP. Esa identidad puede cerrar la cuenta, cambiar la tarjeta de pago y borrar cualquier cosa sin que ninguna política se lo impida. Ninguna empresa seria la usa a diario: tiene MFA (autenticación multifactor, un segundo paso además de la contraseña) con llave física, la contraseña está en una caja fuerte y se registra cada uso. A ti te darán un usuario o una identidad federada con permisos limitados.
 
-### AWS: IAM users, roles y policies
+#### AWS: IAM users, roles y policies
 
 IAM (Identity and Access Management) es el servicio de AWS que decide quién puede hacer qué, y en él hay tres piezas. Los *users* son identidades con credenciales de larga duración (contraseña de consola y, opcionalmente, un par de claves de acceso `AKIA...` / secreto). Los *roles* son identidades sin credenciales permanentes que se *asumen* durante un rato: una instancia EC2 asume un rol para leer de S3, tú asumes un rol de administrador en otra cuenta, Jenkins asume un rol para desplegar. Al asumir un rol recibes credenciales temporales (clave, secreto y token de sesión) con una vida de entre 15 minutos y 12 horas. Las *policies* son documentos JSON que dicen quién puede hacer qué sobre qué recurso, y se adjuntan a users, a grupos o a roles.
 
@@ -160,15 +174,15 @@ Fíjate en los tres detalles que te van a preguntar: el efecto por defecto es de
 
 Lo que hoy usan las empresas para las personas no son users con clave, sino IAM Identity Center (el antiguo AWS SSO, inicio de sesión único): entras con la identidad corporativa (Entra ID, Google Workspace, Okta) y recibes credenciales temporales para cada cuenta y conjunto de permisos. Es lo que `aws configure sso` configura en tu máquina.
 
-### Azure: Entra ID y RBAC
+#### Azure: Entra ID y RBAC
 
 Azure separa dos mundos. Entra ID (antes Azure Active Directory) es el directorio: usuarios, grupos, aplicaciones, MFA, acceso condicional. Azure RBAC (control de acceso basado en roles) es la autorización sobre los recursos: una *asignación de rol* une una identidad (usuario, grupo, service principal, que es la identidad de una aplicación, o identidad administrada), un rol (`Reader`, `Contributor`, `Owner`, `Network Contributor`, o uno personalizado) y un ámbito (management group, suscripción, resource group o recurso concreto). Los permisos se heredan hacia abajo: `Reader` en la suscripción te deja ver todos los resource groups de esa suscripción. El equivalente al rol de AWS para máquinas y servicios es la identidad administrada (managed identity): una VM o una Container App recibe una identidad sin secretos que puede acceder a Key Vault (el almacén de secretos) o a Storage (el de ficheros).
 
-### Google Cloud: IAM y service accounts
+#### Google Cloud: IAM y service accounts
 
 En GCP el IAM funciona por *bindings* entre un *principal* (usuario de Google Workspace, grupo, service account) y un *rol* sobre un recurso, con herencia desde la organización a las carpetas y de estas a los proyectos. Hay roles básicos (`Viewer`, `Editor`, `Owner`, demasiado anchos para producción), roles predefinidos por servicio (`roles/compute.viewer`, `roles/compute.networkViewer`) y roles personalizados. Las service accounts son identidades para cargas de trabajo; una VM de Compute Engine arranca con una service account adjunta y obtiene tokens del servidor de metadatos sin fichero de clave alguno. Las claves JSON de service account descargadas son el equivalente a las claves `AKIA` de AWS: un secreto de larga duración que hay que evitar.
 
-### MFA, SSO y credenciales temporales
+#### MFA, SSO y credenciales temporales
 
 Los tres proveedores empujan hacia el mismo esquema: la persona se autentica con MFA (una app de códigos TOTP como Google Authenticator, una llave física FIDO2 o una passkey del móvil) a través del proveedor de identidad de la empresa, y de ahí salen credenciales temporales para la consola y para la CLI. En tu máquina eso se traduce en tres comandos que no piden ninguna clave permanente:
 
@@ -191,7 +205,7 @@ La distinción de GCP entre `gcloud auth login` y `gcloud auth application-defau
 !!! warning "Claves de acceso de larga duración"
     Un par de claves de AWS (`AKIA...`) o una clave JSON de service account de GCP no caduca y no pide MFA. Si acaba en un repositorio público, en menos de una hora habrá alguien minando criptomoneda a cargo de la empresa (hay bots escaneando GitHub para eso). Si el tutor te da una, pregunta si de verdad no hay alternativa con SSO o roles, guárdala fuera del proyecto y bórrala al terminar. Nunca en un fichero del repositorio, nunca en una variable de entorno de un `Dockerfile`.
 
-### Cómo se organizan las cuentas
+#### Cómo se organizan las cuentas
 
 Ninguna empresa mediana trabaja con una sola cuenta. La unidad de aislamiento (facturación, límites, radio de explosión de un error) es la cuenta en AWS, la suscripción en Azure y el proyecto en GCP, y encima hay una jerarquía para agrupar y aplicar políticas:
 
@@ -223,39 +237,42 @@ flowchart TD
 
 En AWS, Organizations permite aplicar *service control policies* (SCP) a una OU entera (unidad organizativa, una carpeta de cuentas): por ejemplo, "en la OU de desarrollo nadie puede crear recursos fuera de `eu-west-1` ni instancias mayores de `t3.large`" (un tamaño de VM de 2 vCPU y 8 GB). En Azure el equivalente son Azure Policy y los bloqueos de recurso, aplicados a un management group; el resource group es una capa más que agrupa recursos con el mismo ciclo de vida (borras el grupo y se va todo lo que contiene, muy útil para limpiar prácticas). En GCP las políticas de organización se aplican a carpetas y proyectos. Lo más probable es que a ti te den acceso a una cuenta, suscripción o proyecto de desarrollo o sandbox, y lo primero que tienes que anotar es su identificador: el número de cuenta de 12 dígitos de AWS, el GUID de suscripción de Azure (un identificador de 32 caracteres hexadecimales separados por guiones) o el ID de proyecto de GCP. Todos los comandos y scripts de esta unidad giran alrededor de ese identificador.
 
-## Etiquetas y costes
-
-*Material de consulta para la formación en empresa.*
-
-En Proxmox una VM olvidada solo ocupa disco; en la nube cuesta dinero cada hora. Este apartado te da las dos herramientas para no dar sustos: etiquetar todo lo que crees para que se sepa que es tuyo y poner una alarma de gasto antes de crear el primer recurso.
-
 ### Etiquetado
 
 Cada recurso que crees lleva etiquetas (tags en AWS y Azure, labels en GCP): pares clave/valor que no cambian el comportamiento del recurso pero permiten filtrar, facturar por proyecto y saber a quién preguntar antes de borrar algo. El mínimo habitual es `proyecto`, `entorno` (dev, pre, prod), `propietario` (un correo) y a veces `coste` (centro de coste) y `caduca` (fecha). La empresa tendrá su convención y hay que seguirla al pie de la letra, porque muchas organizaciones tienen políticas que impiden crear recursos sin las etiquetas obligatorias, o scripts que borran de madrugada lo que no lleva `propietario`. Etiqueta lo que crees para practicar con algo reconocible (`propietario=alumno-fp`, `caduca=2027-06-09`) para que el tutor sepa qué puede borrar sin preguntar.
 
-### Free tier, presupuestos y alertas
+### A4.1 Acceso a la plataforma (CE 2a)
 
-Los tres proveedores tienen algún tipo de nivel gratuito para cuentas nuevas: Azure da un crédito inicial durante el primer mes y un año de ciertos servicios en cantidades limitadas, Google Cloud da un crédito durante 90 días y un nivel "siempre gratis" (una `e2-micro` en regiones de EE. UU., 5 GB de Cloud Storage), y AWS cambió en 2025 a un modelo de créditos para cuentas nuevas con caducidad a los seis meses, más un conjunto de servicios siempre gratis (1 millón de invocaciones Lambda al mes, 25 GB de DynamoDB). Nada de eso aplica a la cuenta de la empresa, que es una cuenta de pago, así que cada recurso que crees tiene coste desde el minuto uno.
+**Objetivo.** Entrar en la consola del proveedor con tu usuario y MFA activo, y saber decir en qué cuenta, suscripción o proyecto, en qué región y con qué política de etiquetas trabajas.
 
-Antes de crear nada, configura una alerta de presupuesto. En AWS es Billing > Budgets (un presupuesto mensual de, digamos, 20 € con aviso al 80 %); en Azure es Cost Management > Budgets sobre la suscripción o el resource group; en GCP es Facturación > Presupuestos y alertas. Y luego mira la factura antes y después de cada práctica, en la vista por servicio y por etiqueta.
+**Antes de empezar.**
 
-### Los errores caros típicos
+- Autorización del tutor para usar la cuenta de la empresa y el usuario que te haya creado (nunca el usuario raíz ni una cuenta compartida).
+- Un móvil o una llave física para el segundo factor (app TOTP o passkey; anota cuál admite la empresa).
+- Leído [Identidad y estructura de cuentas](#identidad-y-estructura-de-cuentas), en particular [MFA, SSO y credenciales temporales](#mfa-sso-y-credenciales-temporales) y [Cómo se organizan las cuentas](#como-se-organizan-las-cuentas), y el apartado [Etiquetado](#etiquetado).
 
-| Error | Por qué duele | Cómo se evita |
-|---|---|---|
-| NAT Gateway olvidado | Se cobra por hora aunque no pase tráfico (del orden de 30 a 35 € al mes en AWS) más cada GB procesado. Es la sorpresa más habitual en la factura de una VPC de pruebas. | Si solo necesitas salida a Internet desde una VM para instalar paquetes, usa una IP pública temporal o una instancia NAT pequeña, y destruye el gateway al terminar. |
-| IP públicas reservadas | AWS cobra todas las IPv4 públicas por hora desde 2024 (unos 3,6 € al mes cada una); Azure y GCP cobran las IP estáticas reservadas que no están asociadas a nada. | Libera las Elastic IP (las IP públicas fijas de AWS) y las IP estáticas que no uses. Cuenta cuántas tienes en la factura. |
-| Snapshots y discos huérfanos | Al borrar una VM el disco puede quedarse (en AWS depende de `DeleteOnTermination`, en Azure el disco administrado sobrevive a la VM). Los snapshots se cobran por GB al mes para siempre. | Después de borrar, lista volúmenes y snapshots sin asociar y bórralos. |
-| Egress (tráfico saliente) | El tráfico que entra es gratis; el que sale a Internet o a otra región se paga por GB (AWS regala los primeros 100 GB al mes por cuenta). Descargar 500 GB de backups "para probar" se nota. | Mueve datos dentro de la misma región. Para pruebas, usa ficheros pequeños. |
-| Instancias grandes "un momento" | Una máquina de 16 vCPU y 64 GB cuesta 20 o 30 veces más que una `t3.micro` y se olvida igual de fácil. | Crea siempre el tamaño mínimo que sirva y ponte una alarma en el móvil para apagarla. |
-| Balanceadores y bases de datos gestionadas | Se cobran por hora desde que se crean, con datos o sin ellos. | No los crees en esta unidad salvo que el tutor lo pida. |
+**Pasos.**
 
-!!! tip "Regla de la empresa"
-    Lo que creas para practicar lo destruyes el mismo día. Antes de cerrar sesión, lista instancias, discos, IP, NAT y snapshots con la CLI y compara con lo que había por la mañana. Anota el coste en la ficha de evidencias: es una evidencia tan válida como una captura.
+1. Recibe el usuario y entra por primera vez. Con SSO, la página de entrada es la del proveedor de identidad de la empresa, no la del proveedor de nube.
+2. Activa MFA antes de hacer nada más: en AWS, menú de la cuenta > Security credentials > Multi-factor authentication (o en el portal de Identity Center si entras por SSO); en Azure, `https://mysignins.microsoft.com/security-info`; en GCP, la seguridad de la cuenta de Google. Cierra sesión y vuelve a entrar para comprobar que te lo pide.
+3. Identifica la cuenta, suscripción o proyecto y copia su identificador: en AWS el menú de la cuenta muestra el número de 12 dígitos y el rol o usuario; en Azure, `Subscriptions` muestra el nombre y el GUID de la suscripción activa y el icono de usuario el tenant; en GCP, el selector de proyecto de arriba muestra el ID de proyecto.
+4. Identifica la región de trabajo: en AWS es el selector de arriba a la derecha; en Azure y GCP pregunta al tutor en qué región crea la empresa sus recursos y comprueba que ahí hay máquinas o redes.
+5. Localiza dónde se ve la jerarquía (Organizations, management groups, carpetas) aunque no tengas permiso para tocarla; si te da acceso denegado, la captura del mensaje también sirve.
+6. Pregunta al tutor por la política de etiquetas (cuáles son obligatorias y con qué formato) y abre un recurso cualquiera para comprobar que las lleva.
 
-## Consola web y shells integrados
+**Comprobación.** Al cerrar sesión y volver a entrar te pide el segundo factor, y eres capaz de decir de memoria cuenta, región y las etiquetas obligatorias.
 
-*Material de consulta para la formación en empresa.*
+**Entrega.** Captura de la consola con el usuario, la cuenta o proyecto y la región visibles, y un párrafo con el identificador (parcialmente tapado), la región y las etiquetas obligatorias. Todo va a la carpeta o el repositorio de evidencias, y la fila A4.1 de la [ficha de evidencias](#ficha-de-evidencias) la firma el tutor.
+
+**Si te sobra tiempo.** Busca en la consola qué políticas o roles tiene asignados tu usuario: te servirá para explicar los `AccessDenied` de las actividades siguientes.
+
+## Bloque 2 · Configuración de la interfaz (CE 2b)
+
+<p class="ut-meta">En la empresa · con el tutor</p>
+
+Al acabar este bloque la consola abre en la región de la empresa, en el idioma que acordéis y con los servicios que vas a usar en favoritos, y hay una alerta de presupuesto que avisa antes que la factura. Para la hoja A4.2 necesitas el apartado de la consola y sus shells integrados, y el de presupuestos y costes.
+
+### Consola web y shells integrados
 
 Este apartado cubre el primer día: dejar la consola configurada para no perderte y descubrir que dentro lleva un terminal con la CLI ya instalada y autenticada, con el que puedes empezar sin instalar nada en tu máquina.
 
@@ -269,15 +286,68 @@ Los tres tienen un terminal dentro de la consola:
 
 Para las actividades A4.3 y A4.4 el shell integrado vale y ahorra problemas de instalación, pero tiene un límite claro: las credenciales viven ahí dentro, así que para la A4.5 (SDK en el proyecto de la empresa) o para la UT5 vas a necesitar la CLI en la máquina donde esté el código.
 
-## La CLI a fondo
+### Etiquetas y costes
 
-*Material de consulta para la formación en empresa.*
+En Proxmox una VM olvidada solo ocupa disco; en la nube cuesta dinero cada hora. Este apartado te da las dos herramientas para no dar sustos: etiquetar todo lo que crees para que se sepa que es tuyo y poner una alarma de gasto antes de crear el primer recurso.
+
+#### Free tier, presupuestos y alertas
+
+Los tres proveedores tienen algún tipo de nivel gratuito para cuentas nuevas: Azure da un crédito inicial durante el primer mes y un año de ciertos servicios en cantidades limitadas, Google Cloud da un crédito durante 90 días y un nivel "siempre gratis" (una `e2-micro` en regiones de EE. UU., 5 GB de Cloud Storage), y AWS cambió en 2025 a un modelo de créditos para cuentas nuevas con caducidad a los seis meses, más un conjunto de servicios siempre gratis (1 millón de invocaciones Lambda al mes, 25 GB de DynamoDB). Nada de eso aplica a la cuenta de la empresa, que es una cuenta de pago, así que cada recurso que crees tiene coste desde el minuto uno.
+
+Antes de crear nada, configura una alerta de presupuesto. En AWS es Billing > Budgets (un presupuesto mensual de, digamos, 20 € con aviso al 80 %); en Azure es Cost Management > Budgets sobre la suscripción o el resource group; en GCP es Facturación > Presupuestos y alertas. Y luego mira la factura antes y después de cada práctica, en la vista por servicio y por etiqueta.
+
+#### Los errores caros típicos
+
+| Error | Por qué duele | Cómo se evita |
+|---|---|---|
+| NAT Gateway olvidado | Se cobra por hora aunque no pase tráfico (del orden de 30 a 35 € al mes en AWS) más cada GB procesado. Es la sorpresa más habitual en la factura de una VPC de pruebas. | Si solo necesitas salida a Internet desde una VM para instalar paquetes, usa una IP pública temporal o una instancia NAT pequeña, y destruye el gateway al terminar. |
+| IP públicas reservadas | AWS cobra todas las IPv4 públicas por hora desde 2024 (unos 3,6 € al mes cada una); Azure y GCP cobran las IP estáticas reservadas que no están asociadas a nada. | Libera las Elastic IP (las IP públicas fijas de AWS) y las IP estáticas que no uses. Cuenta cuántas tienes en la factura. |
+| Snapshots y discos huérfanos | Al borrar una VM el disco puede quedarse (en AWS depende de `DeleteOnTermination`, en Azure el disco administrado sobrevive a la VM). Los snapshots se cobran por GB al mes para siempre. | Después de borrar, lista volúmenes y snapshots sin asociar y bórralos. |
+| Egress (tráfico saliente) | El tráfico que entra es gratis; el que sale a Internet o a otra región se paga por GB (AWS regala los primeros 100 GB al mes por cuenta). Descargar 500 GB de backups "para probar" se nota. | Mueve datos dentro de la misma región. Para pruebas, usa ficheros pequeños. |
+| Instancias grandes "un momento" | Una máquina de 16 vCPU y 64 GB cuesta 20 o 30 veces más que una `t3.micro` y se olvida igual de fácil. | Crea siempre el tamaño mínimo que sirva y ponte una alarma en el móvil para apagarla. |
+| Balanceadores y bases de datos gestionadas | Se cobran por hora desde que se crean, con datos o sin ellos. | No los crees en esta unidad salvo que el tutor lo pida. |
+
+!!! tip "Regla de la empresa"
+    Lo que creas para practicar lo destruyes el mismo día. Antes de cerrar sesión, lista instancias, discos, IP, NAT y snapshots con la CLI y compara con lo que había por la mañana. Anota el coste en la ficha de evidencias: es una evidencia tan válida como una captura.
+
+### A4.2 Configuración de la interfaz (CE 2b)
+
+**Objetivo.** Dejar la consola configurada para trabajar (idioma, región, favoritos, moneda) y tener una alerta de presupuesto que avise antes que la factura.
+
+**Antes de empezar.**
+
+- A4.1 hecha: entras con MFA y sabes en qué cuenta o suscripción estás.
+- Autorización del tutor para crear un presupuesto sobre tu cuenta, suscripción o resource group; si no te lo puede dar, acordad la etiqueta de propietario por la que vas a filtrar los costes.
+- Leídos [Consola web y shells integrados](#consola-web-y-shells-integrados) y [Free tier, presupuestos y alertas](#free-tier-presupuestos-y-alertas).
+
+**Pasos.**
+
+1. Ajusta el idioma (en inglés salvo que la empresa trabaje en otro): en AWS, Settings del menú de la cuenta; en Azure, el engranaje del portal; en GCP, las preferencias de la cuenta.
+2. Fija la región por defecto: en AWS, Settings > Default region; en Azure y GCP la región se elige por recurso, así que ponla como valor por defecto donde el portal lo permita.
+3. Marca como favoritos los servicios de red, cómputo, identidad y facturación: VPC, EC2, IAM y Billing en AWS; Virtual networks, Virtual machines, Entra ID y Cost Management en Azure; VPC network, Compute Engine, IAM y Billing en GCP.
+4. Ajusta la moneda de las vistas de coste (Billing preferences en AWS, Cost Management en Azure, la cuenta de facturación en GCP).
+5. Crea la alerta de presupuesto: AWS, Billing > Budgets > Create budget, presupuesto mensual (por ejemplo 20 €) con aviso al 80 % a tu correo; Azure, Cost Management > Budgets sobre la suscripción o tu resource group; GCP, Facturación > Presupuestos y alertas. Si no tienes permiso, abre la vista de costes del mes en curso (Cost Explorer, Cost analysis o Informes) y fíltrala por tu etiqueta de propietario.
+6. Anota el coste del mes hasta hoy: lo compararás al terminar cada actividad.
+
+**Comprobación.** Al entrar la consola abre en la región de la empresa, los favoritos aparecen en la barra y el presupuesto figura en la lista de presupuestos con el umbral del 80 % (o la consulta de costes filtrada por tu etiqueta devuelve resultados).
+
+**Entrega.** Capturas de las preferencias y de la alerta de presupuesto (o de la consulta de costes), sin datos sensibles, en la carpeta de evidencias. Fila A4.2 de la ficha.
+
+**Si te sobra tiempo.** Abre el shell integrado y lanza `aws sts get-caller-identity`, `az account show` o `gcloud auth list`: ya está autenticado con la identidad de la consola.
+
+## Bloque 3 · Instalación de la CLI (CE 2c)
+
+<p class="ut-meta">En la empresa · con el tutor</p>
+
+Al acabar este bloque tienes la CLI del proveedor instalada donde diga la empresa, autenticada sin claves de larga duración y con la identidad comprobada con un comando. Para la hoja A4.3 necesitas la introducción a la CLI, la instalación y el apartado de autenticación.
+
+### La CLI a fondo
 
 Aquí está el grueso de la unidad: instalar la CLI, autenticarte sin claves permanentes, comprobar quién eres, guardar un perfil por entorno y filtrar las respuestas. Es lo que evalúan los CE 2c y 2d, y lo que la UT5 (OpenTofu) da por hecho cuando vuelvas al centro.
 
 Las tres CLI siguen el mismo patrón: `herramienta servicio recurso verbo --opciones` (`aws ec2 describe-vpcs`, `az network vnet list`, `gcloud compute networks list`). Las tres guardan la configuración en el directorio personal, aceptan variables de entorno que la sobrescriben y devuelven JSON que se puede filtrar. Lo que cambia es la ortografía.
 
-### Instalación
+#### Instalación
 
 === "AWS"
 
@@ -317,7 +387,7 @@ Las tres CLI siguen el mismo patrón: `herramienta servicio recurso verbo --opci
 
     Hay componentes opcionales (`gcloud components list`): `kubectl`, el emulador de Pub/Sub, etc. Con la instalación por `apt` los componentes se instalan también por `apt` (`google-cloud-cli-gke-gcloud-auth-plugin`, por ejemplo). Documentación: <https://cloud.google.com/sdk/docs/install>.
 
-### Autenticación y "quién soy"
+#### Autenticación y "quién soy"
 
 El primer comando que se ejecuta después de autenticarse, y el que te pide la evidencia de la A4.3, es el que te dice con qué identidad estás hablando con la API. Si la salida no es la esperada, todo lo que hagas después irá al sitio equivocado.
 
@@ -367,6 +437,107 @@ El primer comando que se ejecuta después de autenticarse, y el que te pide la e
     ```
 
     `gcloud auth list` marca con un asterisco la cuenta activa. `gcloud config list` muestra la configuración activa (proyecto, cuenta, región y zona por defecto).
+
+### A4.3 Instalación de la CLI (CE 2c)
+
+**Objetivo.** Tener la CLI del proveedor instalada donde diga la empresa, autenticada sin claves de larga duración y con la identidad comprobada.
+
+**Antes de empezar.**
+
+- Autorización del tutor sobre dónde instalarla (tu portátil, una VM de la empresa o el shell integrado) y sobre el mecanismo de autenticación que usa la empresa (SSO, `az login`, `gcloud auth login`). Si el tutor te ofrece un par de claves de acceso, pregunta antes si hay alternativa con SSO o roles.
+- Permisos de administrador en la máquina donde instales.
+- Leídos [Instalación](#instalacion) y [Autenticación y "quién soy"](#autenticacion-y-quien-soy).
+
+**Pasos.**
+
+1. Instala la CLI con el instalador oficial (no `apt install awscli`, que instala la v1 sin soporte de SSO):
+
+    === "AWS"
+
+        ```bash
+        curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o awscliv2.zip
+        unzip awscliv2.zip
+        sudo ./aws/install
+        aws --version
+        ```
+
+    === "Azure"
+
+        ```bash
+        curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+        az version
+        ```
+
+    === "Google Cloud"
+
+        ```bash
+        sudo apt-get install -y apt-transport-https ca-certificates gnupg curl
+        curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
+        echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee /etc/apt/sources.list.d/google-cloud-sdk.list
+        sudo apt-get update && sudo apt-get install -y google-cloud-cli
+        gcloud version
+        ```
+
+    Si trabajas en el shell integrado, salta este paso y ejecuta solo el comando de versión.
+
+2. Inicialízala y autentícate con el mecanismo de la empresa:
+
+    === "AWS"
+
+        ```bash
+        aws configure sso          # SSO session name, start URL, región eu-west-1, perfil empresa-dev
+        aws sso login --profile empresa-dev
+        ```
+
+    === "Azure"
+
+        ```bash
+        az login                   # o az login --use-device-code en una VM sin navegador
+        az account set --subscription "<nombre o GUID de la suscripción>"
+        ```
+
+    === "Google Cloud"
+
+        ```bash
+        gcloud init                # cuenta, proyecto, región y zona por defecto
+        ```
+
+3. Comprueba la identidad con la que hablas con la API:
+
+    === "AWS"
+
+        ```bash
+        aws sts get-caller-identity --profile empresa-dev
+        ```
+
+    === "Azure"
+
+        ```bash
+        az account show
+        az ad signed-in-user show --query "{nombre:displayName, upn:userPrincipalName}"
+        ```
+
+    === "Google Cloud"
+
+        ```bash
+        gcloud auth list
+        gcloud config list
+        ```
+
+4. Escribe un comentario de una línea sobre qué tipo de credencial es: en AWS, un `Arn` con `assumed-role/AWSReservedSSO_...` es un rol asumido por SSO y uno con `user/` es un usuario con claves; en Azure, el `user.type` de `az account show`; en GCP, la cuenta con asterisco en `gcloud auth list`.
+5. Lanza un comando de lectura para ver que tienes permisos: `aws ec2 describe-vpcs`, `az network vnet list -o table` o `gcloud compute networks list`.
+
+**Comprobación.** El comando de versión devuelve una versión reciente (AWS 2.x), el de identidad devuelve tu usuario o rol en la cuenta de la empresa, y el listado de redes devuelve algo o un `AccessDenied` que sabes explicar.
+
+**Entrega.** Salida de `aws --version` y `aws sts get-caller-identity`, o `az version` y `az account show`, o `gcloud version` y `gcloud auth list`, en texto (no captura), con el comentario de una línea sobre el tipo de credencial. Fila A4.3 de la ficha.
+
+**Si te sobra tiempo.** Mira qué ha dejado la autenticación en `~/.aws`, `~/.azure` o `~/.config/gcloud` y comprueba que no hay ningún fichero con una clave permanente.
+
+## Bloque 4 · Gestión de perfiles (CE 2d)
+
+<p class="ut-meta">En la empresa · con el tutor</p>
+
+Al acabar este bloque tienes dos perfiles o configuraciones que apuntan a entornos distintos, saltas entre ellos con el mecanismo nativo y con la variable de entorno, y sabes qué ficheros hay debajo. Para la hoja A4.4 necesitas los apartados de perfiles y de formatos de salida, que es lo que convierte varias pantallas de JSON en una tabla.
 
 ### Perfiles y ficheros de configuración
 
@@ -524,366 +695,7 @@ El JSON completo de `describe-instances` de una cuenta con veinte máquinas ocup
 
     `value(...)` es el equivalente de `--output text` de AWS. `--format=json` con `jq` (el filtro de JSON de línea de comandos que viste en la UT2) es lo que hace todo el mundo cuando las proyecciones de `gcloud` se vuelven crípticas.
 
-## Librerías cliente (SDK)
-
-*Material de consulta para la formación en empresa.*
-
-El último paso es hacer desde código lo que ya sabes hacer desde la CLI: un script en Python o Node que liste redes y máquinas. Lo que importa aquí no es la librería concreta, sino de dónde saca el programa sus credenciales sin que las escribas en él.
-
-La CLI es un programa que llama a la API REST del proveedor; el SDK es la misma llamada desde tu lenguaje. El CE 2e evalúa que instales la librería con el gestor de dependencias del proyecto (nada de `pip install` suelto sin dejar rastro en `requirements.txt`), que el script no lleve credenciales dentro y que entiendas de dónde las saca.
-
-### La cadena de credenciales por defecto
-
-Los tres SDK buscan credenciales en un orden fijo y se quedan con la primera que encuentran. Conocer ese orden te permite escribir un script sin una sola clave que funcione igual en tu portátil (sesión de la CLI), en una VM de la nube (rol o identidad de la máquina) y en un pipeline de Jenkins (variables de entorno inyectadas).
-
-```mermaid
-flowchart TD
-    A["Script con el SDK"] --> B{"¿Variables de entorno?<br/>AWS_ACCESS_KEY_ID / AZURE_CLIENT_ID / GOOGLE_APPLICATION_CREDENTIALS"}
-    B -- sí --> Z["Usa esas credenciales"]
-    B -- no --> C{"¿Perfil o sesión de la CLI?<br/>~/.aws (SSO o credentials) / az login / ADC de gcloud"}
-    C -- sí --> Z
-    C -- no --> D{"¿Identidad de la máquina?<br/>Rol de instancia (IMDS) / Managed identity / Service account del metadata server"}
-    D -- sí --> Z
-    D -- no --> E["Error: no credentials found"]
-```
-
-En AWS la cadena de `boto3` es, resumida: parámetros explícitos en el código, variables de entorno, `~/.aws/credentials` y `~/.aws/config` (incluido SSO y `role_arn`), credenciales de contenedor (ECS) y por último el servicio de metadatos de la instancia (IMDS, en `169.254.169.254`). En Azure, `DefaultAzureCredential` prueba variables de entorno (service principal), workload identity (la identidad de un pod de Kubernetes), managed identity, y después las credenciales de las herramientas de desarrollo (`az login`, Azure Developer CLI, PowerShell). En GCP, las *Application Default Credentials* miran `GOOGLE_APPLICATION_CREDENTIALS` (ruta a un JSON), luego `~/.config/gcloud/application_default_credentials.json` y luego el servidor de metadatos.
-
-La consecuencia práctica es que el script que escribes en la empresa no debe tener ni `aws_access_key_id=` ni `credential=ClientSecretCredential(...)` ni `from_service_account_file(...)`. Tiene que apoyarse en la cadena.
-
-### Python
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install boto3                                          # AWS
-pip install azure-identity azure-mgmt-network azure-mgmt-compute   # Azure
-pip install google-cloud-compute                           # GCP
-pip freeze > requirements.txt
-```
-
-Lo que se entrega es `requirements.txt` (o `pyproject.toml` si el proyecto usa `uv` o Poetry, otros gestores de dependencias de Python), y `.venv/` va en `.gitignore`.
-
-=== "AWS"
-
-    ```python
-    # listar_aws.py: VPC e instancias con boto3 usando el perfil de la CLI
-    import boto3
-
-    ses = boto3.Session(profile_name="empresa-dev", region_name="eu-west-1")
-    ec2 = ses.client("ec2")
-
-    print("VPC:")
-    for vpc in ec2.describe_vpcs()["Vpcs"]:
-        print(f"  {vpc['VpcId']}  {vpc['CidrBlock']}  default={vpc['IsDefault']}")
-
-    print("Instancias:")
-    paginador = ec2.get_paginator("describe_instances")
-    for pagina in paginador.paginate():
-        for r in pagina["Reservations"]:
-            for i in r["Instances"]:
-                nombre = next((t["Value"] for t in i.get("Tags", []) if t["Key"] == "Name"), "-")
-                print(f"  {i['InstanceId']}  {i['InstanceType']}  {i['State']['Name']}  "
-                      f"{i.get('PrivateIpAddress', '-')}  {nombre}")
-    ```
-
-    Si quitas `profile_name`, `boto3` recorre la cadena por defecto y el mismo script vale en una EC2 con rol. El paginador importa: `describe_instances` devuelve como mucho 1000 resultados por llamada y en una cuenta grande el bucle sin paginar se deja máquinas fuera.
-
-=== "Azure"
-
-    ```python
-    # listar_azure.py: VNets y VMs con DefaultAzureCredential
-    import os
-    from azure.identity import DefaultAzureCredential
-    from azure.mgmt.network import NetworkManagementClient
-    from azure.mgmt.compute import ComputeManagementClient
-
-    sub = os.environ["AZURE_SUBSCRIPTION_ID"]      # el GUID que devuelve az account show
-    cred = DefaultAzureCredential()
-
-    red = NetworkManagementClient(cred, sub)
-    print("VNets:")
-    for vnet in red.virtual_networks.list_all():
-        rg = vnet.id.split("/")[4]
-        print(f"  {vnet.name}  rg={rg}  {vnet.location}  {vnet.address_space.address_prefixes}")
-
-    comp = ComputeManagementClient(cred, sub)
-    print("VMs:")
-    for vm in comp.virtual_machines.list_all():
-        rg = vm.id.split("/")[4]
-        print(f"  {vm.name}  rg={rg}  {vm.location}  {vm.hardware_profile.vm_size}")
-    ```
-
-    `DefaultAzureCredential` encontrará la sesión de `az login`. El ID de suscripción se pasa por variable de entorno para no fijarlo en el código: `export AZURE_SUBSCRIPTION_ID=$(az account show --query id -o tsv)`.
-
-=== "Google Cloud"
-
-    ```python
-    # listar_gcp.py: redes VPC e instancias con google-cloud-compute (ADC)
-    import os
-    from google.cloud import compute_v1
-
-    proyecto = os.environ.get("CLOUDSDK_CORE_PROJECT") or os.environ["GOOGLE_CLOUD_PROJECT"]
-
-    print("Redes:")
-    for red in compute_v1.NetworksClient().list(project=proyecto):
-        modo = "auto" if red.auto_create_subnetworks else "custom"
-        print(f"  {red.name}  modo={modo}")
-
-    print("Instancias:")
-    agregado = compute_v1.InstancesClient().aggregated_list(project=proyecto)
-    for zona, resp in agregado:
-        for vm in resp.instances:
-            ip = vm.network_interfaces[0].network_i_p if vm.network_interfaces else "-"
-            print(f"  {vm.name}  {zona.split('/')[-1]}  {vm.machine_type.split('/')[-1]}  {vm.status}  {ip}")
-    ```
-
-    `aggregated_list` recorre todas las zonas de una vez; `list` necesita la zona. Las credenciales salen de `gcloud auth application-default login`.
-
-### Node.js
-
-```bash
-npm init -y
-npm install @aws-sdk/client-ec2                         # AWS (SDK v3, un paquete por servicio)
-npm install @azure/identity @azure/arm-network @azure/arm-compute
-npm install @google-cloud/compute
-```
-
-`package.json` y `package-lock.json` son los entregables; `node_modules/` va al `.gitignore`. Un ejemplo con AWS, que es el que más se ve en las empresas:
-
-```javascript
-// listar-aws.mjs
-import { EC2Client, DescribeVpcsCommand, paginateDescribeInstances } from "@aws-sdk/client-ec2";
-
-const ec2 = new EC2Client({ region: "eu-west-1" }); // credenciales: cadena por defecto (AWS_PROFILE, SSO, rol...)
-
-const { Vpcs } = await ec2.send(new DescribeVpcsCommand({}));
-console.log("VPC:");
-for (const v of Vpcs) console.log(`  ${v.VpcId}  ${v.CidrBlock}`);
-
-console.log("Instancias:");
-for await (const page of paginateDescribeInstances({ client: ec2 }, {})) {
-  for (const r of page.Reservations ?? []) {
-    for (const i of r.Instances ?? []) {
-      const nombre = i.Tags?.find(t => t.Key === "Name")?.Value ?? "-";
-      console.log(`  ${i.InstanceId}  ${i.InstanceType}  ${i.State.Name}  ${i.PrivateIpAddress ?? "-"}  ${nombre}`);
-    }
-  }
-}
-```
-
-Se ejecuta con `AWS_PROFILE=empresa-dev node listar-aws.mjs`. Para Azure el patrón es `new NetworkManagementClient(new DefaultAzureCredential(), subscriptionId)` y luego `for await (const v of client.virtualNetworks.listAll())`; para GCP, `new NetworksClient().list({ project })`.
-
-??? info "Por qué el SDK y no solo la CLI"
-    Con la CLI y `jq` se llega lejos, y para tareas puntuales es lo correcto. El SDK entra cuando la lógica crece (cruzar instancias con snapshots huérfanos, calcular costes por etiqueta, generar un informe), cuando hay que manejar errores y reintentos con criterio, o cuando el código forma parte de una aplicación. En la UT5 verás que OpenTofu es, en el fondo, un programa que usa el SDK del proveedor por ti.
-
-## Buenas prácticas mínimas
-
-*Material de consulta para la formación en empresa.*
-
-Lo que sigue es la lista corta de lo que el tutor va a dar por supuesto y de lo que más se penaliza en la evaluación; casi todo ha salido ya y aquí está junto para repasarlo antes de cada sesión en la empresa.
-
-- MFA en todo usuario, sin excepciones. Permisos por rol y por grupo, nunca asignados a personas concretas: cuando alguien cambia de equipo se le cambia de grupo y ya está.
-- Nada expuesto desde `0.0.0.0/0` salvo el balanceador o el proxy inverso, y en ese caso solo los puertos 80 y 443. El SSH (22) y el RDP (3389) se abren a la IP de la oficina, a una VPN o se sustituyen por SSM Session Manager (AWS), Azure Bastion o IAP TCP forwarding (GCP), tres servicios que te abren una sesión en la VM a través del proveedor sin exponer el puerto. Los tres proveedores avisan en la consola cuando creas una regla abierta al mundo; hazles caso.
-- Etiquetar todo y destruir lo que se crea para practicar el mismo día. Comprobar la factura al día siguiente.
-- Nunca subir credenciales a Git. Instala `gitleaks` (un escáner que busca claves y contraseñas en el repositorio) y ejecútalo antes de cada push, o mejor como hook de pre-commit (un script que Git ejecuta solo antes de cada commit):
-
-```bash
-# escanea el historial del repositorio
-gitleaks git -v
-
-# hook de pre-commit: solo lo que está en staging
-cat > .git/hooks/pre-commit <<'EOF'
-#!/bin/sh
-gitleaks git --pre-commit --staged --redact
-EOF
-chmod +x .git/hooks/pre-commit
-```
-
-Si `gitleaks` encuentra algo que ya se subió, no basta con borrarlo en el siguiente commit: sigue en el historial. La clave hay que revocarla en el proveedor en ese momento y avisar al tutor.
-
-- Ficheros que nunca van al repositorio: `.env`, `*.pem`, `*.json` de service accounts, `~/.aws/credentials`, `terraform.tfstate`. Ponlos en `.gitignore` antes del primer commit.
-
-## Errores frecuentes en el laboratorio
-
-**"No veo nada de lo que creé"**. Estás en otra región. Mira el selector de región de la consola o `aws configure get region`, `az config get defaults.location`, `gcloud config get compute/region`. En AWS, `aws ec2 describe-instances --region eu-south-2` si sospechas de dónde está.
-
-**`Unable to locate credentials` / `Please run 'az login'` / `could not automatically determine credentials`**. La cadena no ha encontrado nada. Comprueba `aws sts get-caller-identity`, `az account show` o `gcloud auth list`; si la CLI funciona pero el SDK no, en GCP falta `gcloud auth application-default login`, y en AWS revisa que el script use el mismo perfil que la CLI (`AWS_PROFILE`).
-
-**El token SSO ha caducado** (`The SSO session associated with this profile has expired`). Las sesiones de IAM Identity Center duran entre 1 y 12 horas según lo configure la empresa. `aws sso login --profile empresa-dev` y a seguir. Lo mismo con `az login` cuando el token de Entra ID expira (suele avisar con `AADSTS700082`).
-
-**`AccessDenied` / `AuthorizationFailed` / `403 Forbidden` en una operación concreta**. Tu rol no tiene ese permiso; el mensaje suele decir qué acción (`ec2:RunInstances`) y sobre qué recurso. No lo "arregles" pidiendo `AdministratorAccess`: anota la acción exacta y pídele al tutor el permiso mínimo. En AWS, si la política tiene condición de región y estás en otra, el error es el mismo.
-
-**`aws` dice que soy otra persona**. Tienes `AWS_ACCESS_KEY_ID` o `AWS_PROFILE` exportadas en el shell (mira `env | grep AWS`) o un `[default]` en `~/.aws/credentials` que no recuerdas. `aws configure list` te dice de dónde sale cada valor.
-
-**`az` va contra la suscripción equivocada**. `az login` deja activa la primera suscripción de la lista. `az account list -o table` y `az account set --subscription <id>`.
-
-**El script de Python lista menos máquinas que la consola**. No estás paginando, o estás mirando una sola región o zona. En AWS usa el paginador; en GCP usa `aggregated_list`; en Azure `list_all` ya pagina por ti.
-
-**La factura sube aunque "no hay nada"**. Lista NAT gateways, IP públicas reservadas, discos sin asociar y snapshots; casi siempre es uno de esos. En AWS, Cost Explorer filtrado por servicio te lo dice en un minuto.
-
-**La CLI instalada por `pip` o `apt` es antigua**. `apt install awscli` en Debian instala la v1, que no soporta `configure sso`. Usa el instalador oficial de la v2. `pip install azure-cli` funciona pero es lento de actualizar; el repositorio de Microsoft es lo recomendado.
-
-**Cloud Shell "pierde" los ficheros**. En AWS CloudShell solo persiste el directorio personal y por región; en Azure con sesión efímera no persiste nada. Sube el trabajo a un repositorio antes de cerrar.
-
-## Material de práctica
-
-Estas actividades no tienen sesión asignada: se hacen en la empresa durante la formación, en el orden que marque el tutor, y cada una se documenta en la ficha de evidencias que hay más abajo. El tutor de empresa firma la ficha y el profesor evalúa con ella. Las capturas van sin datos sensibles: tapa números de cuenta completos, claves, IP públicas de producción y correos de terceros.
-
-### A4.1 Acceso a la plataforma (CE 2a)
-
-**En la empresa · con el tutor**
-
-**Objetivo.** Entrar en la consola del proveedor con tu usuario y MFA activo, y saber decir en qué cuenta, suscripción o proyecto, en qué región y con qué política de etiquetas trabajas.
-
-**Antes de empezar.**
-
-- Autorización del tutor para usar la cuenta de la empresa y el usuario que te haya creado (nunca el usuario raíz ni una cuenta compartida).
-- Un móvil o una llave física para el segundo factor (app TOTP o passkey; anota cuál admite la empresa).
-- Leído [Identidad y estructura de cuentas](#identidad-y-estructura-de-cuentas), en particular [MFA, SSO y credenciales temporales](#mfa-sso-y-credenciales-temporales) y [Cómo se organizan las cuentas](#como-se-organizan-las-cuentas), y el apartado [Etiquetado](#etiquetado).
-
-**Pasos.**
-
-1. Recibe el usuario y entra por primera vez. Con SSO, la página de entrada es la del proveedor de identidad de la empresa, no la del proveedor de nube.
-2. Activa MFA antes de hacer nada más: en AWS, menú de la cuenta > Security credentials > Multi-factor authentication (o en el portal de Identity Center si entras por SSO); en Azure, `https://mysignins.microsoft.com/security-info`; en GCP, la seguridad de la cuenta de Google. Cierra sesión y vuelve a entrar para comprobar que te lo pide.
-3. Identifica la cuenta, suscripción o proyecto y copia su identificador: en AWS el menú de la cuenta muestra el número de 12 dígitos y el rol o usuario; en Azure, `Subscriptions` muestra el nombre y el GUID de la suscripción activa y el icono de usuario el tenant; en GCP, el selector de proyecto de arriba muestra el ID de proyecto.
-4. Identifica la región de trabajo: en AWS es el selector de arriba a la derecha; en Azure y GCP pregunta al tutor en qué región crea la empresa sus recursos y comprueba que ahí hay máquinas o redes.
-5. Localiza dónde se ve la jerarquía (Organizations, management groups, carpetas) aunque no tengas permiso para tocarla; si te da acceso denegado, la captura del mensaje también sirve.
-6. Pregunta al tutor por la política de etiquetas (cuáles son obligatorias y con qué formato) y abre un recurso cualquiera para comprobar que las lleva.
-
-**Comprobación.** Al cerrar sesión y volver a entrar te pide el segundo factor, y eres capaz de decir de memoria cuenta, región y las etiquetas obligatorias.
-
-**Entrega.** Captura de la consola con el usuario, la cuenta o proyecto y la región visibles, y un párrafo con el identificador (parcialmente tapado), la región y las etiquetas obligatorias. Todo va a la carpeta o el repositorio de evidencias, y la fila A4.1 de la [ficha de evidencias](#ficha-de-evidencias) la firma el tutor.
-
-**Si te sobra tiempo.** Busca en la consola qué políticas o roles tiene asignados tu usuario: te servirá para explicar los `AccessDenied` de las actividades siguientes.
-
-### A4.2 Configuración de la interfaz (CE 2b)
-
-**En la empresa · con el tutor**
-
-**Objetivo.** Dejar la consola configurada para trabajar (idioma, región, favoritos, moneda) y tener una alerta de presupuesto que avise antes que la factura.
-
-**Antes de empezar.**
-
-- A4.1 hecha: entras con MFA y sabes en qué cuenta o suscripción estás.
-- Autorización del tutor para crear un presupuesto sobre tu cuenta, suscripción o resource group; si no te lo puede dar, acordad la etiqueta de propietario por la que vas a filtrar los costes.
-- Leídos [Consola web y shells integrados](#consola-web-y-shells-integrados) y [Free tier, presupuestos y alertas](#free-tier-presupuestos-y-alertas).
-
-**Pasos.**
-
-1. Ajusta el idioma (en inglés salvo que la empresa trabaje en otro): en AWS, Settings del menú de la cuenta; en Azure, el engranaje del portal; en GCP, las preferencias de la cuenta.
-2. Fija la región por defecto: en AWS, Settings > Default region; en Azure y GCP la región se elige por recurso, así que ponla como valor por defecto donde el portal lo permita.
-3. Marca como favoritos los servicios de red, cómputo, identidad y facturación: VPC, EC2, IAM y Billing en AWS; Virtual networks, Virtual machines, Entra ID y Cost Management en Azure; VPC network, Compute Engine, IAM y Billing en GCP.
-4. Ajusta la moneda de las vistas de coste (Billing preferences en AWS, Cost Management en Azure, la cuenta de facturación en GCP).
-5. Crea la alerta de presupuesto: AWS, Billing > Budgets > Create budget, presupuesto mensual (por ejemplo 20 €) con aviso al 80 % a tu correo; Azure, Cost Management > Budgets sobre la suscripción o tu resource group; GCP, Facturación > Presupuestos y alertas. Si no tienes permiso, abre la vista de costes del mes en curso (Cost Explorer, Cost analysis o Informes) y fíltrala por tu etiqueta de propietario.
-6. Anota el coste del mes hasta hoy: lo compararás al terminar cada actividad.
-
-**Comprobación.** Al entrar la consola abre en la región de la empresa, los favoritos aparecen en la barra y el presupuesto figura en la lista de presupuestos con el umbral del 80 % (o la consulta de costes filtrada por tu etiqueta devuelve resultados).
-
-**Entrega.** Capturas de las preferencias y de la alerta de presupuesto (o de la consulta de costes), sin datos sensibles, en la carpeta de evidencias. Fila A4.2 de la ficha.
-
-**Si te sobra tiempo.** Abre el shell integrado y lanza `aws sts get-caller-identity`, `az account show` o `gcloud auth list`: ya está autenticado con la identidad de la consola.
-
-### A4.3 Instalación de la CLI (CE 2c)
-
-**En la empresa · con el tutor**
-
-**Objetivo.** Tener la CLI del proveedor instalada donde diga la empresa, autenticada sin claves de larga duración y con la identidad comprobada.
-
-**Antes de empezar.**
-
-- Autorización del tutor sobre dónde instalarla (tu portátil, una VM de la empresa o el shell integrado) y sobre el mecanismo de autenticación que usa la empresa (SSO, `az login`, `gcloud auth login`). Si el tutor te ofrece un par de claves de acceso, pregunta antes si hay alternativa con SSO o roles.
-- Permisos de administrador en la máquina donde instales.
-- Leídos [Instalación](#instalacion) y [Autenticación y "quién soy"](#autenticacion-y-quien-soy).
-
-**Pasos.**
-
-1. Instala la CLI con el instalador oficial (no `apt install awscli`, que instala la v1 sin soporte de SSO):
-
-    === "AWS"
-
-        ```bash
-        curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o awscliv2.zip
-        unzip awscliv2.zip
-        sudo ./aws/install
-        aws --version
-        ```
-
-    === "Azure"
-
-        ```bash
-        curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-        az version
-        ```
-
-    === "Google Cloud"
-
-        ```bash
-        sudo apt-get install -y apt-transport-https ca-certificates gnupg curl
-        curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
-        echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee /etc/apt/sources.list.d/google-cloud-sdk.list
-        sudo apt-get update && sudo apt-get install -y google-cloud-cli
-        gcloud version
-        ```
-
-    Si trabajas en el shell integrado, salta este paso y ejecuta solo el comando de versión.
-
-2. Inicialízala y autentícate con el mecanismo de la empresa:
-
-    === "AWS"
-
-        ```bash
-        aws configure sso          # SSO session name, start URL, región eu-west-1, perfil empresa-dev
-        aws sso login --profile empresa-dev
-        ```
-
-    === "Azure"
-
-        ```bash
-        az login                   # o az login --use-device-code en una VM sin navegador
-        az account set --subscription "<nombre o GUID de la suscripción>"
-        ```
-
-    === "Google Cloud"
-
-        ```bash
-        gcloud init                # cuenta, proyecto, región y zona por defecto
-        ```
-
-3. Comprueba la identidad con la que hablas con la API:
-
-    === "AWS"
-
-        ```bash
-        aws sts get-caller-identity --profile empresa-dev
-        ```
-
-    === "Azure"
-
-        ```bash
-        az account show
-        az ad signed-in-user show --query "{nombre:displayName, upn:userPrincipalName}"
-        ```
-
-    === "Google Cloud"
-
-        ```bash
-        gcloud auth list
-        gcloud config list
-        ```
-
-4. Escribe un comentario de una línea sobre qué tipo de credencial es: en AWS, un `Arn` con `assumed-role/AWSReservedSSO_...` es un rol asumido por SSO y uno con `user/` es un usuario con claves; en Azure, el `user.type` de `az account show`; en GCP, la cuenta con asterisco en `gcloud auth list`.
-5. Lanza un comando de lectura para ver que tienes permisos: `aws ec2 describe-vpcs`, `az network vnet list -o table` o `gcloud compute networks list`.
-
-**Comprobación.** El comando de versión devuelve una versión reciente (AWS 2.x), el de identidad devuelve tu usuario o rol en la cuenta de la empresa, y el listado de redes devuelve algo o un `AccessDenied` que sabes explicar.
-
-**Entrega.** Salida de `aws --version` y `aws sts get-caller-identity`, o `az version` y `az account show`, o `gcloud version` y `gcloud auth list`, en texto (no captura), con el comentario de una línea sobre el tipo de credencial. Fila A4.3 de la ficha.
-
-**Si te sobra tiempo.** Mira qué ha dejado la autenticación en `~/.aws`, `~/.azure` o `~/.config/gcloud` y comprueba que no hay ningún fichero con una clave permanente.
-
 ### A4.4 Gestión de perfiles (CE 2d)
-
-**En la empresa · con el tutor**
 
 **Objetivo.** Tener dos perfiles o configuraciones que apunten a entornos distintos, saltar entre ellos con el mecanismo nativo y con la variable de entorno, y saber qué ficheros hay debajo.
 
@@ -982,9 +794,189 @@ Estas actividades no tienen sesión asignada: se hacen en la empresa durante la 
 
 **Si te sobra tiempo.** Exporta a la vez `AWS_PROFILE` y una `AWS_REGION` distinta de la del perfil y comprueba con `aws configure list` cuál gana.
 
-### A4.5 SDK (CE 2e)
+## Bloque 5 · SDK (CE 2e)
 
-**En la empresa · con el tutor**
+<p class="ut-meta">En la empresa · con el tutor</p>
+
+Al acabar este bloque tienes un script en Python o Node que lista redes y máquinas sin una sola credencial dentro y que funciona con dos perfiles cambiando solo la variable de entorno. Para la hoja A4.5 necesitas la cadena de credenciales por defecto, el ejemplo de tu lenguaje y la parte de gitleaks de las buenas prácticas.
+
+### Librerías cliente (SDK)
+
+El último paso es hacer desde código lo que ya sabes hacer desde la CLI: un script en Python o Node que liste redes y máquinas. Lo que importa aquí no es la librería concreta, sino de dónde saca el programa sus credenciales sin que las escribas en él.
+
+La CLI es un programa que llama a la API REST del proveedor; el SDK es la misma llamada desde tu lenguaje. El CE 2e evalúa que instales la librería con el gestor de dependencias del proyecto (nada de `pip install` suelto sin dejar rastro en `requirements.txt`), que el script no lleve credenciales dentro y que entiendas de dónde las saca.
+
+#### La cadena de credenciales por defecto
+
+Los tres SDK buscan credenciales en un orden fijo y se quedan con la primera que encuentran. Conocer ese orden te permite escribir un script sin una sola clave que funcione igual en tu portátil (sesión de la CLI), en una VM de la nube (rol o identidad de la máquina) y en un pipeline de Jenkins (variables de entorno inyectadas).
+
+```mermaid
+flowchart TD
+    A["Script con el SDK"] --> B{"¿Variables de entorno?<br/>AWS_ACCESS_KEY_ID / AZURE_CLIENT_ID / GOOGLE_APPLICATION_CREDENTIALS"}
+    B -- sí --> Z["Usa esas credenciales"]
+    B -- no --> C{"¿Perfil o sesión de la CLI?<br/>~/.aws (SSO o credentials) / az login / ADC de gcloud"}
+    C -- sí --> Z
+    C -- no --> D{"¿Identidad de la máquina?<br/>Rol de instancia (IMDS) / Managed identity / Service account del metadata server"}
+    D -- sí --> Z
+    D -- no --> E["Error: no credentials found"]
+```
+
+En AWS la cadena de `boto3` es, resumida: parámetros explícitos en el código, variables de entorno, `~/.aws/credentials` y `~/.aws/config` (incluido SSO y `role_arn`), credenciales de contenedor (ECS) y por último el servicio de metadatos de la instancia (IMDS, en `169.254.169.254`). En Azure, `DefaultAzureCredential` prueba variables de entorno (service principal), workload identity (la identidad de un pod de Kubernetes), managed identity, y después las credenciales de las herramientas de desarrollo (`az login`, Azure Developer CLI, PowerShell). En GCP, las *Application Default Credentials* miran `GOOGLE_APPLICATION_CREDENTIALS` (ruta a un JSON), luego `~/.config/gcloud/application_default_credentials.json` y luego el servidor de metadatos.
+
+La consecuencia práctica es que el script que escribes en la empresa no debe tener ni `aws_access_key_id=` ni `credential=ClientSecretCredential(...)` ni `from_service_account_file(...)`. Tiene que apoyarse en la cadena.
+
+#### Python
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install boto3                                          # AWS
+pip install azure-identity azure-mgmt-network azure-mgmt-compute   # Azure
+pip install google-cloud-compute                           # GCP
+pip freeze > requirements.txt
+```
+
+Lo que se entrega es `requirements.txt` (o `pyproject.toml` si el proyecto usa `uv` o Poetry, otros gestores de dependencias de Python), y `.venv/` va en `.gitignore`.
+
+=== "AWS"
+
+    ```python
+    # listar_aws.py: VPC e instancias con boto3 usando el perfil de la CLI
+    import boto3
+
+    ses = boto3.Session(profile_name="empresa-dev", region_name="eu-west-1")
+    ec2 = ses.client("ec2")
+
+    print("VPC:")
+    for vpc in ec2.describe_vpcs()["Vpcs"]:
+        print(f"  {vpc['VpcId']}  {vpc['CidrBlock']}  default={vpc['IsDefault']}")
+
+    print("Instancias:")
+    paginador = ec2.get_paginator("describe_instances")
+    for pagina in paginador.paginate():
+        for r in pagina["Reservations"]:
+            for i in r["Instances"]:
+                nombre = next((t["Value"] for t in i.get("Tags", []) if t["Key"] == "Name"), "-")
+                print(f"  {i['InstanceId']}  {i['InstanceType']}  {i['State']['Name']}  "
+                      f"{i.get('PrivateIpAddress', '-')}  {nombre}")
+    ```
+
+    Si quitas `profile_name`, `boto3` recorre la cadena por defecto y el mismo script vale en una EC2 con rol. El paginador importa: `describe_instances` devuelve como mucho 1000 resultados por llamada y en una cuenta grande el bucle sin paginar se deja máquinas fuera.
+
+=== "Azure"
+
+    ```python
+    # listar_azure.py: VNets y VMs con DefaultAzureCredential
+    import os
+    from azure.identity import DefaultAzureCredential
+    from azure.mgmt.network import NetworkManagementClient
+    from azure.mgmt.compute import ComputeManagementClient
+
+    sub = os.environ["AZURE_SUBSCRIPTION_ID"]      # el GUID que devuelve az account show
+    cred = DefaultAzureCredential()
+
+    red = NetworkManagementClient(cred, sub)
+    print("VNets:")
+    for vnet in red.virtual_networks.list_all():
+        rg = vnet.id.split("/")[4]
+        print(f"  {vnet.name}  rg={rg}  {vnet.location}  {vnet.address_space.address_prefixes}")
+
+    comp = ComputeManagementClient(cred, sub)
+    print("VMs:")
+    for vm in comp.virtual_machines.list_all():
+        rg = vm.id.split("/")[4]
+        print(f"  {vm.name}  rg={rg}  {vm.location}  {vm.hardware_profile.vm_size}")
+    ```
+
+    `DefaultAzureCredential` encontrará la sesión de `az login`. El ID de suscripción se pasa por variable de entorno para no fijarlo en el código: `export AZURE_SUBSCRIPTION_ID=$(az account show --query id -o tsv)`.
+
+=== "Google Cloud"
+
+    ```python
+    # listar_gcp.py: redes VPC e instancias con google-cloud-compute (ADC)
+    import os
+    from google.cloud import compute_v1
+
+    proyecto = os.environ.get("CLOUDSDK_CORE_PROJECT") or os.environ["GOOGLE_CLOUD_PROJECT"]
+
+    print("Redes:")
+    for red in compute_v1.NetworksClient().list(project=proyecto):
+        modo = "auto" if red.auto_create_subnetworks else "custom"
+        print(f"  {red.name}  modo={modo}")
+
+    print("Instancias:")
+    agregado = compute_v1.InstancesClient().aggregated_list(project=proyecto)
+    for zona, resp in agregado:
+        for vm in resp.instances:
+            ip = vm.network_interfaces[0].network_i_p if vm.network_interfaces else "-"
+            print(f"  {vm.name}  {zona.split('/')[-1]}  {vm.machine_type.split('/')[-1]}  {vm.status}  {ip}")
+    ```
+
+    `aggregated_list` recorre todas las zonas de una vez; `list` necesita la zona. Las credenciales salen de `gcloud auth application-default login`.
+
+#### Node.js
+
+```bash
+npm init -y
+npm install @aws-sdk/client-ec2                         # AWS (SDK v3, un paquete por servicio)
+npm install @azure/identity @azure/arm-network @azure/arm-compute
+npm install @google-cloud/compute
+```
+
+`package.json` y `package-lock.json` son los entregables; `node_modules/` va al `.gitignore`. Un ejemplo con AWS, que es el que más se ve en las empresas:
+
+```javascript
+// listar-aws.mjs
+import { EC2Client, DescribeVpcsCommand, paginateDescribeInstances } from "@aws-sdk/client-ec2";
+
+const ec2 = new EC2Client({ region: "eu-west-1" }); // credenciales: cadena por defecto (AWS_PROFILE, SSO, rol...)
+
+const { Vpcs } = await ec2.send(new DescribeVpcsCommand({}));
+console.log("VPC:");
+for (const v of Vpcs) console.log(`  ${v.VpcId}  ${v.CidrBlock}`);
+
+console.log("Instancias:");
+for await (const page of paginateDescribeInstances({ client: ec2 }, {})) {
+  for (const r of page.Reservations ?? []) {
+    for (const i of r.Instances ?? []) {
+      const nombre = i.Tags?.find(t => t.Key === "Name")?.Value ?? "-";
+      console.log(`  ${i.InstanceId}  ${i.InstanceType}  ${i.State.Name}  ${i.PrivateIpAddress ?? "-"}  ${nombre}`);
+    }
+  }
+}
+```
+
+Se ejecuta con `AWS_PROFILE=empresa-dev node listar-aws.mjs`. Para Azure el patrón es `new NetworkManagementClient(new DefaultAzureCredential(), subscriptionId)` y luego `for await (const v of client.virtualNetworks.listAll())`; para GCP, `new NetworksClient().list({ project })`.
+
+??? info "Por qué el SDK y no solo la CLI"
+    Con la CLI y `jq` se llega lejos, y para tareas puntuales es lo correcto. El SDK entra cuando la lógica crece (cruzar instancias con snapshots huérfanos, calcular costes por etiqueta, generar un informe), cuando hay que manejar errores y reintentos con criterio, o cuando el código forma parte de una aplicación. En la UT5 verás que OpenTofu es, en el fondo, un programa que usa el SDK del proveedor por ti.
+
+### Buenas prácticas mínimas
+
+Lo que sigue es la lista corta de lo que el tutor va a dar por supuesto y de lo que más se penaliza en la evaluación; casi todo ha salido ya y aquí está junto para repasarlo antes de cada sesión en la empresa.
+
+- MFA en todo usuario, sin excepciones. Permisos por rol y por grupo, nunca asignados a personas concretas: cuando alguien cambia de equipo se le cambia de grupo y ya está.
+- Nada expuesto desde `0.0.0.0/0` salvo el balanceador o el proxy inverso, y en ese caso solo los puertos 80 y 443. El SSH (22) y el RDP (3389) se abren a la IP de la oficina, a una VPN o se sustituyen por SSM Session Manager (AWS), Azure Bastion o IAP TCP forwarding (GCP), tres servicios que te abren una sesión en la VM a través del proveedor sin exponer el puerto. Los tres proveedores avisan en la consola cuando creas una regla abierta al mundo; hazles caso.
+- Etiquetar todo y destruir lo que se crea para practicar el mismo día. Comprobar la factura al día siguiente.
+- Nunca subir credenciales a Git. Instala `gitleaks` (un escáner que busca claves y contraseñas en el repositorio) y ejecútalo antes de cada push, o mejor como hook de pre-commit (un script que Git ejecuta solo antes de cada commit):
+
+```bash
+# escanea el historial del repositorio
+gitleaks git -v
+
+# hook de pre-commit: solo lo que está en staging
+cat > .git/hooks/pre-commit <<'EOF'
+#!/bin/sh
+gitleaks git --pre-commit --staged --redact
+EOF
+chmod +x .git/hooks/pre-commit
+```
+
+Si `gitleaks` encuentra algo que ya se subió, no basta con borrarlo en el siguiente commit: sigue en el historial. La clave hay que revocarla en el proveedor en ese momento y avisar al tutor.
+
+- Ficheros que nunca van al repositorio: `.env`, `*.pem`, `*.json` de service accounts, `~/.aws/credentials`, `terraform.tfstate`. Ponlos en `.gitignore` antes del primer commit.
+
+### A4.5 SDK (CE 2e)
 
 **Objetivo.** Un script en el lenguaje del proyecto de la empresa que liste las VPC/VNets y las máquinas sin una sola credencial dentro, y que funcione con dos perfiles cambiando solo la variable de entorno.
 
@@ -1070,9 +1062,9 @@ Estas actividades no tienen sesión asignada: se hacen en la empresa durante la 
 
 **Si te sobra tiempo.** Añade el hook de pre-commit de [Buenas prácticas mínimas](#buenas-practicas-minimas), intenta hacer commit de un fichero con una clave falsa (`AKIA` y 16 caracteres) y guarda el rechazo.
 
-### Actividad de cierre
+## Actividad de cierre
 
-**En la empresa · con el tutor**
+<p class="ut-meta">En la empresa · con el tutor</p>
 
 **Objetivo.** Un documento de dos páginas que explique cómo está organizada la nube de la empresa y en qué se diferencia de la VPC de Proxmox del centro.
 
@@ -1097,6 +1089,8 @@ Estas actividades no tienen sesión asignada: se hacen en la empresa durante la 
 **Si te sobra tiempo.** Añade un diagrama de la red de la empresa con la misma notación que el de regiones y zonas de esta unidad.
 
 ## Práctica evaluable
+
+<p class="ut-meta">En la empresa · ficha de evidencias firmada por el tutor</p>
 
 La práctica evaluable de esta unidad es el conjunto de las cinco actividades más el documento de cierre, entregados a través de la ficha de evidencias firmada por el tutor de empresa. No hay defensa en el centro: el profesor evalúa con la ficha, las evidencias adjuntas y el documento.
 
@@ -1132,17 +1126,26 @@ Entregables (en un repositorio privado o en la carpeta que indique el profesor):
 
 Una evidencia con credenciales visibles (aunque estén revocadas) invalida la actividad correspondiente.
 
-## Para ampliar
+## Errores frecuentes en el laboratorio
 
-- <https://aws.amazon.com/compliance/shared-responsibility-model/>: el modelo de responsabilidad compartida explicado por AWS, con el diagrama que todo el mundo copia.
-- <https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html>: formato de `~/.aws/config` y `~/.aws/credentials`, perfiles, `sso-session` y `role_arn`.
-- <https://docs.aws.amazon.com/cli/latest/userguide/cli-usage-output-format.html>: formatos de salida y `--query` con JMESPath, con ejemplos que vale la pena copiar.
-- <https://jmespath.org/tutorial.html>: el tutorial oficial de JMESPath, que sirve igual para `aws --query` y `az --query`.
-- <https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_elements.html>: referencia de los elementos de una política IAM (Effect, Action, Resource, Condition).
-- <https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html>: la cadena de credenciales de boto3, en el orden exacto en que se evalúa.
-- <https://learn.microsoft.com/cli/azure/azure-cli-configuration>: `az config`, ficheros de `~/.azure` y variables de entorno de la Azure CLI.
-- <https://learn.microsoft.com/azure/role-based-access-control/overview>: cómo funcionan las asignaciones de rol, los ámbitos y la herencia en Azure RBAC.
-- <https://learn.microsoft.com/python/api/overview/azure/identity-readme>: `DefaultAzureCredential` y el orden en que prueba cada fuente.
-- <https://cloud.google.com/sdk/gcloud/reference/config/configurations>: referencia de las configurations de `gcloud`.
-- <https://cloud.google.com/docs/authentication/application-default-credentials>: cómo buscan credenciales las librerías de Google (ADC) y por qué hay dos logins.
-- <https://github.com/gitleaks/gitleaks>: instalación y uso de gitleaks, incluido el hook de pre-commit.
+**"No veo nada de lo que creé"**. Estás en otra región. Mira el selector de región de la consola o `aws configure get region`, `az config get defaults.location`, `gcloud config get compute/region`. En AWS, `aws ec2 describe-instances --region eu-south-2` si sospechas de dónde está.
+
+**`Unable to locate credentials` / `Please run 'az login'` / `could not automatically determine credentials`**. La cadena no ha encontrado nada. Comprueba `aws sts get-caller-identity`, `az account show` o `gcloud auth list`; si la CLI funciona pero el SDK no, en GCP falta `gcloud auth application-default login`, y en AWS revisa que el script use el mismo perfil que la CLI (`AWS_PROFILE`).
+
+**El token SSO ha caducado** (`The SSO session associated with this profile has expired`). Las sesiones de IAM Identity Center duran entre 1 y 12 horas según lo configure la empresa. `aws sso login --profile empresa-dev` y a seguir. Lo mismo con `az login` cuando el token de Entra ID expira (suele avisar con `AADSTS700082`).
+
+**`AccessDenied` / `AuthorizationFailed` / `403 Forbidden` en una operación concreta**. Tu rol no tiene ese permiso; el mensaje suele decir qué acción (`ec2:RunInstances`) y sobre qué recurso. No lo "arregles" pidiendo `AdministratorAccess`: anota la acción exacta y pídele al tutor el permiso mínimo. En AWS, si la política tiene condición de región y estás en otra, el error es el mismo.
+
+**`aws` dice que soy otra persona**. Tienes `AWS_ACCESS_KEY_ID` o `AWS_PROFILE` exportadas en el shell (mira `env | grep AWS`) o un `[default]` en `~/.aws/credentials` que no recuerdas. `aws configure list` te dice de dónde sale cada valor.
+
+**`az` va contra la suscripción equivocada**. `az login` deja activa la primera suscripción de la lista. `az account list -o table` y `az account set --subscription <id>`.
+
+**El script de Python lista menos máquinas que la consola**. No estás paginando, o estás mirando una sola región o zona. En AWS usa el paginador; en GCP usa `aggregated_list`; en Azure `list_all` ya pagina por ti.
+
+**La factura sube aunque "no hay nada"**. Lista NAT gateways, IP públicas reservadas, discos sin asociar y snapshots; casi siempre es uno de esos. En AWS, Cost Explorer filtrado por servicio te lo dice en un minuto.
+
+**La CLI instalada por `pip` o `apt` es antigua**. `apt install awscli` en Debian instala la v1, que no soporta `configure sso`. Usa el instalador oficial de la v2. `pip install azure-cli` funciona pero es lento de actualizar; el repositorio de Microsoft es lo recomendado.
+
+**Cloud Shell "pierde" los ficheros**. En AWS CloudShell solo persiste el directorio personal y por región; en Azure con sesión efímera no persiste nada. Sube el trabajo a un repositorio antes de cerrar.
+
+Los enlaces para ampliar y los apartados que van más allá de lo que se hace en la empresa están en [Para ampliar](../ampliacion.md#ut4-nube-publica-consola-cli-y-sdk).

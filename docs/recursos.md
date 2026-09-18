@@ -1,6 +1,6 @@
 # Bibliografía y enlaces
 
-Cada unidad tiene su propia sección "Para ampliar" con enlaces concretos. Aquí está lo transversal: documentación de referencia, libros que merecen la pena y algunos sitios donde practicar. Todo en línea y gratuito salvo los libros.
+Los enlaces concretos de cada unidad están en la página [Para ampliar](ampliacion.md), junto con los apartados que van más allá de lo que se hace en clase. Aquí está lo transversal: documentación de referencia, libros que merecen la pena y algunos sitios donde practicar. Todo en línea y gratuito salvo los libros.
 
 ## Documentación oficial
 

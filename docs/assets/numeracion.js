@@ -1,6 +1,8 @@
-/* Numera los apartados (h2) y subapartados (h3) de las unidades y copia los números
-   al índice lateral. Solo actúa en páginas de unidad (docs/ut/). Los h3 de la sección
-   "Actividades" no se numeran porque ya llevan su código (A1.1, A1.2...). */
+/* Numera los apartados de las unidades y copia los números al índice lateral. Solo actúa en
+   páginas de unidad (docs/ut/). Cada h2 "Sesión N · ..." (o "Bloque N · ...") aporta su número N,
+   y sus h3 se numeran N.1, N.2... Los h3 de las hojas de práctica no se numeran porque ya llevan
+   su código (A1.1, A1.2...). Los h2 sin número propio (Introducción, Errores frecuentes) y sus
+   h3 no se numeran. */
 (function () {
   var esUnidad = /\/ut\/[^/]+\/?$/.test(location.pathname);
   var esPdf = !!document.getElementById("print-site-page");
@@ -27,17 +29,18 @@
   }
 
   function numerar(raiz) {
-  var n2 = 0, n3 = 0, saltarSub = false;
-  raiz.querySelectorAll("h2, h3").forEach(function (h) {
-    if (h.tagName === "H2") {
-      n2 += 1; n3 = 0;
-      saltarSub = /^(actividades|material de pr)/i.test(h.textContent.trim());
-      etiqueta(h, n2 + ".");
-    } else if (!saltarSub && n2 > 0) {
-      n3 += 1;
-      etiqueta(h, n2 + "." + n3);
-    }
-  });
+    var sesion = null, n3 = 0;
+    raiz.querySelectorAll("h2, h3").forEach(function (h) {
+      var texto = h.textContent.trim();
+      if (h.tagName === "H2") {
+        var m = /^(?:Sesión|Bloque)\s+(\d+)/i.exec(texto);
+        sesion = m ? m[1] : null;
+        n3 = 0;
+      } else if (sesion !== null && !/^A\d+\.\d+/.test(texto)) {
+        n3 += 1;
+        etiqueta(h, sesion + "." + n3);
+      }
+    });
   }
 
   if (esPdf) {

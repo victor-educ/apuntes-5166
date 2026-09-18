@@ -39,7 +39,7 @@ Cada unidad se apoya en la anterior: la red de la UT2 es donde la UT3 pone el co
 
     ---
 
-    Los apuntes de las siete unidades. Cada una empieza con lo que tienes que saber hacer al terminar, desarrolla el contenido con ejemplos y comandos, y cierra con las actividades de cada sesión, la práctica evaluable y su rúbrica.
+    Los apuntes de las siete unidades. Cada una empieza con una introducción (qué tienes que saber hacer al terminar, los conceptos y herramientas que aparecen, el plan de sesiones) y sigue con las sesiones en orden: en cada una, la teoría que se explica ese día y, a continuación, su hoja de práctica. La práctica evaluable cierra la unidad con su rúbrica.
 
 -   :material-calendar-month: **[Calendario de sesiones](calendario.md)**
 
@@ -70,6 +70,12 @@ Cada unidad se apoya en la anterior: la red de la UT2 es donde la UT3 pone el co
     ---
 
     Los términos de la asignatura en una o dos frases, con la unidad donde se explican a fondo. Para cuando algo te suene pero no lo sitúes.
+
+-   :material-book-plus: **[Para ampliar](ampliacion.md)**
+
+    ---
+
+    Los apartados de cada unidad que van más allá de lo que se hace en clase y los enlaces para seguir por tu cuenta, ordenados por unidad.
 
 -   :material-link-variant: **[Bibliografía y enlaces](recursos.md)**
 
@@ -102,9 +108,9 @@ Los exámenes de evaluación van después de la UT5 (primera evaluación, 22 de 
 
 ## Cómo usar estos apuntes
 
-- Lee la unidad antes de la sesión. En clase la explicación es corta y el laboratorio largo; los apuntes cubren lo que no da tiempo a contar.
+- Lee la sesión antes de venir a clase. Cada unidad está ordenada por sesiones, con la teoría de ese día seguida de su hoja de práctica. En clase la explicación es corta y el laboratorio largo; los apuntes cubren lo que no da tiempo a contar.
 - Los comandos están pensados para copiarlos en el laboratorio. Si algo no funciona igual en tu versión, mira primero la sección "Errores frecuentes" de la unidad.
-- Las actividades numeradas (A1.1, A1.2...) se hacen en la sesión que se indica. La práctica evaluable cierra la unidad y se entrega por Aules.
+- Las hojas de práctica numeradas (A1.1, A1.2...) se hacen en la sesión que se indica. La práctica evaluable cierra la unidad y se entrega por Aules. Lo que va más allá de lo que se hace en clase está apartado en [Para ampliar](ampliacion.md), para no cargar las unidades.
 - Documenta sobre la marcha: una captura con fecha, la salida de un comando, el fichero de configuración. Al final de la unidad eso es la práctica.
 
 ## Antes de empezar

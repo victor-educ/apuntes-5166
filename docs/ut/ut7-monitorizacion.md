@@ -4,13 +4,17 @@
 
 Última unidad del centro. En la UT6 dejasteis Jenkins ejecutando pipelines contra la plataforma de OpenTofu y Ansible, y activasteis el plugin que expone sus métricas en `/prometheus`. Ahora toca cerrar el círculo: una plataforma que no se vigila no está desplegada, está abandonada. En tres sesiones vais a montar Prometheus, Alertmanager y Grafana en la VM `mon01` de la subred de gestión, recoger datos de los hosts, de los contenedores y del orquestador de CI, dibujar paneles con los KPI del entorno y hacer que una alerta llegue a un buzón o a un chat. La sesión 40 es la práctica evaluable, la 41 (24 de marzo de 2027) el examen de la segunda evaluación, y las 12 horas de monitorización avanzada se hacen en la empresa. Los logs quedan para el módulo 5169.
 
-## Qué tienes que saber hacer al terminar
+## Introducción
+
+Esta unidad se lee en el orden en que se da: primero los conceptos y el plan, y después cada sesión con la teoría que se explica en clase seguida de su hoja de práctica. Los apartados que van más allá de lo que se hace en el aula están en la página Para ampliar.
+
+### Qué tienes que saber hacer al terminar
 
 - Elegir un gestor de ingesta con criterio y justificar por qué Prometheus encaja en un entorno de contenedores; recolectar métricas de hosts (node_exporter), de contenedores (cAdvisor) y del orquestador de CI (plugin de Jenkins) (CE 4i).
 - Escribir consultas PromQL que calculen KPI reales (CPU, memoria, disco, disponibilidad, tasa de fallos, p95), construir paneles en Grafana con unidades y umbrales, definir reglas de alerta y enrutarlas a correo, Telegram o webhook con Alertmanager (CE 4j).
 - Asegurar la pila: red de gestión y cortafuegos, TLS y autenticación en Prometheus y Grafana, roles de usuario, secretos fuera del repositorio, retención y copia de seguridad de dashboards (CE 4k).
 
-## Antes de entrar en detalle
+### Los conceptos de la unidad
 
 El problema: el jueves a las tres de la tarde el disco de `db01` se llena, PostgreSQL deja de aceptar escrituras, la API de `app01` devuelve errores 500 y nadie se entera hasta que el viernes un usuario escribe quejándose. Tenéis la plataforma desplegada, configurada y alimentada por Jenkins, pero nadie la mira. Lo que queremos al terminar es que un programa mire por vosotros: que lea cada 15 segundos cómo están hosts, contenedores y Jenkins, que lo dibuje en un panel que se entiende de un vistazo y que, cuando algo se tuerza, un correo o un Telegram llegue antes que la queja.
 
@@ -27,26 +31,30 @@ El problema: el jueves a las tres de la tarde el disco de `db01` se llena, Postg
 | file_sd | Prometheus lee la lista de máquinas a vigilar de un fichero que escribe otro programa (Ansible) | Que los targets salgan del inventario y no se editen a mano |
 | TLS, basic auth y proxy inverso nginx | El cifrado, la contraseña y la puerta de entrada de la UT3 | Que nadie fuera de la red de gestión lea los exporters ni entre en Grafana |
 
-Cómo está organizada la unidad: primero el vocabulario y la comparativa de gestores de ingesta, porque hay que justificar la elección de Prometheus antes de instalarlo. Después, el formato de exposición y el modelo de datos, que deciden si una consulta tiene sentido o si el servidor se queda sin memoria. Con eso claro se despliega la pila y se conectan los exporters: por fin hay datos. Luego PromQL, porque paneles y alertas no son más que consultas con decoración; después reglas, Alertmanager y Grafana, en el orden en que un dato recorre el sistema. Cerramos con KPI y SLO, retención y la seguridad de la pila, el grueso de la práctica evaluable, que no se puede hacer antes de tener algo que asegurar.
+Cómo está organizada la unidad: sigue las sesiones en orden, y cada sesión trae primero la teoría que se explica y después su hoja de práctica. En la sesión 38 se justifica la elección de Prometheus, se despliega la pila en `mon01` y se conectan los exporters de hosts, contenedores y Jenkins: al acabar hay datos y todos los targets en UP. En la sesión 39 se explotan esos datos con PromQL, se dibujan los cinco KPI en Grafana por provisioning y se escriben las reglas de alerta y las rutas de Alertmanager hasta ver llegar un correo. La sesión 40 asegura la pila (red, TLS, autenticación, secretos) y es la práctica evaluable. Las 12 horas de monitorización avanzada se hacen en la formación en empresa; lo que se espera de ellas está en [En la empresa: monitorización avanzada](../ampliacion.md#en-la-empresa-monitorizacion-avanzada), junto con el apartado de [retención y almacenamiento](../ampliacion.md#retencion-y-almacenamiento) a largo plazo.
 
 !!! info "Dónde se usa esto en la otra asignatura"
     Si sigues el módulo 5169, llevas desde octubre con Prometheus, Alertmanager y Grafana en el `mon01` provisional del bridge del aula, con Loki añadido en la [UT1 Observabilidad](https://victor-educ.github.io/apuntes-5169/ut/ut1-observabilidad/), las reglas y rutas de la UT2 Alarmas y los exporters detrás del firewall desde la UT3. Entre finales de febrero y marzo, en la [UT8 Terminación segura](https://victor-educ.github.io/apuntes-5169/ut/ut8-terminacion-segura/), desconfiguraste esa pila; lo que hacemos aquí es el ensayo inverso: la instalación definitiva, dentro de la subred de gestión de la VPC y desplegada como parte de la plataforma.
     Vocabulario, formato de exposición y PromQL básico te van a sonar; léelos en diagonal. Lo que 5169 no cubre y aquí se evalúa: la comparativa de gestores de ingesta (CE 4i), Jenkins como target, `file_sd` desde el inventario de Ansible, el dashboard 1860 y la seguridad de la pila vista desde el despliegue (proxy inverso, `web.yml`, secretos fuera del repositorio).
     Si no sigues 5169, no necesitas nada de allí: la unidad se explica desde cero.
 
-## Plan de sesiones
+### Plan de sesiones
 
 Cada sesión de dos horas empieza con una explicación corta y sigue con laboratorio. La columna "Se explica" es lo que cuento yo al principio (con su duración aproximada); la columna "Se practica" es lo que hacéis vosotros con el material de práctica de esta unidad. Las sesiones marcadas solo como práctica no traen teoría nueva.
 
 | Sesión | Fecha | Tipo | Se explica | Se practica |
 |---:|-------|------|------------|-------------|
-| [38](#a71-ingesta-sesion-38) | 10 mar | Teoría y práctica | Métricas, logs y trazas; modelo pull; exporters; comparativa de gestores de ingesta (30 min). | Pila Prometheus, Alertmanager y Grafana en mon01; node_exporter, cAdvisor y el plugin de Jenkins; todos los targets en UP y las siete consultas PromQL. |
-| [39](#a72-paneles-y-alertas-sesion-39) | 12 mar | Teoría y práctica | PromQL básico, reglas de alerta, rutas de Alertmanager (20 min). | Panel propio con cinco KPI, dashboard 1860, dos alertas y envío por correo; provocar HostDown y ver la notificación y la resolución. |
-| [40](#practica-evaluable-ut7-sesion-40) | 17 mar | Práctica evaluable | Aclaración del enunciado (10 min). | Asegurar la pila (TLS, autenticación, firewall a los exporters) y entregar el repositorio monitoring con panel y alerta funcionando. |
+| [38](#sesion-38-ingesta-de-metricas) | 10 mar | Teoría y práctica | Métricas, logs y trazas; modelo pull; exporters; comparativa de gestores de ingesta (30 min). | Pila Prometheus, Alertmanager y Grafana en mon01; node_exporter, cAdvisor y el plugin de Jenkins; todos los targets en UP y las siete consultas PromQL. |
+| [39](#sesion-39-visualizacion-y-alertas) | 12 mar | Teoría y práctica | PromQL básico, reglas de alerta, rutas de Alertmanager (20 min). | Panel propio con cinco KPI, dashboard 1860, dos alertas y envío por correo; provocar HostDown y ver la notificación y la resolución. |
+| [40](#sesion-40-practica-evaluable) | 17 mar | Práctica evaluable | Aclaración del enunciado (10 min). | Asegurar la pila (TLS, autenticación, firewall a los exporters) y entregar el repositorio monitoring con panel y alerta funcionando. |
 
-## Monitorización y observabilidad
+## Sesión 38 · Ingesta de métricas
 
-*Se explica en la sesión 38 (unos 10 min). El resto del apartado es material de consulta para la práctica.*
+<p class="ut-meta">10 de marzo · Teoría y práctica · Explicación unos 30 min · Práctica unos 90 min</p>
+
+Al terminar la sesión, Prometheus corre en `mon01` y lee de node_exporter en las cuatro máquinas, de cAdvisor en `app01` y del plugin de Jenkins, con todos los targets en UP y las consultas de la tabla devolviendo datos. En clase se explican los tres apartados siguientes: qué son métricas, logs y trazas, por qué elegimos Prometheus frente a las otras opciones (esa justificación se pide en la práctica) y cómo se despliega la pila con sus exporters. El formato de exposición, el modelo de datos y la chuleta de exporters son material de consulta para la hoja A7.1.
+
+### Monitorización y observabilidad
 
 Monitorizar es recoger datos del sistema de forma continua para saber si funciona y avisar cuando deja de hacerlo. La palabra observabilidad, que oiréis más en la empresa, va un paso más allá: poder preguntarle al sistema por qué va mal sin desplegar código nuevo para averiguarlo. Se apoya en tres tipos de datos, los llamados tres pilares:
 
@@ -67,9 +75,7 @@ Cómo se combinan: una alerta de métricas dice que el p95 de latencia ha subido
 | Umbral | Valor a partir del cual una métrica se considera anómala |
 | Alerta | Regla que se activa cuando un umbral se supera durante un tiempo |
 
-## Elegir el gestor de ingesta
-
-*Se explica en la sesión 38 (unos 12 min). El resto del apartado es material de consulta para la práctica.*
+### Elegir el gestor de ingesta
 
 Antes de instalar nada hay que decidir con qué se recogen los datos, y esa decisión se os pide justificada en la práctica. No hay una herramienta mejor en abstracto: depende de qué hay que vigilar (contenedores, servidores físicos, un servicio de nube) y de quién lo mantiene. La tabla resume las cuatro opciones que veréis en cualquier empresa.
 
@@ -81,7 +87,7 @@ Antes de instalar nada hay que decidir con qué se recogen los datos, y esa deci
 
 Criterio (CE 4i): **recolectar** de todo el entorno (hosts, contenedores, orquestador) y **visualizar**. Prometheus + Grafana cumple ambas y es el estándar en contenedores: cualquier imagen seria (nginx, PostgreSQL, Traefik, Jenkins, el propio Docker) expone métricas en su formato o tiene un exporter mantenido. Zabbix sigue siendo razonable en un CPD clásico con switches, SAI y servidores físicos; no lo descartéis si la empresa ya lo tiene. Los servicios de nube son cómodos hasta que llega la factura.
 
-### Pull frente a push, y cuándo usar Pushgateway
+#### Pull frente a push, y cuándo usar Pushgateway
 
 Prometheus va a buscar los datos (pull): cada `scrape_interval` hace un GET a `/metrics` de cada target y guarda lo que le devuelven. Consecuencias prácticas:
 
@@ -96,60 +102,7 @@ La pega: Prometheus tiene que llegar por red a cada target, lo que obliga a abri
   <figcaption>Arquitectura de Prometheus: el servidor lee de los exporters y de Pushgateway, evalúa reglas, envía a Alertmanager y sirve datos a Grafana. Fuente: Proyecto Prometheus, Apache 2.0.</figcaption>
 </figure>
 
-## El formato de exposición
-
-*No se explica en clase: es material de consulta para las prácticas y para ampliar.*
-
-Para entender lo que Prometheus guarda hay que ver primero lo que lee: cada exporter publica una página de texto que podéis abrir con el navegador, y conviene saber leerla porque es lo primero que se mira cuando un panel sale vacío.
-
-Un `/metrics` es texto plano, una métrica por línea, con dos líneas de comentario opcionales (`HELP` y `TYPE`) que la documentan. Esto es un extracto real de lo que devuelve `curl -s http://app01:9100/metrics` (node_exporter expone entre 500 y 1500 líneas según el hardware):
-
-```text
-# HELP node_cpu_seconds_total Seconds the CPUs spent in each mode.
-# TYPE node_cpu_seconds_total counter
-node_cpu_seconds_total{cpu="0",mode="idle"} 118372.63
-node_cpu_seconds_total{cpu="0",mode="iowait"} 41.2
-node_cpu_seconds_total{cpu="0",mode="system"} 1204.77
-node_cpu_seconds_total{cpu="0",mode="user"} 3521.12
-node_cpu_seconds_total{cpu="1",mode="idle"} 118401.02
-# HELP node_memory_MemAvailable_bytes Memory information field MemAvailable_bytes.
-# TYPE node_memory_MemAvailable_bytes gauge
-node_memory_MemAvailable_bytes 6.1478912e+09
-# HELP node_filesystem_avail_bytes Filesystem space available to non-root users in bytes.
-# TYPE node_filesystem_avail_bytes gauge
-node_filesystem_avail_bytes{device="/dev/sda1",fstype="ext4",mountpoint="/"} 2.4512e+10
-# HELP http_request_duration_seconds Duración de las peticiones (ejemplo de una app instrumentada)
-# TYPE http_request_duration_seconds histogram
-http_request_duration_seconds_bucket{handler="/api",le="0.1"} 240
-http_request_duration_seconds_bucket{handler="/api",le="0.5"} 310
-http_request_duration_seconds_bucket{handler="/api",le="1"} 318
-http_request_duration_seconds_bucket{handler="/api",le="+Inf"} 320
-http_request_duration_seconds_sum{handler="/api"} 41.2
-http_request_duration_seconds_count{handler="/api"} 320
-```
-
-Los cuatro tipos:
-
-- **Counter**: solo sube (o se pone a cero cuando el proceso reinicia). Segundos de CPU, bytes enviados, peticiones servidas, builds fallidas. El valor bruto no dice nada; lo que interesa es su velocidad, y para eso está `rate()`.
-- **Gauge**: sube y baja. Memoria disponible, temperatura, número de contenedores en ejecución. Se lee tal cual.
-- **Histogram**: cuenta observaciones en cubos (`_bucket` con etiqueta `le`, "less or equal") acumulativos, más `_sum` y `_count`. En el ejemplo, 240 peticiones tardaron 0,1 s o menos, 310 tardaron 0,5 s o menos (incluye las 240 anteriores) y hubo 320 en total. Con esto se calculan percentiles en el servidor con `histogram_quantile`, y se pueden sumar histogramas de varias instancias.
-- **Summary**: el cliente calcula los percentiles y los expone ya hechos (`{quantile="0.95"}`). Es más preciso pero no se puede agregar entre instancias: la media de dos p95 no es el p95 global. En la práctica se prefiere histogram.
-
-Prometheus 3 acepta también OpenMetrics (una versión estandarizada de este mismo texto) y nombres en UTF-8, pero lo que veréis en los exporters es esto.
-
-## Modelo de datos y cardinalidad
-
-*No se explica en clase: es material de consulta para las prácticas y para ampliar.*
-
-Este apartado explica de qué depende que Prometheus vaya ligero o se muera por falta de memoria, y la respuesta no es "cuántos datos guarda" sino "cuántas series distintas". Entender la diferencia evita el error más caro de esta tecnología.
-
-Una serie temporal es la combinación única de nombre de métrica y conjunto de pares etiqueta=valor. `node_cpu_seconds_total` en un host de 4 núcleos con 8 modos de CPU son 32 series, no una. Prometheus añade automáticamente `job` (el nombre del bloque de scrape) e `instance` (host:puerto) a todo lo que lee, y guarda cada serie como una secuencia de (timestamp, valor) comprimida en su TSDB (la base de datos de series temporales que lleva integrada).
-
-El coste de Prometheus está en el número de series, no en el de muestras: cada serie activa consume memoria en el "head block" (unos pocos KB) y entrada de índice; cada muestra nueva de una serie existente cuesta un par de bytes. Por eso una etiqueta con muchos valores distintos es venenosa: a ese número de valores distintos se le llama cardinalidad. Ejemplo real: un desarrollador con buena intención añade `user_id` a `http_requests_total`. Con 50 000 usuarios, 20 rutas y 5 códigos de estado son 5 millones de series potenciales en lugar de 100; la memoria se dispara, las consultas que tardaban 50 ms tardan 30 s y el proceso muere por OOM (el kernel lo mata al quedarse sin memoria). Lo mismo con IPs de cliente, sesiones, IDs de contenedor efímeros o marcas de tiempo en una etiqueta. La regla: una etiqueta debe tener pocos valores posibles (método HTTP, código de estado, host, servicio). Lo que identifica a un usuario va al log, no a la métrica. Para vigilarlo, `prometheus_tsdb_head_series` da las series activas y Status → TSDB Status en la interfaz enseña las diez métricas y etiquetas con más cardinalidad.
-
-## Pila de monitorización
-
-*Se explica en la sesión 38 (unos 8 min, la parte de los exporters). El resto del apartado es material de consulta para la práctica.*
+### Pila de monitorización
 
 Aquí es donde por fin se instala algo: cuatro contenedores en una VM (Prometheus, Alertmanager, Grafana y un correo de pruebas) más un exporter en cada máquina vigilada. Al terminar, Prometheus tiene datos de hosts, contenedores y Jenkins; el resto de la unidad los explota.
 
@@ -250,7 +203,7 @@ flowchart LR
   OPS[Operador] -- HTTPS --> G
 ```
 
-### Descubrimiento de targets
+#### Descubrimiento de targets
 
 `static_configs` sirve para un laboratorio de cuatro máquinas. En cuanto los hosts los crea OpenTofu y los configura Ansible, editar `prometheus.yml` a mano es un paso atrás. Dos alternativas que escalan:
 
@@ -276,57 +229,60 @@ Fijaos en que aquí añadimos etiquetas propias (`env`, `rol`) a todas las serie
 
 **docker_sd_configs**: Prometheus habla con el socket de Docker (o con un `tcp://` protegido con TLS) y descubre los contenedores en marcha, exponiendo sus etiquetas como `__meta_docker_container_label_*`. Con `relabel_configs` se decide qué contenedores se leen (por ejemplo, los que tienen la etiqueta `prometheus.scrape=true`) y en qué puerto. Es la antesala de `kubernetes_sd_configs`, que funciona igual. En el laboratorio usaremos `file_sd`.
 
-## PromQL a fondo
+### El formato de exposición
 
-*Se explica en la sesión 39 (unos 8 min). El resto del apartado es material de consulta para la práctica.*
+*Material de consulta: no se explica en clase; lo necesitas para la hoja de práctica de esta sesión.*
 
-PromQL es el lenguaje de consulta de Prometheus, y es lo que escribiréis en los paneles de Grafana y en las reglas de alerta. Practicad en la pestaña Graph de `http://mon01:9090` antes de tocar Grafana.
+Para entender lo que Prometheus guarda hay que ver primero lo que lee: cada exporter publica una página de texto que podéis abrir con el navegador, y conviene saber leerla porque es lo primero que se mira cuando un panel sale vacío.
 
-### Selectores
+Un `/metrics` es texto plano, una métrica por línea, con dos líneas de comentario opcionales (`HELP` y `TYPE`) que la documentan. Esto es un extracto real de lo que devuelve `curl -s http://app01:9100/metrics` (node_exporter expone entre 500 y 1500 líneas según el hardware):
 
-`node_memory_MemAvailable_bytes` devuelve una serie por host (un vector instantáneo: un valor por serie, en el instante de la consulta). Se filtra con etiquetas entre llaves: `{instance="db01:9100"}`, `{mountpoint!="/boot"}`, `{device=~"sd.*"}` (expresión regular, anclada a la cadena completa), `{mode!~"idle|iowait"}`. Si añadís un rango, `node_cpu_seconds_total[5m]`, obtenéis un vector de rangos (todas las muestras de los últimos 5 minutos por serie), que no se puede graficar directamente pero es lo que consumen `rate`, `increase` y compañía.
+```text
+# HELP node_cpu_seconds_total Seconds the CPUs spent in each mode.
+# TYPE node_cpu_seconds_total counter
+node_cpu_seconds_total{cpu="0",mode="idle"} 118372.63
+node_cpu_seconds_total{cpu="0",mode="iowait"} 41.2
+node_cpu_seconds_total{cpu="0",mode="system"} 1204.77
+node_cpu_seconds_total{cpu="0",mode="user"} 3521.12
+node_cpu_seconds_total{cpu="1",mode="idle"} 118401.02
+# HELP node_memory_MemAvailable_bytes Memory information field MemAvailable_bytes.
+# TYPE node_memory_MemAvailable_bytes gauge
+node_memory_MemAvailable_bytes 6.1478912e+09
+# HELP node_filesystem_avail_bytes Filesystem space available to non-root users in bytes.
+# TYPE node_filesystem_avail_bytes gauge
+node_filesystem_avail_bytes{device="/dev/sda1",fstype="ext4",mountpoint="/"} 2.4512e+10
+# HELP http_request_duration_seconds Duración de las peticiones (ejemplo de una app instrumentada)
+# TYPE http_request_duration_seconds histogram
+http_request_duration_seconds_bucket{handler="/api",le="0.1"} 240
+http_request_duration_seconds_bucket{handler="/api",le="0.5"} 310
+http_request_duration_seconds_bucket{handler="/api",le="1"} 318
+http_request_duration_seconds_bucket{handler="/api",le="+Inf"} 320
+http_request_duration_seconds_sum{handler="/api"} 41.2
+http_request_duration_seconds_count{handler="/api"} 320
+```
 
-### rate, irate, increase
+Los cuatro tipos:
 
-Un contador solo tiene sentido derivado. `rate(x[5m])` calcula el incremento por segundo promediado en la ventana, y sabe tratar los reinicios (si el contador vuelve a cero, no os devuelve un negativo). `increase(x[1h])` es lo mismo multiplicado por la ventana: cuántas unidades subió en la última hora, útil para "builds fallidas en la última hora". `irate(x[5m])` usa solo las dos últimas muestras de la ventana: reacciona al instante y es adecuado para mirar picos en una gráfica de segundos, pero es ruidoso y no vale para alertas, donde queréis la tendencia y no el último parpadeo. Regla práctica: la ventana de `rate` debe contener al menos cuatro muestras (con 15 s de scrape, 1 m como mínimo; 5 m es lo habitual).
+- **Counter**: solo sube (o se pone a cero cuando el proceso reinicia). Segundos de CPU, bytes enviados, peticiones servidas, builds fallidas. El valor bruto no dice nada; lo que interesa es su velocidad, y para eso está `rate()`.
+- **Gauge**: sube y baja. Memoria disponible, temperatura, número de contenedores en ejecución. Se lee tal cual.
+- **Histogram**: cuenta observaciones en cubos (`_bucket` con etiqueta `le`, "less or equal") acumulativos, más `_sum` y `_count`. En el ejemplo, 240 peticiones tardaron 0,1 s o menos, 310 tardaron 0,5 s o menos (incluye las 240 anteriores) y hubo 320 en total. Con esto se calculan percentiles en el servidor con `histogram_quantile`, y se pueden sumar histogramas de varias instancias.
+- **Summary**: el cliente calcula los percentiles y los expone ya hechos (`{quantile="0.95"}`). Es más preciso pero no se puede agregar entre instancias: la media de dos p95 no es el p95 global. En la práctica se prefiere histogram.
 
-### Agregaciones
+Prometheus 3 acepta también OpenMetrics (una versión estandarizada de este mismo texto) y nombres en UTF-8, pero lo que veréis en los exporters es esto.
 
-`sum`, `avg`, `min`, `max`, `count`, `topk(3, ...)`, `quantile`. Con `by (etiquetas)` conserváis esas etiquetas y agrupáis por ellas; con `without (etiquetas)` las quitáis y conserváis el resto. `sum by (instance) (rate(node_network_receive_bytes_total[5m]))` da el tráfico entrante por host sumando todas sus interfaces; `sum without (cpu) (rate(node_cpu_seconds_total[5m]))` agrupa por todo menos el núcleo, es decir, por host y modo.
+### Modelo de datos y cardinalidad
 
-### Operadores y coincidencia de vectores
+*Material de consulta: no se explica en clase; lo necesitas para la hoja de práctica de esta sesión.*
 
-Aritméticos (`+ - * / %`), de comparación (`== != > < >= <=`) y lógicos (`and or unless`). Cuando operáis dos vectores, Prometheus empareja series con las mismas etiquetas: `node_filesystem_avail_bytes / node_filesystem_size_bytes` funciona porque ambas tienen `instance`, `device`, `mountpoint` y `fstype` idénticos. Si las etiquetas no coinciden, el resultado está vacío y nadie os avisa; se arregla con `on (instance)` o `ignoring (fstype)`. Los operadores de comparación filtran por defecto (`up == 0` devuelve solo las series que valen 0); con `bool` devuelven 1 o 0 sin filtrar, lo que sirve para contar: `count(up == bool 0)`.
+Este apartado explica de qué depende que Prometheus vaya ligero o se muera por falta de memoria, y la respuesta no es "cuántos datos guarda" sino "cuántas series distintas". Entender la diferencia evita el error más caro de esta tecnología.
 
-### histogram_quantile
+Una serie temporal es la combinación única de nombre de métrica y conjunto de pares etiqueta=valor. `node_cpu_seconds_total` en un host de 4 núcleos con 8 modos de CPU son 32 series, no una. Prometheus añade automáticamente `job` (el nombre del bloque de scrape) e `instance` (host:puerto) a todo lo que lee, y guarda cada serie como una secuencia de (timestamp, valor) comprimida en su TSDB (la base de datos de series temporales que lleva integrada).
 
-`histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket[5m])))` da el p95 de latencia de los últimos 5 minutos, agregado entre todas las instancias. El `sum by (le)` es obligatorio: hay que quedarse solo con la etiqueta `le` para que la función reconstruya el histograma. Si queréis el p95 por ruta, `sum by (le, handler)`. El resultado es una interpolación lineal dentro del cubo, así que la precisión depende de los cubos: si el último finito es `le="1"` y vuestro p95 real es 3 s, obtendréis 1 s. Hablad con quien instrumenta la aplicación.
+El coste de Prometheus está en el número de series, no en el de muestras: cada serie activa consume memoria en el "head block" (unos pocos KB) y entrada de índice; cada muestra nueva de una serie existente cuesta un par de bytes. Por eso una etiqueta con muchos valores distintos es venenosa: a ese número de valores distintos se le llama cardinalidad. Ejemplo real: un desarrollador con buena intención añade `user_id` a `http_requests_total`. Con 50 000 usuarios, 20 rutas y 5 códigos de estado son 5 millones de series potenciales en lugar de 100; la memoria se dispara, las consultas que tardaban 50 ms tardan 30 s y el proceso muere por OOM (el kernel lo mata al quedarse sin memoria). Lo mismo con IPs de cliente, sesiones, IDs de contenedor efímeros o marcas de tiempo en una etiqueta. La regla: una etiqueta debe tener pocos valores posibles (método HTTP, código de estado, host, servicio). Lo que identifica a un usuario va al log, no a la métrica. Para vigilarlo, `prometheus_tsdb_head_series` da las series activas y Status → TSDB Status en la interfaz enseña las diez métricas y etiquetas con más cardinalidad.
 
-### offset y funciones de tiempo
+### Exporters que os vais a encontrar
 
-`node_memory_MemAvailable_bytes offset 1d` devuelve el valor de hace 24 h; restándolo al actual veis la deriva diaria. `predict_linear(node_filesystem_avail_bytes{mountpoint="/"}[6h], 4*3600) < 0` es la alerta que de verdad queréis para el disco: no "está al 10 %" sino "al ritmo actual se llena en 4 horas". `changes(process_start_time_seconds[1h]) > 2` detecta un servicio en bucle de reinicios. `absent(up{job="node"})` avisa si un job ha desaparecido entero de la configuración, cosa que `up == 0` no puede ver porque no hay series.
-
-### Consultas del laboratorio
-
-| Qué | Consulta |
-|----|----|
-| CPU usada (%) por host | `100 - avg by(instance)(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100` |
-| Memoria disponible (%) | `node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes * 100` |
-| Disco libre (%) | `node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"} * 100` |
-| CPU de un contenedor | `rate(container_cpu_usage_seconds_total{name="app"}[5m])` |
-| Memoria de un contenedor | `container_memory_working_set_bytes{name="app"}` |
-| Host caído | `up == 0` |
-| Ejecuciones de Jenkins fallidas | `increase(default_jenkins_builds_failed_build_count[1h])` |
-| Latencia p95 de la aplicación | `histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket[5m])))` |
-| Disco que se llena en 4 h | `predict_linear(node_filesystem_avail_bytes{mountpoint="/"}[6h], 4*3600) < 0` |
-
-Sobre la CPU de un contenedor: `rate(container_cpu_usage_seconds_total[5m])` devuelve núcleos usados (0,5 = medio núcleo). Si queréis porcentaje respecto al límite del contenedor, dividid por `container_spec_cpu_quota / container_spec_cpu_period`. Y `container_memory_working_set_bytes` es la métrica que usa el kernel para decidir el OOM kill, no `container_memory_usage_bytes`, que incluye caché de página recuperable.
-
-Los cinco KPI mínimos del entorno del curso: disponibilidad de cada host (`up`), CPU y memoria del host, memoria del contenedor de la aplicación, espacio en disco de la BD, y tasa de fallo de pipelines.
-
-## Exporters que os vais a encontrar
-
-*No se explica en clase: es material de consulta para las prácticas y para ampliar.*
+*Material de consulta: no se explica en clase; lo necesitas para la hoja de práctica de esta sesión.*
 
 En el laboratorio instaláis tres exporters, pero en la empresa cada servicio tiene el suyo y la pregunta es siempre la misma: qué puerto abre, qué mide y qué necesita. Esta tabla es la chuleta de los más habituales; el párrafo de después explica el único que mide desde fuera.
 
@@ -341,286 +297,7 @@ En el laboratorio instaláis tres exporters, pero en la empresa cada servicio ti
 
 Blackbox cambia el punto de vista: los demás miden desde dentro ("el proceso usa 300 MB"); blackbox mide desde fuera ("la URL responde 200 en 120 ms y el certificado caduca en 41 días"), que es lo que le importa al que paga. Un job de blackbox contra la aplicación es el SLI de disponibilidad más honesto que podéis tener, y `probe_ssl_earliest_cert_expiry - time() < 14*86400` es una alerta que ha salvado más de un fin de semana.
 
-## Reglas: grabación y alerta
-
-*Se explica en la sesión 39 (unos 6 min). El resto del apartado es material de consulta para la práctica.*
-
-Con los datos guardados, este apartado convierte consultas en decisiones automáticas: una regla es una consulta PromQL que Prometheus ejecuta sola y cuyo resultado o se guarda como métrica nueva (grabación) o dispara un aviso (alerta). Al acabar sabréis escribir el `alerts.yml` que pide la práctica.
-
-Las reglas viven en ficheros YAML que Prometheus evalúa cada `evaluation_interval`. Hay dos tipos y se mezclan en los mismos grupos.
-
-**Reglas de grabación** precalculan una expresión y la guardan como una serie nueva. Sirven para consultas caras que se repiten en muchos paneles (el porcentaje de CPU por host, con su `rate` y su `avg by`, se calcula una vez en lugar de cada 5 s por cada navegador con el dashboard abierto) y para dar nombres estables a los KPI. La convención de nombre es `nivel:métrica:operación`.
-
-El `alerts.yml` completo del laboratorio: un grupo `kpi` con dos reglas de grabación y un grupo `infra` con cuatro alertas. Fijaos en que `DiskLow` y `HighCPU` usan las series grabadas justo encima, en el `for` distinto de cada una y en las etiquetas `severity` y `equipo`, que son las que Alertmanager usa para enrutar.
-
-```yaml
-# alerts.yml
-groups:
-  - name: kpi
-    interval: 30s
-    rules:
-      - record: instance:node_cpu_utilisation:ratio
-        expr: 1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m]))
-      - record: instance:node_filesystem_root_avail:ratio
-        expr: node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}
-
-  - name: infra
-    rules:
-      - alert: HostDown
-        expr: up == 0
-        for: 2m
-        labels: { severity: critical }
-        annotations:
-          summary: "{{ $labels.instance }} no responde"
-          description: "El job {{ $labels.job }} lleva 2 minutos sin poder leer {{ $labels.instance }}."
-      - alert: DiskLow
-        expr: instance:node_filesystem_root_avail:ratio < 0.10
-        for: 10m
-        labels: { severity: warning }
-        annotations:
-          summary: "Disco < 10 % en {{ $labels.instance }}"
-          description: "Queda un {{ $value | humanizePercentage }} libre en la raíz de {{ $labels.instance }}."
-      - alert: HighCPU
-        expr: instance:node_cpu_utilisation:ratio > 0.85
-        for: 15m
-        labels: { severity: warning }
-        annotations:
-          summary: "CPU al {{ $value | humanizePercentage }} en {{ $labels.instance }} durante 15 min"
-      - alert: JenkinsBuildsFailing
-        expr: increase(default_jenkins_builds_failed_build_count[1h]) > 3
-        for: 0m
-        labels: { severity: warning, equipo: dev }
-        annotations:
-          summary: "Más de 3 builds fallidas en la última hora"
-```
-
-Cada alerta pasa por tres estados: inactive, pending (la expresión es cierta pero aún no ha durado `for`) y firing. El `for` es lo que evita que un pico de dos segundos despierte a alguien; ajustadlo a la gravedad (2 m para un host caído, 15 m para CPU alta). Las **labels** de la alerta se suman a las de la serie y son lo que usa Alertmanager para enrutar (`severity`, `equipo`, `env`). Las **annotations** son texto para humanos y admiten plantillas Go: `$labels.x`, `$value` y funciones como `humanize`, `humanizePercentage`, `humanizeDuration`. Comprobad la sintaxis antes de recargar con `promtool check rules alerts.yml` (el binario va dentro de la imagen: `docker compose exec prometheus promtool check rules /etc/prometheus/alerts.yml`).
-
-## Alertmanager: agrupar, enrutar, silenciar
-
-*Se explica en la sesión 39 (unos 6 min). El resto del apartado es material de consulta para la práctica.*
-
-Prometheus decide *qué* está mal; Alertmanager decide *a quién* y *cómo* se lo cuenta. Recibe las alertas en firing por HTTP, las deduplica (si tenéis dos Prometheus en alta disponibilidad enviando lo mismo, llega una notificación), las agrupa, aplica inhibiciones y silencios, y las entrega a los receptores según un árbol de rutas. El fichero tiene tres partes: `route` (el árbol, con la ruta por defecto y dos ramas por etiqueta), `receivers` (los tres destinos) e `inhibit_rules`; la lista de después lo explica pieza a pieza.
-
-```yaml
-# alertmanager.yml
-global:
-  smtp_smarthost: "mailpit:1025"
-  smtp_from: "alertas@lab.local"
-  smtp_require_tls: false
-route:
-  receiver: mail
-  group_by: [alertname, env]
-  group_wait: 30s
-  group_interval: 5m
-  repeat_interval: 4h
-  routes:
-    - matchers: [severity = "critical"]
-      receiver: telegram
-      continue: true
-    - matchers: [equipo = "dev"]
-      receiver: webhook-dev
-receivers:
-  - name: mail
-    email_configs:
-      - to: "ops@lab.local"
-  - name: telegram
-    telegram_configs:
-      - bot_token_file: /etc/alertmanager/tg_token
-        chat_id: -100123456
-        parse_mode: HTML
-  - name: webhook-dev
-    webhook_configs:
-      - url: "http://jenkins01:8080/generic-webhook-trigger/invoke?token=alertas"
-inhibit_rules:
-  - source_matchers: [alertname = "HostDown"]
-    target_matchers: [severity = "warning"]
-    equal: [instance]
-```
-
-Lo que hace cada pieza:
-
-- **group_by**: alertas con las mismas etiquetas de agrupación van en una única notificación; si caen 15 hosts a la vez, recibís un correo con 15 líneas, no 15 correos. `group_wait` es cuánto espera a que lleguen "las hermanas" antes de la primera notificación de un grupo; `group_interval`, cuánto espera antes de avisar de cambios en un grupo ya notificado; `repeat_interval`, cada cuánto repite si nada cambia.
-- **Rutas**: se recorren en orden y la primera que coincide gana, salvo que tenga `continue: true`. En el ejemplo, una alerta critical va a Telegram y además cae en la ruta por defecto (correo); una warning del equipo de desarrollo va al webhook y ya.
-- **Inhibición**: si `HostDown` está en firing para `db01`, se callan las warnings del mismo `instance` (no tiene sentido avisar de disco bajo en un host que no responde).
-- **Silencios**: desde la interfaz (`http://mon01:9093`) o con `amtool silence add instance=db01:9100 --duration=2h --comment="mantenimiento"`; son la herramienta para las ventanas de mantenimiento. Un silencio sin comentario ni caducidad es una alerta perdida.
-- **Receivers**: correo (Mailpit en el laboratorio, el relay corporativo en la empresa), Telegram (bot creado con BotFather; el `chat_id` negativo es un grupo), Slack, PagerDuty, Opsgenie y el genérico webhook, que envía un JSON a cualquier URL. Con el webhook podéis disparar un job de Jenkins que reinicie un servicio.
-
-Mailpit (sucesor mantenido de MailHog, que ya no se actualiza) acepta cualquier correo en el puerto 1025 y lo enseña en `http://mon01:8025`, sin depender de un SMTP real. La alerta se envía también cuando se resuelve (`send_resolved: true` por defecto), así que en la actividad veréis dos correos: FIRING y RESOLVED.
-
-```mermaid
-sequenceDiagram
-  participant E as Exporter (db01:9100)
-  participant P as Prometheus
-  participant AM as Alertmanager
-  participant R as Receptor (correo / Telegram)
-  P->>E: GET /metrics (cada 15 s)
-  E--xP: sin respuesta
-  Note over P: up{instance="db01:9100"} = 0<br/>HostDown: pending
-  P->>P: sigue en 0 durante for: 2m
-  Note over P: HostDown: firing
-  P->>AM: POST /api/v2/alerts
-  AM->>AM: agrupa (group_wait 30 s), inhibe, enruta por severity
-  AM->>R: notificación FIRING
-  E-->>P: GET /metrics OK (db01 vuelve)
-  P->>AM: alerta resuelta
-  AM->>R: notificación RESOLVED
-```
-
-## Grafana
-
-*No se explica en clase: es material de consulta para las prácticas y para ampliar.*
-
-Prometheus tiene una interfaz suficiente para depurar, no para que operaciones la mire a las 9 de la mañana. Grafana es la capa de visualización: se conecta a Prometheus (y a Loki, PostgreSQL, CloudWatch, Elasticsearch o casi cualquier cosa) y monta paneles a partir de consultas.
-
-<figure markdown="span">
-  ![Dashboard de Grafana](../img/grafana-dashboard.png){ width="640" }
-  <figcaption>Un dashboard de Grafana con series temporales, gauges y stats de un host. Fuente: Joel Kennedy, dominio público, vía Wikimedia Commons.</figcaption>
-</figure>
-
-- **Fuente de datos**: Prometheus en `http://prometheus:9090` (nombre del servicio de compose; Grafana y Prometheus comparten red). Se añade en Connections → Data sources o, mejor, por provisioning.
-- **Dashboards**: un dashboard por audiencia. Operaciones: hosts y contenedores. Equipo de desarrollo: pipelines.
-- **Paneles**: Time series para evolución, Stat para un número grande con color, Gauge para porcentajes con umbral, Table para listados (targets caídos). En cada uno, poned la **unidad** (percent, bytes(IEC), seconds) para que Grafana escale los ejes y formatee 6.1e+09 como 5,73 GiB; definid **umbrales** (verde hasta 70, naranja hasta 85, rojo) para que el color diga lo mismo que dirá la alerta; y usad la **leyenda** con `{{instance}}` en lugar de la serie completa.
-- **Variables**: un desplegable `$instance` definido como `label_values(node_uname_info, instance)` convierte un dashboard por host en uno para todos; las consultas pasan a ser `...{instance=~"$instance"}`. Con `env` y `rol` de `file_sd` podéis filtrar por entorno.
-- **Importar 1860**: Dashboards → New → Import, id 1860, elegir la fuente Prometheus. Es enorme (más de 40 paneles); lo usaremos como cantera de consultas y cada uno se queda con los cinco paneles que importan.
-
-### Provisioning: dashboards en Git
-
-Todo lo que se hace clicando en Grafana se pierde con el volumen. Grafana lee fuentes de datos y dashboards de ficheros al arrancar, y eso se versiona.
-
-```yaml
-# grafana/provisioning/datasources/prometheus.yml
-apiVersion: 1
-datasources:
-  - name: Prometheus
-    type: prometheus
-    access: proxy
-    url: http://prometheus:9090
-    isDefault: true
-    editable: false
-```
-
-```yaml
-# grafana/provisioning/dashboards/lab.yml
-apiVersion: 1
-providers:
-  - name: lab
-    folder: Laboratorio
-    type: file
-    allowUiUpdates: false
-    options:
-      path: /var/lib/grafana/dashboards
-```
-
-En `grafana/dashboards/` van los JSON exportados desde Share → Export (marcad "Export for sharing externally" para que la fuente de datos quede como variable y sirva en otra instancia). El flujo en la empresa: se edita en una Grafana de pruebas, se exporta, se hace commit y la de producción lo carga por provisioning.
-
-### Grafana Alerting o alertas en Prometheus
-
-Grafana 12 tiene su propio motor de alertas, equivalente a Alertmanager (lleva uno embebido), sobre cualquier fuente de datos y configurado desde la interfaz. Para la infraestructura prefiero las reglas en Prometheus: se evalúan junto a los datos, siguen funcionando si Grafana se cae, se validan con `promtool` y viven en Git. Grafana Alerting encaja para alertas de negocio que cruzan fuentes (una consulta SQL contra la base de pedidos) o cuando quien las mantiene no toca YAML. Elegid una de las dos para cada tipo de alerta; duplicarlas acaba en dos notificaciones y nadie sabe cuál es la buena.
-
-## KPI, SLI y SLO
-
-*No se explica en clase: es material de consulta para las prácticas y para ampliar.*
-
-Hasta aquí, CPU, memoria y disco, que le importan al técnico. Este apartado da el vocabulario para traducirlo a lo que le importa a quien paga el servicio ("¿funciona?", "¿cuánto puede fallar al mes?") y es la base de los KPI de negocio de la empresa.
-
-Un KPI es lo que le enseñáis a alguien que no es técnico para que sepa si el servicio va bien. En la jerga de SRE (Site Reliability Engineering, la forma de operar servicios que popularizó Google) se concreta en tres términos:
-
-- **SLI** (indicador): una medición. "Fracción de peticiones HTTP que responden con código distinto de 5xx en menos de 500 ms", o "fracción de sondas de blackbox que devuelven 200".
-- **SLO** (objetivo): el valor que os comprometéis a cumplir con ese SLI en una ventana. "99,5 % en 30 días".
-- **SLA** (acuerdo): el contrato con el cliente, con penalización. Siempre más laxo que el SLO interno.
-
-De ahí sale el **error budget**: con un SLO de 99,5 % en 30 días tenéis derecho a un 0,5 % de fallo, 3 h 36 min de indisponibilidad al mes (30 × 24 × 60 × 0,005 = 216 min). Con 99,9 % bajan a 43 min; con 99,99 %, a 4 min, que no permite ni un reinicio de VM. El presupuesto es una herramienta de decisión: si a mitad de mes lleváis 200 minutos gastados, se congelan los despliegues arriesgados; si vais sobrados, se asume más riesgo. El SLI de disponibilidad con blackbox:
-
-```promql
-avg_over_time(probe_success{job="blackbox-app"}[30d])
-```
-
-Las alertas basadas en el presupuesto (burn rate en varias ventanas) son las que usaréis en la empresa en lugar de "CPU > 85 %": avisan cuando el ritmo de gasto del error budget lo agotaría antes de fin de mes. El SRE Workbook, enlazado abajo, explica el método.
-
-## Retención y almacenamiento
-
-*No se explica en clase: es material de consulta para las prácticas y para ampliar.*
-
-Conviene saber cuánto disco y memoria va a pedir la pila y qué pasa cuando los 30 días del laboratorio se quedan cortos; aquí va el cálculo aproximado y las herramientas del largo plazo.
-
-La TSDB de Prometheus escribe bloques de 2 h que luego compacta en bloques mayores (hasta un 10 % de la retención). La compresión (delta de deltas para timestamps, XOR para valores) deja cada muestra en 1 a 2 bytes. Cálculo aproximado de disco: `series activas × muestras por segundo por serie × bytes por muestra × segundos de retención`. Para las 7 000 series del laboratorio a 15 s y 30 días: 7 000 / 15 × 1,5 × 2 592 000 ≈ 1,8 GB, más la WAL (write-ahead log, el diario donde apunta las muestras antes de formar bloque: las últimas 2 a 3 h sin compactar) y la memoria del head, que suele limitar antes que el disco.
-
-Dos límites que conviene tener claros. Prometheus es un servidor único: no se agrupa ni replica; la alta disponibilidad se hace con dos Prometheus idénticos leyendo los mismos targets y Alertmanager deduplicando. Y la retención de años o las consultas globales sobre varios Prometheus no son su problema: para eso existen **Thanos** y **Grafana Mimir**, que reciben los bloques o las muestras por remote write (Prometheus las reenvía a otro servidor según las escribe) y las guardan en almacenamiento de objetos (S3, MinIO). Os los encontraréis en cualquier empresa mediana; en el curso quedan en mención.
-
-## Seguridad de la monitorización
-
-*Se explica en la sesión 40 (unos 10 min, como aclaración del enunciado). El resto del apartado es material de consulta para la práctica.*
-
-Los datos de monitorización revelan la topología completa (hosts, versiones de kernel, servicios, rutas) y pueden contener secretos (un `/metrics` mal hecho que expone la cadena de conexión en una etiqueta, y los hay). Los exporters abren un puerto HTTP sin autenticación en cada máquina, y Grafana expuesta es un panel con credenciales que consulta cualquier dato de la fuente. Este es el CE 4k.
-
-**Red**: Prometheus y Grafana en la subred de gestión (`10.10.0.0/24`), no enrutable desde la DMZ (la zona donde viven los servicios expuestos, como en la UT3) ni desde la red de usuarios. Cada exporter escucha solo en la interfaz de gestión (`node_exporter --web.listen-address=10.10.0.11:9100`), y una regla de cortafuegos en cada host permite únicamente a `mon01` llegar a los puertos 9100 y 8080. Nadie más. Con nftables en el propio host (política `drop` en `input`, como dejasteis en la UT3):
-
-```bash
-nft add rule inet filter input ip saddr 10.10.0.20 tcp dport { 9100, 8080 } accept
-# y sin regla de accept para esos puertos desde ningún otro origen
-```
-
-Si el filtrado lo hace OPNsense entre subredes, la regla equivalente es en la interfaz de gestión: origen `mon01`, destino `red de servicios`, puertos 9100 y 8080, permitir; y la regla por defecto deniega. La práctica pide la prueba de que desde `app01` no se lee el exporter de `db01`: `curl -m 3 http://db01:9100/metrics` tiene que fallar por timeout.
-
-**TLS y autenticación en Prometheus**: desde la versión 2.24 el servidor (y todos los exporters oficiales, que comparten el mismo toolkit) aceptan un `--web.config.file` con TLS y usuarios de basic auth. Las contraseñas van en bcrypt (`htpasswd -nBC 10 admin` os da el hash).
-
-```yaml
-# web.yml (para Prometheus y para node_exporter)
-tls_server_config:
-  cert_file: /etc/prometheus/certs/mon01.crt
-  key_file: /etc/prometheus/certs/mon01.key
-basic_auth_users:
-  scraper: "$2y$10$Q8v7...hash bcrypt..."
-```
-
-Si ponéis basic auth en los exporters, Prometheus tiene que presentarla al leer: en cada `scrape_config`, `scheme: https`, `tls_config: { ca_file: /etc/prometheus/certs/ca.crt }` y `basic_auth: { username: scraper, password_file: /etc/prometheus/secrets/scraper.pass }`. La CA es la de la UT3; si no, `openssl` con una CA propia y el certificado del servidor con el nombre `mon01` en SAN (el campo del certificado donde van los nombres de host que cubre). Alertmanager y Grafana también hablan con Prometheus: hay que darles las mismas credenciales.
-
-**Grafana tras nginx con TLS**: Grafana no se expone en el 3000; se pone nginx delante en el 443 con el certificado, y Grafana escucha solo en la red interna de compose. Es el mismo patrón de proxy inverso de la UT3.
-
-```nginx
-server {
-    listen 443 ssl;
-    server_name grafana.lab.local;
-    ssl_certificate     /etc/nginx/certs/grafana.crt;
-    ssl_certificate_key /etc/nginx/certs/grafana.key;
-    location / {
-        proxy_pass http://grafana:3000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-Proto https;
-    }
-    location /api/live/ {
-        proxy_pass http://grafana:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-    }
-}
-```
-
-En Grafana hay que declarar la URL pública para que enlaces y cookies funcionen: `GF_SERVER_ROOT_URL=https://grafana.lab.local`, `GF_SERVER_DOMAIN=grafana.lab.local`. Y los **roles**: Viewer (mira, no edita: operaciones de primer nivel, dirección), Editor (crea y edita dashboards: el equipo técnico), Admin de organización (fuentes de datos, usuarios, alertas). El Server Admin es la cuenta `admin` inicial y no se usa a diario. En la empresa el acceso va por LDAP, OAuth o SAML (el directorio o el proveedor de identidad corporativo, sin usuarios locales) con grupos mapeados a esos roles; en el laboratorio creáis tres usuarios locales y desactiváis el registro (`GF_USERS_ALLOW_SIGN_UP=false`).
-
-**Repositorio de datos**: volúmenes `prom_data` y `graf_data` con permisos restringidos en el host (usuario `nobody` para Prometheus, `472` para Grafana), retención definida (30 días) y copia de seguridad: los dashboards como JSON en Git (ya lo tenéis con provisioning) y, si el histórico importa, snapshots de la TSDB con `curl -XPOST http://localhost:9090/api/v1/admin/tsdb/snapshot` (requiere `--web.enable-admin-api`) copiados fuera de la máquina.
-
-**Secretos**: el token de Telegram, la contraseña de Grafana y la del scraper no van en `compose.yml` ni en `prometheus.yml`. Van en un `.env` (en `.gitignore`) o en ficheros montados en solo lectura y referenciados con `*_file` (`bot_token_file`, `password_file`, `GF_SECURITY_ADMIN_PASSWORD__FILE`). Antes del commit, `git diff --cached | grep -iE "token|pass"` os ahorra un disgusto. Comprobad que ningún exporter filtra secretos en las etiquetas: `curl -s http://db01:9187/metrics | grep -i pass` debe devolver nada.
-
-## Errores frecuentes en el laboratorio
-
-- **Target en DOWN con "connection refused"**. El exporter no escucha en esa interfaz, o escucha en `127.0.0.1`. `ss -ltnp | grep 9100` en el host lo aclara. Si es "context deadline exceeded", el paquete llega pero nadie contesta: cortafuegos (y en la práctica evaluable, eso es lo que queréis ver desde `app01`, no desde `mon01`).
-- **Target en DOWN por "server returned HTTP status 401"**. Habéis puesto basic auth en el exporter y no en el `scrape_config`, o al revés. Lo mismo con `x509: certificate signed by unknown authority`: falta el `ca_file`.
-- **Prometheus no recarga las reglas**. `alerts.yml` tiene un error de sintaxis y Prometheus sigue con la configuración anterior sin decir nada en la interfaz. `docker compose logs prometheus | tail` y `promtool check rules` antes de recargar.
-- **Consulta vacía en Grafana pero funciona en Prometheus**. Casi siempre es el rango de tiempo del dashboard (últimas 6 h con un Prometheus que lleva 10 minutos) o una variable `$instance` sin valor. Comprobad con el inspector del panel (Query inspector) la consulta exacta que se envía.
-- **`rate()` devuelve vacío**. La ventana es menor que dos scrapes (`[15s]` con scrape de 15 s), o aplicáis `rate` a un gauge. Para gauges, `delta` o `deriv`.
-- **Alerta que no llega**. Recorred el camino: en Prometheus, Alerts, ¿está en firing? En Alertmanager, ¿aparece? Si aparece pero no notifica: `docker compose logs alertmanager` dirá si el SMTP rechaza (`smtp_require_tls: false` con Mailpit) o si Telegram devuelve 400 (el bot no está en el grupo o el `chat_id` no lleva el `-100`). Si no aparece, revisad el bloque `alerting` de `prometheus.yml` y que el contenedor resuelva el nombre `alertmanager`.
-- **cAdvisor sin métricas de contenedores**. Falta el montaje de `/var/lib/docker` o del socket, o el host usa cgroups v2 con una versión antigua de cAdvisor. Actualizad la imagen.
-- **Grafana en bucle de redirección o "origin not allowed" tras el proxy**. Falta `GF_SERVER_ROOT_URL` o el proxy no envía `Host` y `X-Forwarded-Proto`. Sin la sección `/api/live/` con websocket aparece el aviso de "Live" en la esquina, molesto pero inofensivo.
-- **La memoria de Prometheus crece sin parar**. Cardinalidad. En Status → TSDB Status mirad qué etiqueta tiene miles de valores y dejad de exponerla o eliminadla con `metric_relabel_configs` (`action: labeldrop`).
-
-## Material de práctica
-
 ### A7.1 Ingesta (sesión 38)
-
-**Sesión 38 · 10 de marzo · Teoría y práctica · unos 90 min de práctica**
 
 **Objetivo.** Al terminar, Prometheus corre en `mon01`, lee de sí mismo, de node_exporter en las cuatro máquinas, de cAdvisor en `app01` y de Jenkins, todos los targets están en UP y las nueve consultas de la tabla devuelven datos.
 
@@ -706,9 +383,252 @@ En Grafana hay que declarar la URL pública para que enlaces y cookies funcionen
 
 **Si te sobra tiempo.** Abre Status → TSDB Status y anota qué métrica tiene más series y por qué. Instala `postgres_exporter` en `db01` (puerto 9187, usuario de solo lectura con `pg_monitor`) y añádelo a un job `postgres`.
 
-### A7.2 Paneles y alertas (sesión 39)
+## Sesión 39 · Visualización y alertas
 
-**Sesión 39 · 12 de marzo · Teoría y práctica · unos 100 min de práctica**
+<p class="ut-meta">12 de marzo · Teoría y práctica · Explicación unos 20 min · Práctica unos 100 min</p>
+
+Con los datos ya guardados, esta sesión los convierte en paneles y avisos: un dashboard propio con los cinco KPI cargado por provisioning, el 1860 importado y la alerta `HostDown` llegando a Mailpit en FIRING y en RESOLVED. En clase se explica PromQL básico, las reglas de grabación y alerta y las rutas de Alertmanager, en el orden en que un dato recorre el sistema. Grafana (paneles, variables, provisioning) y el vocabulario de KPI, SLI y SLO son material de consulta para la hoja A7.2.
+
+### PromQL a fondo
+
+PromQL es el lenguaje de consulta de Prometheus, y es lo que escribiréis en los paneles de Grafana y en las reglas de alerta. Practicad en la pestaña Graph de `http://mon01:9090` antes de tocar Grafana.
+
+#### Selectores
+
+`node_memory_MemAvailable_bytes` devuelve una serie por host (un vector instantáneo: un valor por serie, en el instante de la consulta). Se filtra con etiquetas entre llaves: `{instance="db01:9100"}`, `{mountpoint!="/boot"}`, `{device=~"sd.*"}` (expresión regular, anclada a la cadena completa), `{mode!~"idle|iowait"}`. Si añadís un rango, `node_cpu_seconds_total[5m]`, obtenéis un vector de rangos (todas las muestras de los últimos 5 minutos por serie), que no se puede graficar directamente pero es lo que consumen `rate`, `increase` y compañía.
+
+#### rate, irate, increase
+
+Un contador solo tiene sentido derivado. `rate(x[5m])` calcula el incremento por segundo promediado en la ventana, y sabe tratar los reinicios (si el contador vuelve a cero, no os devuelve un negativo). `increase(x[1h])` es lo mismo multiplicado por la ventana: cuántas unidades subió en la última hora, útil para "builds fallidas en la última hora". `irate(x[5m])` usa solo las dos últimas muestras de la ventana: reacciona al instante y es adecuado para mirar picos en una gráfica de segundos, pero es ruidoso y no vale para alertas, donde queréis la tendencia y no el último parpadeo. Regla práctica: la ventana de `rate` debe contener al menos cuatro muestras (con 15 s de scrape, 1 m como mínimo; 5 m es lo habitual).
+
+#### Agregaciones
+
+`sum`, `avg`, `min`, `max`, `count`, `topk(3, ...)`, `quantile`. Con `by (etiquetas)` conserváis esas etiquetas y agrupáis por ellas; con `without (etiquetas)` las quitáis y conserváis el resto. `sum by (instance) (rate(node_network_receive_bytes_total[5m]))` da el tráfico entrante por host sumando todas sus interfaces; `sum without (cpu) (rate(node_cpu_seconds_total[5m]))` agrupa por todo menos el núcleo, es decir, por host y modo.
+
+#### Operadores y coincidencia de vectores
+
+Aritméticos (`+ - * / %`), de comparación (`== != > < >= <=`) y lógicos (`and or unless`). Cuando operáis dos vectores, Prometheus empareja series con las mismas etiquetas: `node_filesystem_avail_bytes / node_filesystem_size_bytes` funciona porque ambas tienen `instance`, `device`, `mountpoint` y `fstype` idénticos. Si las etiquetas no coinciden, el resultado está vacío y nadie os avisa; se arregla con `on (instance)` o `ignoring (fstype)`. Los operadores de comparación filtran por defecto (`up == 0` devuelve solo las series que valen 0); con `bool` devuelven 1 o 0 sin filtrar, lo que sirve para contar: `count(up == bool 0)`.
+
+#### histogram_quantile
+
+`histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket[5m])))` da el p95 de latencia de los últimos 5 minutos, agregado entre todas las instancias. El `sum by (le)` es obligatorio: hay que quedarse solo con la etiqueta `le` para que la función reconstruya el histograma. Si queréis el p95 por ruta, `sum by (le, handler)`. El resultado es una interpolación lineal dentro del cubo, así que la precisión depende de los cubos: si el último finito es `le="1"` y vuestro p95 real es 3 s, obtendréis 1 s. Hablad con quien instrumenta la aplicación.
+
+#### offset y funciones de tiempo
+
+`node_memory_MemAvailable_bytes offset 1d` devuelve el valor de hace 24 h; restándolo al actual veis la deriva diaria. `predict_linear(node_filesystem_avail_bytes{mountpoint="/"}[6h], 4*3600) < 0` es la alerta que de verdad queréis para el disco: no "está al 10 %" sino "al ritmo actual se llena en 4 horas". `changes(process_start_time_seconds[1h]) > 2` detecta un servicio en bucle de reinicios. `absent(up{job="node"})` avisa si un job ha desaparecido entero de la configuración, cosa que `up == 0` no puede ver porque no hay series.
+
+#### Consultas del laboratorio
+
+| Qué | Consulta |
+|----|----|
+| CPU usada (%) por host | `100 - avg by(instance)(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100` |
+| Memoria disponible (%) | `node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes * 100` |
+| Disco libre (%) | `node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"} * 100` |
+| CPU de un contenedor | `rate(container_cpu_usage_seconds_total{name="app"}[5m])` |
+| Memoria de un contenedor | `container_memory_working_set_bytes{name="app"}` |
+| Host caído | `up == 0` |
+| Ejecuciones de Jenkins fallidas | `increase(default_jenkins_builds_failed_build_count[1h])` |
+| Latencia p95 de la aplicación | `histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket[5m])))` |
+| Disco que se llena en 4 h | `predict_linear(node_filesystem_avail_bytes{mountpoint="/"}[6h], 4*3600) < 0` |
+
+Sobre la CPU de un contenedor: `rate(container_cpu_usage_seconds_total[5m])` devuelve núcleos usados (0,5 = medio núcleo). Si queréis porcentaje respecto al límite del contenedor, dividid por `container_spec_cpu_quota / container_spec_cpu_period`. Y `container_memory_working_set_bytes` es la métrica que usa el kernel para decidir el OOM kill, no `container_memory_usage_bytes`, que incluye caché de página recuperable.
+
+Los cinco KPI mínimos del entorno del curso: disponibilidad de cada host (`up`), CPU y memoria del host, memoria del contenedor de la aplicación, espacio en disco de la BD, y tasa de fallo de pipelines.
+
+### Reglas: grabación y alerta
+
+Con los datos guardados, este apartado convierte consultas en decisiones automáticas: una regla es una consulta PromQL que Prometheus ejecuta sola y cuyo resultado o se guarda como métrica nueva (grabación) o dispara un aviso (alerta). Al acabar sabréis escribir el `alerts.yml` que pide la práctica.
+
+Las reglas viven en ficheros YAML que Prometheus evalúa cada `evaluation_interval`. Hay dos tipos y se mezclan en los mismos grupos.
+
+**Reglas de grabación** precalculan una expresión y la guardan como una serie nueva. Sirven para consultas caras que se repiten en muchos paneles (el porcentaje de CPU por host, con su `rate` y su `avg by`, se calcula una vez en lugar de cada 5 s por cada navegador con el dashboard abierto) y para dar nombres estables a los KPI. La convención de nombre es `nivel:métrica:operación`.
+
+El `alerts.yml` completo del laboratorio: un grupo `kpi` con dos reglas de grabación y un grupo `infra` con cuatro alertas. Fijaos en que `DiskLow` y `HighCPU` usan las series grabadas justo encima, en el `for` distinto de cada una y en las etiquetas `severity` y `equipo`, que son las que Alertmanager usa para enrutar.
+
+```yaml
+# alerts.yml
+groups:
+  - name: kpi
+    interval: 30s
+    rules:
+      - record: instance:node_cpu_utilisation:ratio
+        expr: 1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m]))
+      - record: instance:node_filesystem_root_avail:ratio
+        expr: node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}
+
+  - name: infra
+    rules:
+      - alert: HostDown
+        expr: up == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: "{{ $labels.instance }} no responde"
+          description: "El job {{ $labels.job }} lleva 2 minutos sin poder leer {{ $labels.instance }}."
+      - alert: DiskLow
+        expr: instance:node_filesystem_root_avail:ratio < 0.10
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "Disco < 10 % en {{ $labels.instance }}"
+          description: "Queda un {{ $value | humanizePercentage }} libre en la raíz de {{ $labels.instance }}."
+      - alert: HighCPU
+        expr: instance:node_cpu_utilisation:ratio > 0.85
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: "CPU al {{ $value | humanizePercentage }} en {{ $labels.instance }} durante 15 min"
+      - alert: JenkinsBuildsFailing
+        expr: increase(default_jenkins_builds_failed_build_count[1h]) > 3
+        for: 0m
+        labels: { severity: warning, equipo: dev }
+        annotations:
+          summary: "Más de 3 builds fallidas en la última hora"
+```
+
+Cada alerta pasa por tres estados: inactive, pending (la expresión es cierta pero aún no ha durado `for`) y firing. El `for` es lo que evita que un pico de dos segundos despierte a alguien; ajustadlo a la gravedad (2 m para un host caído, 15 m para CPU alta). Las **labels** de la alerta se suman a las de la serie y son lo que usa Alertmanager para enrutar (`severity`, `equipo`, `env`). Las **annotations** son texto para humanos y admiten plantillas Go: `$labels.x`, `$value` y funciones como `humanize`, `humanizePercentage`, `humanizeDuration`. Comprobad la sintaxis antes de recargar con `promtool check rules alerts.yml` (el binario va dentro de la imagen: `docker compose exec prometheus promtool check rules /etc/prometheus/alerts.yml`).
+
+### Alertmanager: agrupar, enrutar, silenciar
+
+Prometheus decide *qué* está mal; Alertmanager decide *a quién* y *cómo* se lo cuenta. Recibe las alertas en firing por HTTP, las deduplica (si tenéis dos Prometheus en alta disponibilidad enviando lo mismo, llega una notificación), las agrupa, aplica inhibiciones y silencios, y las entrega a los receptores según un árbol de rutas. El fichero tiene tres partes: `route` (el árbol, con la ruta por defecto y dos ramas por etiqueta), `receivers` (los tres destinos) e `inhibit_rules`; la lista de después lo explica pieza a pieza.
+
+```yaml
+# alertmanager.yml
+global:
+  smtp_smarthost: "mailpit:1025"
+  smtp_from: "alertas@lab.local"
+  smtp_require_tls: false
+route:
+  receiver: mail
+  group_by: [alertname, env]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    - matchers: [severity = "critical"]
+      receiver: telegram
+      continue: true
+    - matchers: [equipo = "dev"]
+      receiver: webhook-dev
+receivers:
+  - name: mail
+    email_configs:
+      - to: "ops@lab.local"
+  - name: telegram
+    telegram_configs:
+      - bot_token_file: /etc/alertmanager/tg_token
+        chat_id: -100123456
+        parse_mode: HTML
+  - name: webhook-dev
+    webhook_configs:
+      - url: "http://jenkins01:8080/generic-webhook-trigger/invoke?token=alertas"
+inhibit_rules:
+  - source_matchers: [alertname = "HostDown"]
+    target_matchers: [severity = "warning"]
+    equal: [instance]
+```
+
+Lo que hace cada pieza:
+
+- **group_by**: alertas con las mismas etiquetas de agrupación van en una única notificación; si caen 15 hosts a la vez, recibís un correo con 15 líneas, no 15 correos. `group_wait` es cuánto espera a que lleguen "las hermanas" antes de la primera notificación de un grupo; `group_interval`, cuánto espera antes de avisar de cambios en un grupo ya notificado; `repeat_interval`, cada cuánto repite si nada cambia.
+- **Rutas**: se recorren en orden y la primera que coincide gana, salvo que tenga `continue: true`. En el ejemplo, una alerta critical va a Telegram y además cae en la ruta por defecto (correo); una warning del equipo de desarrollo va al webhook y ya.
+- **Inhibición**: si `HostDown` está en firing para `db01`, se callan las warnings del mismo `instance` (no tiene sentido avisar de disco bajo en un host que no responde).
+- **Silencios**: desde la interfaz (`http://mon01:9093`) o con `amtool silence add instance=db01:9100 --duration=2h --comment="mantenimiento"`; son la herramienta para las ventanas de mantenimiento. Un silencio sin comentario ni caducidad es una alerta perdida.
+- **Receivers**: correo (Mailpit en el laboratorio, el relay corporativo en la empresa), Telegram (bot creado con BotFather; el `chat_id` negativo es un grupo), Slack, PagerDuty, Opsgenie y el genérico webhook, que envía un JSON a cualquier URL. Con el webhook podéis disparar un job de Jenkins que reinicie un servicio.
+
+Mailpit (sucesor mantenido de MailHog, que ya no se actualiza) acepta cualquier correo en el puerto 1025 y lo enseña en `http://mon01:8025`, sin depender de un SMTP real. La alerta se envía también cuando se resuelve (`send_resolved: true` por defecto), así que en la actividad veréis dos correos: FIRING y RESOLVED.
+
+```mermaid
+sequenceDiagram
+  participant E as Exporter (db01:9100)
+  participant P as Prometheus
+  participant AM as Alertmanager
+  participant R as Receptor (correo / Telegram)
+  P->>E: GET /metrics (cada 15 s)
+  E--xP: sin respuesta
+  Note over P: up{instance="db01:9100"} = 0<br/>HostDown: pending
+  P->>P: sigue en 0 durante for: 2m
+  Note over P: HostDown: firing
+  P->>AM: POST /api/v2/alerts
+  AM->>AM: agrupa (group_wait 30 s), inhibe, enruta por severity
+  AM->>R: notificación FIRING
+  E-->>P: GET /metrics OK (db01 vuelve)
+  P->>AM: alerta resuelta
+  AM->>R: notificación RESOLVED
+```
+
+### Grafana
+
+*Material de consulta: no se explica en clase; lo necesitas para la hoja de práctica de esta sesión.*
+
+Prometheus tiene una interfaz suficiente para depurar, no para que operaciones la mire a las 9 de la mañana. Grafana es la capa de visualización: se conecta a Prometheus (y a Loki, PostgreSQL, CloudWatch, Elasticsearch o casi cualquier cosa) y monta paneles a partir de consultas.
+
+<figure markdown="span">
+  ![Dashboard de Grafana](../img/grafana-dashboard.png){ width="640" }
+  <figcaption>Un dashboard de Grafana con series temporales, gauges y stats de un host. Fuente: Joel Kennedy, dominio público, vía Wikimedia Commons.</figcaption>
+</figure>
+
+- **Fuente de datos**: Prometheus en `http://prometheus:9090` (nombre del servicio de compose; Grafana y Prometheus comparten red). Se añade en Connections → Data sources o, mejor, por provisioning.
+- **Dashboards**: un dashboard por audiencia. Operaciones: hosts y contenedores. Equipo de desarrollo: pipelines.
+- **Paneles**: Time series para evolución, Stat para un número grande con color, Gauge para porcentajes con umbral, Table para listados (targets caídos). En cada uno, poned la **unidad** (percent, bytes(IEC), seconds) para que Grafana escale los ejes y formatee 6.1e+09 como 5,73 GiB; definid **umbrales** (verde hasta 70, naranja hasta 85, rojo) para que el color diga lo mismo que dirá la alerta; y usad la **leyenda** con `{{instance}}` en lugar de la serie completa.
+- **Variables**: un desplegable `$instance` definido como `label_values(node_uname_info, instance)` convierte un dashboard por host en uno para todos; las consultas pasan a ser `...{instance=~"$instance"}`. Con `env` y `rol` de `file_sd` podéis filtrar por entorno.
+- **Importar 1860**: Dashboards → New → Import, id 1860, elegir la fuente Prometheus. Es enorme (más de 40 paneles); lo usaremos como cantera de consultas y cada uno se queda con los cinco paneles que importan.
+
+#### Provisioning: dashboards en Git
+
+Todo lo que se hace clicando en Grafana se pierde con el volumen. Grafana lee fuentes de datos y dashboards de ficheros al arrancar, y eso se versiona.
+
+```yaml
+# grafana/provisioning/datasources/prometheus.yml
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+```
+
+```yaml
+# grafana/provisioning/dashboards/lab.yml
+apiVersion: 1
+providers:
+  - name: lab
+    folder: Laboratorio
+    type: file
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards
+```
+
+En `grafana/dashboards/` van los JSON exportados desde Share → Export (marcad "Export for sharing externally" para que la fuente de datos quede como variable y sirva en otra instancia). El flujo en la empresa: se edita en una Grafana de pruebas, se exporta, se hace commit y la de producción lo carga por provisioning.
+
+#### Grafana Alerting o alertas en Prometheus
+
+Grafana 12 tiene su propio motor de alertas, equivalente a Alertmanager (lleva uno embebido), sobre cualquier fuente de datos y configurado desde la interfaz. Para la infraestructura prefiero las reglas en Prometheus: se evalúan junto a los datos, siguen funcionando si Grafana se cae, se validan con `promtool` y viven en Git. Grafana Alerting encaja para alertas de negocio que cruzan fuentes (una consulta SQL contra la base de pedidos) o cuando quien las mantiene no toca YAML. Elegid una de las dos para cada tipo de alerta; duplicarlas acaba en dos notificaciones y nadie sabe cuál es la buena.
+
+### KPI, SLI y SLO
+
+*Material de consulta: no se explica en clase; lo necesitas para la hoja de práctica de esta sesión.*
+
+Hasta aquí, CPU, memoria y disco, que le importan al técnico. Este apartado da el vocabulario para traducirlo a lo que le importa a quien paga el servicio ("¿funciona?", "¿cuánto puede fallar al mes?") y es la base de los KPI de negocio de la empresa.
+
+Un KPI es lo que le enseñáis a alguien que no es técnico para que sepa si el servicio va bien. En la jerga de SRE (Site Reliability Engineering, la forma de operar servicios que popularizó Google) se concreta en tres términos:
+
+- **SLI** (indicador): una medición. "Fracción de peticiones HTTP que responden con código distinto de 5xx en menos de 500 ms", o "fracción de sondas de blackbox que devuelven 200".
+- **SLO** (objetivo): el valor que os comprometéis a cumplir con ese SLI en una ventana. "99,5 % en 30 días".
+- **SLA** (acuerdo): el contrato con el cliente, con penalización. Siempre más laxo que el SLO interno.
+
+De ahí sale el **error budget**: con un SLO de 99,5 % en 30 días tenéis derecho a un 0,5 % de fallo, 3 h 36 min de indisponibilidad al mes (30 × 24 × 60 × 0,005 = 216 min). Con 99,9 % bajan a 43 min; con 99,99 %, a 4 min, que no permite ni un reinicio de VM. El presupuesto es una herramienta de decisión: si a mitad de mes lleváis 200 minutos gastados, se congelan los despliegues arriesgados; si vais sobrados, se asume más riesgo. El SLI de disponibilidad con blackbox:
+
+```promql
+avg_over_time(probe_success{job="blackbox-app"}[30d])
+```
+
+Las alertas basadas en el presupuesto (burn rate en varias ventanas) son las que usaréis en la empresa en lugar de "CPU > 85 %": avisan cuando el ritmo de gasto del error budget lo agotaría antes de fin de mes. El SRE Workbook, enlazado en [Para ampliar](../ampliacion.md#ut7-monitorizacion-del-entorno), explica el método.
+
+### A7.2 Paneles y alertas (sesión 39)
 
 **Objetivo.** Un dashboard propio con los cinco KPI cargado por provisioning, el 1860 importado, y la alerta `HostDown` que llega a Mailpit en FIRING y en RESOLVED al apagar y encender `db01`.
 
@@ -763,9 +683,65 @@ En Grafana hay que declarar la URL pública para que enlaces y cookies funcionen
 
 **Si te sobra tiempo.** Añade la alerta `DiskFillingIn4h` con el `predict_linear` de la tabla y llena el disco de `db01` con `fallocate -l 2G /tmp/relleno` para verla en pending. Con Telegram, comprueba que una alerta critical llega a los dos sitios (correo y chat) gracias a `continue: true`.
 
-## Práctica evaluable UT7 (sesión 40)
+## Sesión 40 · Práctica evaluable
 
-**Sesión 40 · 17 de marzo · Práctica evaluable · unos 110 min de práctica**
+<p class="ut-meta">17 de marzo · Práctica evaluable · Explicación unos 10 min · Práctica unos 110 min</p>
+
+La pila funciona; ahora hay que dejarla como se dejaría en una empresa: exporters solo alcanzables desde `mon01`, Prometheus con autenticación, Grafana tras nginx con TLS y usuarios por rol, y ningún secreto en el repositorio. Los diez minutos de explicación son la aclaración del enunciado sobre el apartado de seguridad que sigue; el resto de la sesión es la práctica evaluable y su entrega.
+
+### Seguridad de la monitorización
+
+Los datos de monitorización revelan la topología completa (hosts, versiones de kernel, servicios, rutas) y pueden contener secretos (un `/metrics` mal hecho que expone la cadena de conexión en una etiqueta, y los hay). Los exporters abren un puerto HTTP sin autenticación en cada máquina, y Grafana expuesta es un panel con credenciales que consulta cualquier dato de la fuente. Este es el CE 4k.
+
+**Red**: Prometheus y Grafana en la subred de gestión (`10.10.0.0/24`), no enrutable desde la DMZ (la zona donde viven los servicios expuestos, como en la UT3) ni desde la red de usuarios. Cada exporter escucha solo en la interfaz de gestión (`node_exporter --web.listen-address=10.10.0.11:9100`), y una regla de cortafuegos en cada host permite únicamente a `mon01` llegar a los puertos 9100 y 8080. Nadie más. Con nftables en el propio host (política `drop` en `input`, como dejasteis en la UT3):
+
+```bash
+nft add rule inet filter input ip saddr 10.10.0.20 tcp dport { 9100, 8080 } accept
+# y sin regla de accept para esos puertos desde ningún otro origen
+```
+
+Si el filtrado lo hace OPNsense entre subredes, la regla equivalente es en la interfaz de gestión: origen `mon01`, destino `red de servicios`, puertos 9100 y 8080, permitir; y la regla por defecto deniega. La práctica pide la prueba de que desde `app01` no se lee el exporter de `db01`: `curl -m 3 http://db01:9100/metrics` tiene que fallar por timeout.
+
+**TLS y autenticación en Prometheus**: desde la versión 2.24 el servidor (y todos los exporters oficiales, que comparten el mismo toolkit) aceptan un `--web.config.file` con TLS y usuarios de basic auth. Las contraseñas van en bcrypt (`htpasswd -nBC 10 admin` os da el hash).
+
+```yaml
+# web.yml (para Prometheus y para node_exporter)
+tls_server_config:
+  cert_file: /etc/prometheus/certs/mon01.crt
+  key_file: /etc/prometheus/certs/mon01.key
+basic_auth_users:
+  scraper: "$2y$10$Q8v7...hash bcrypt..."
+```
+
+Si ponéis basic auth en los exporters, Prometheus tiene que presentarla al leer: en cada `scrape_config`, `scheme: https`, `tls_config: { ca_file: /etc/prometheus/certs/ca.crt }` y `basic_auth: { username: scraper, password_file: /etc/prometheus/secrets/scraper.pass }`. La CA es la de la UT3; si no, `openssl` con una CA propia y el certificado del servidor con el nombre `mon01` en SAN (el campo del certificado donde van los nombres de host que cubre). Alertmanager y Grafana también hablan con Prometheus: hay que darles las mismas credenciales.
+
+**Grafana tras nginx con TLS**: Grafana no se expone en el 3000; se pone nginx delante en el 443 con el certificado, y Grafana escucha solo en la red interna de compose. Es el mismo patrón de proxy inverso de la UT3.
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name grafana.lab.local;
+    ssl_certificate     /etc/nginx/certs/grafana.crt;
+    ssl_certificate_key /etc/nginx/certs/grafana.key;
+    location / {
+        proxy_pass http://grafana:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+    location /api/live/ {
+        proxy_pass http://grafana:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+```
+
+En Grafana hay que declarar la URL pública para que enlaces y cookies funcionen: `GF_SERVER_ROOT_URL=https://grafana.lab.local`, `GF_SERVER_DOMAIN=grafana.lab.local`. Y los **roles**: Viewer (mira, no edita: operaciones de primer nivel, dirección), Editor (crea y edita dashboards: el equipo técnico), Admin de organización (fuentes de datos, usuarios, alertas). El Server Admin es la cuenta `admin` inicial y no se usa a diario. En la empresa el acceso va por LDAP, OAuth o SAML (el directorio o el proveedor de identidad corporativo, sin usuarios locales) con grupos mapeados a esos roles; en el laboratorio creáis tres usuarios locales y desactiváis el registro (`GF_USERS_ALLOW_SIGN_UP=false`).
+
+**Repositorio de datos**: volúmenes `prom_data` y `graf_data` con permisos restringidos en el host (usuario `nobody` para Prometheus, `472` para Grafana), retención definida (30 días) y copia de seguridad: los dashboards como JSON en Git (ya lo tenéis con provisioning) y, si el histórico importa, snapshots de la TSDB con `curl -XPOST http://localhost:9090/api/v1/admin/tsdb/snapshot` (requiere `--web.enable-admin-api`) copiados fuera de la máquina.
+
+**Secretos**: el token de Telegram, la contraseña de Grafana y la del scraper no van en `compose.yml` ni en `prometheus.yml`. Van en un `.env` (en `.gitignore`) o en ficheros montados en solo lectura y referenciados con `*_file` (`bot_token_file`, `password_file`, `GF_SECURITY_ADMIN_PASSWORD__FILE`). Antes del commit, `git diff --cached | grep -iE "token|pass"` os ahorra un disgusto. Comprobad que ningún exporter filtra secretos en las etiquetas: `curl -s http://db01:9187/metrics | grep -i pass` debe devolver nada.
 
 Asegura la pila: Grafana tras nginx con TLS y usuarios por rol, Prometheus con basic auth, regla de firewall que restrinja el acceso a los exporters a `mon01`, secretos fuera del repositorio. Entrega el repositorio `monitoring` (compose, `prometheus.yml`, `alerts.yml`, `alertmanager.yml`, provisioning y dashboard JSON, README con la configuración de seguridad) y una prueba de que desde `app01` no se puede leer el exporter de `db01`.
 
@@ -786,33 +762,16 @@ Checklist de entrega:
 | Paneles con KPI, alertas y envío funcionando | j | 40 % |
 | Comunicaciones, accesos y repositorio de datos asegurados | k | 30 % |
 
-## En la empresa: monitorización avanzada
+## Errores frecuentes en el laboratorio
 
-Las 12 horas de esta unidad en la formación en empresa sirven para ver la pila en un entorno que no cabe en tres VM. Lo que se espera que hagáis, o al menos observéis con quien lo hace:
+- **Target en DOWN con "connection refused"**. El exporter no escucha en esa interfaz, o escucha en `127.0.0.1`. `ss -ltnp | grep 9100` en el host lo aclara. Si es "context deadline exceeded", el paquete llega pero nadie contesta: cortafuegos (y en la práctica evaluable, eso es lo que queréis ver desde `app01`, no desde `mon01`).
+- **Target en DOWN por "server returned HTTP status 401"**. Habéis puesto basic auth en el exporter y no en el `scrape_config`, o al revés. Lo mismo con `x509: certificate signed by unknown authority`: falta el `ca_file`.
+- **Prometheus no recarga las reglas**. `alerts.yml` tiene un error de sintaxis y Prometheus sigue con la configuración anterior sin decir nada en la interfaz. `docker compose logs prometheus | tail` y `promtool check rules` antes de recargar.
+- **Consulta vacía en Grafana pero funciona en Prometheus**. Casi siempre es el rango de tiempo del dashboard (últimas 6 h con un Prometheus que lleva 10 minutos) o una variable `$instance` sin valor. Comprobad con el inspector del panel (Query inspector) la consulta exacta que se envía.
+- **`rate()` devuelve vacío**. La ventana es menor que dos scrapes (`[15s]` con scrape de 15 s), o aplicáis `rate` a un gauge. Para gauges, `delta` o `deriv`.
+- **Alerta que no llega**. Recorred el camino: en Prometheus, Alerts, ¿está en firing? En Alertmanager, ¿aparece? Si aparece pero no notifica: `docker compose logs alertmanager` dirá si el SMTP rechaza (`smtp_require_tls: false` con Mailpit) o si Telegram devuelve 400 (el bot no está en el grupo o el `chat_id` no lleva el `-100`). Si no aparece, revisad el bloque `alerting` de `prometheus.yml` y que el contenedor resuelva el nombre `alertmanager`.
+- **cAdvisor sin métricas de contenedores**. Falta el montaje de `/var/lib/docker` o del socket, o el host usa cgroups v2 con una versión antigua de cAdvisor. Actualizad la imagen.
+- **Grafana en bucle de redirección o "origin not allowed" tras el proxy**. Falta `GF_SERVER_ROOT_URL` o el proxy no envía `Host` y `X-Forwarded-Proto`. Sin la sección `/api/live/` con websocket aparece el aviso de "Live" en la esquina, molesto pero inofensivo.
+- **La memoria de Prometheus crece sin parar**. Cardinalidad. En Status → TSDB Status mirad qué etiqueta tiene miles de valores y dejad de exponerla o eliminadla con `metric_relabel_configs` (`action: labeldrop`).
 
-- **Alertas con enrutado y silencios reales**: árbol de rutas por equipo y severidad, guardias (PagerDuty, Opsgenie o turnos en Telegram), inhibiciones entre capas (si cae el switch, no avisan los 40 hosts detrás), silencios ligados a ventanas de mantenimiento y revisión de las alertas que nadie atiende (una alerta un mes en firing sin que nadie la mire, sobra).
-- **KPI de negocio**: métricas que no son de infraestructura (pedidos por minuto, tiempo de cola, usuarios activos) expuestas por la aplicación o leídas de la base de datos, en un dashboard para gente no técnica.
-- **SLI/SLO y error budget**: al menos un SLO acordado con la empresa, el SLI en PromQL que lo mide, un panel con el presupuesto restante y una alerta de burn rate.
-- **Seguridad de la pila**: cómo se autentica Grafana (LDAP, OAuth), quién ve qué (carpetas y permisos por equipo), cómo llegan las credenciales a los exporters, qué retención hay y si existe Thanos, Mimir o un servicio gestionado detrás.
-
-Evidencias para la memoria de FE (una página por punto, con capturas anonimizadas si hace falta):
-
-- [ ] Esquema de la pila de monitorización de la empresa (qué recoge, dónde se guarda, cuánto tiempo).
-- [ ] Extracto del árbol de rutas de Alertmanager (o equivalente) comentado: quién recibe qué.
-- [ ] Un dashboard de KPI de negocio, con la consulta de al menos un panel explicada.
-- [ ] Un SLO escrito (SLI, objetivo, ventana), con el cálculo del error budget y la alerta asociada.
-- [ ] Lista de medidas de seguridad de la pila y una propuesta de mejora justificada.
-
-## Para ampliar
-
-- [Prometheus: Overview](https://prometheus.io/docs/introduction/overview/): la documentación oficial, empezando por la arquitectura y el modelo de datos. Todo lo de esta unidad está ahí con más detalle.
-- [Querying basics (PromQL)](https://prometheus.io/docs/prometheus/latest/querying/basics/) y [Functions](https://prometheus.io/docs/prometheus/latest/querying/functions/): la referencia de selectores, operadores y funciones; tenedla abierta mientras hacéis la A7.1.
-- [Configuration (prometheus.yml)](https://prometheus.io/docs/prometheus/latest/configuration/configuration/): todas las opciones de scrape, descubrimiento (`file_sd_configs`, `docker_sd_configs`) y relabeling.
-- [Alerting rules](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/) y [Alertmanager configuration](https://prometheus.io/docs/alerting/latest/configuration/): plantillas de anotaciones, rutas, inhibiciones y todos los receptores.
-- [Securing Prometheus: TLS and basic auth](https://prometheus.io/docs/guides/tls-encryption/) y [web configuration](https://prometheus.io/docs/prometheus/latest/configuration/https/): el `web.config.file` que necesitáis en la práctica.
-- [Prometheus storage](https://prometheus.io/docs/prometheus/latest/storage/): cómo funciona la TSDB, retención, snapshots y remote write.
-- [Grafana documentation: Provisioning](https://grafana.com/docs/grafana/latest/administration/provisioning/): fuentes de datos y dashboards desde ficheros, la base para versionarlos en Git.
-- [Grafana Alerting](https://grafana.com/docs/grafana/latest/alerting/): cuando queráis comparar con las reglas de Prometheus.
-- [Node Exporter Full (dashboard 1860)](https://grafana.com/grafana/dashboards/1860-node-exporter-full/): el dashboard que importáis en la A7.2 y una buena cantera de consultas.
-- [Google SRE Workbook: Alerting on SLOs](https://sre.google/workbook/alerting-on-slos/): el método de burn rate y error budget que veréis en la empresa.
-- [cAdvisor](https://github.com/google/cadvisor) y [node_exporter](https://github.com/prometheus/node_exporter): el README de cada uno tiene la lista de métricas y los flags de arranque (los colectores de node_exporter se activan y desactivan uno a uno).
+Los enlaces para ampliar y los apartados que van más allá de lo que se hace en clase están en [Para ampliar](../ampliacion.md#ut7-monitorizacion-del-entorno).

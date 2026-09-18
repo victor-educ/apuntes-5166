@@ -8,7 +8,7 @@ Cada sesión dura dos horas y casi todas tienen la misma forma: una explicación
 
 ## Vista de calendario
 
-Cada día de clase lleva el color de su unidad. Pasa el ratón por encima para ver qué se explica y qué se practica en esa sesión y qué se entrega; haz clic para ir a la actividad correspondiente en los apuntes. Los días marcados con estrella son sesiones evaluables. Con el teclado, el tabulador recorre las sesiones y muestra el mismo detalle.
+Cada día de clase lleva el color de su unidad. Pasa el ratón por encima para ver qué se explica y qué se practica en esa sesión y qué se entrega; haz clic para ir a esa sesión en los apuntes. Los días marcados con estrella son sesiones evaluables. Con el teclado, el tabulador recorre las sesiones y muestra el mismo detalle.
 
 <div id="calendario-interactivo" data-src="../assets/sesiones.json" markdown="0"></div>
 

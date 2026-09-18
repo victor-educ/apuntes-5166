@@ -119,7 +119,7 @@
    "practica": "Desplegar app-eval desde la plantilla con los parámetros dados y redactar el informe de capacidades y limitaciones con medidas reales.",
    "que": "Desplegar app-eval desde la plantilla con los parámetros dados y redactar el informe de capacidades y limitaciones con medidas reales.",
    "entregable": "Informe UT1 + captura de la VM operativa (RA1 a)",
-   "url": "../ut/ut1-virtualizacion/#practica-evaluable",
+   "url": "../ut/ut1-virtualizacion/#sesion-6-practica-evaluable",
    "evaluable": true
   },
   {
@@ -197,7 +197,7 @@
    "practica": "Cerrar la memoria: esquema, direccionamiento, configuración, scripts y las cinco pruebas documentadas.",
    "que": "Cerrar la memoria: esquema, direccionamiento, configuración, scripts y las cinco pruebas documentadas.",
    "entregable": "Memoria UT2 + script (RA1 b, c)",
-   "url": "../ut/ut2-vpc/#practica-evaluable",
+   "url": "../ut/ut2-vpc/#sesion-12-practica-evaluable",
    "evaluable": true
   },
   {
@@ -275,7 +275,7 @@
    "practica": "Cerrar el informe: diagrama, matriz de reglas justificada, matriz de pruebas, un hallazgo corregido y el procedimiento de reglas nuevas.",
    "que": "Cerrar el informe: diagrama, matriz de reglas justificada, matriz de pruebas, un hallazgo corregido y el procedimiento de reglas nuevas.",
    "entregable": "Informe UT3 (RA1 d)",
-   "url": "../ut/ut3-seguridad-por-capas/#practica-evaluable",
+   "url": "../ut/ut3-seguridad-por-capas/#sesion-18-practica-evaluable",
    "evaluable": true
   },
   {
@@ -379,7 +379,7 @@
    "practica": "Cerrar el repositorio IaC: README, código modular con dos entornos, playbook, test.sh e informe de seguridad.",
    "que": "Cerrar el repositorio IaC: README, código modular con dos entornos, playbook, test.sh e informe de seguridad.",
    "entregable": "Repositorio IaC + README (RA3 a–d)",
-   "url": "../ut/ut5-iac/#practica-evaluable",
+   "url": "../ut/ut5-iac/#sesion-26-practica-evaluable",
    "evaluable": true
   },
   {
@@ -522,7 +522,7 @@
    "practica": "Cerrar jenkins-config, el Jenkinsfile completo, el informe de pruebas del pipeline y el inventario de credenciales.",
    "que": "Cerrar jenkins-config, el Jenkinsfile completo, el informe de pruebas del pipeline y el inventario de credenciales.",
    "entregable": "Repositorio con Jenkinsfile + informe de pruebas (RA4 a–h)",
-   "url": "../ut/ut6-ci/#practica-evaluable",
+   "url": "../ut/ut6-ci/#sesion-37-practica-evaluable",
    "evaluable": true
   },
   {
@@ -561,7 +561,7 @@
    "practica": "Asegurar la pila (TLS, autenticación, firewall a los exporters) y entregar el repositorio monitoring con panel y alerta funcionando.",
    "que": "Asegurar la pila (TLS, autenticación, firewall a los exporters) y entregar el repositorio monitoring con panel y alerta funcionando.",
    "entregable": "Panel exportado + captura de alerta (RA4 i, j)",
-   "url": "../ut/ut7-monitorizacion/#practica-evaluable-ut7-sesion-40",
+   "url": "../ut/ut7-monitorizacion/#sesion-40-practica-evaluable",
    "evaluable": true
   },
   {
