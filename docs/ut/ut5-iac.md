@@ -53,7 +53,7 @@ Cada sesión de 110 minutos empieza con una explicación corta y sigue con labor
 | [23](#sesion-23-modulos-y-estado) | 8 ene | Teoría y práctica | Módulos, estructura de repositorio por entornos y backend remoto con bloqueo (20 min). | Extraer el módulo vm, configurar el backend en MinIO, crear envs/dev y envs/pre. |
 | [24](#sesion-24-ansible) | 13 ene | Teoría y práctica | Inventario, playbooks, módulos idempotentes, roles y Vault (25 min). | Inventario desde tofu output, playbook que instala Docker y despliega el compose; ejecutarlo dos veces y capturar que la segunda no cambia nada. |
 | [25](#sesion-25-pruebas-del-despliegue) | 15 ene | Teoría y práctica | Niveles de prueba del IaC y qué es un smoke test (15 min). | Escribir test.sh que encadena apply, playbook, smoke tests y chequeo de recursos; romper algo a propósito y ver que devuelve error. |
-| [26](#sesion-26-escaneo-de-seguridad) | 20 ene | Teoría y práctica | Errores típicos del IaC; checkov, trivy config y gitleaks (15 min). | Ejecutar checkov, trivy config y gitleaks sobre el repositorio y tabular los hallazgos: id, severidad, fichero, descripción. |
+| [26](#sesion-26-escaneo-de-seguridad) | 20 ene | Teoría y práctica | Errores típicos del IaC; checkov, trivy config y gitleaks (15 min). | Ejecutar checkov, trivy config y gitleaks sobre el repositorio, clasificar los hallazgos, comprobar con fallos provocados que los escáneres los ven, y tabularlos con su riesgo y la corrección prevista. |
 | [27](#sesion-27-correccion-de-hallazgos) | 22 ene | Teoría y práctica | Cómo se lee y se suprime un hallazgo; por qué el token no va en el código (10 min). | Corregir los hallazgos altos y críticos, justificar el resto, mover el token a variable de entorno e instalar pre-commit con gitleaks. |
 | [28](#sesion-28-practica-evaluable) | 27 ene | Práctica evaluable | Aclaración del enunciado (10 min). | Cerrar el repositorio IaC: README, código modular con dos entornos, playbook, test.sh e informe de seguridad. |
 
@@ -1041,7 +1041,7 @@ gitleaks tiene su propio mecanismo: un fichero `.gitleaksignore` con la huella d
 
 ### A5.7 Escaneo de seguridad (sesión 26)
 
-<span class="et et-obj">Objetivo</span> Tabla completa de hallazgos de checkov, trivy y gitleaks sobre el repositorio, con id, severidad, fichero y descripción.
+<span class="et et-obj">Objetivo</span> Tabla completa de hallazgos de checkov, trivy y gitleaks sobre el repositorio, cada uno clasificado, con su riesgo escrito y con la corrección prevista lista para aplicarla en la A5.8.
 
 <span class="et et-pre">Antes de empezar</span> El repositorio de A5.6 con todo en commit. Se han explicado [los escáneres](#escaneres) y [cómo leer y suprimir un hallazgo](#como-leer-un-hallazgo-y-como-suprimirlo).
 
@@ -1056,11 +1056,17 @@ gitleaks tiene su propio mecanismo: un fichero `.gitleaksignore` con la huella d
     gitleaks detect -v > informe/antes-gitleaks.txt   # o gitleaks git -v
     ```
 
-3. Escribe `informe/hallazgos.md` con una tabla: id, severidad, fichero, descripción, decisión (corregir o aceptar).
+3. Cuenta lo que tienes antes de leerlo: cuántos hallazgos ha sacado cada herramienta y cuántos hay de cada severidad. Después agrupa los altos y críticos en las cuatro categorías del apartado de [seguridad del IaC](#seguridad-del-iac) (secretos, exposición de red o permisos de más, versiones sin fijar, estado en el repositorio) y anota cuántos caen en cada una. Si alguno no encaja en ninguna, abre una categoría tuya y ponle nombre.
+4. Lee de verdad los cinco hallazgos más graves, o todos si hay menos de cinco. De cada uno abre el enlace `Guide` (o busca el id en la documentación de la herramienta) y escribe dos cosas con tus palabras: qué comprueba la regla y qué podría pasar en este laboratorio si no se corrige. Una frase de riesgo por hallazgo, y que sea tuya, no la del enlace.
+5. Compara checkov con trivy: lista los hallazgos que salen en los dos informes y los que solo ve uno de ellos. Con eso delante, escribe dos líneas diciendo si en una empresa te llevarías las dos herramientas o te quedarías con una, y por qué.
+6. Comprueba que los escáneres detectan de verdad, porque un informe vacío tanto puede significar que todo está bien como que la herramienta no está mirando donde crees. Sin hacer commit, introduce dos fallos a propósito en ficheros que ya estén en Git: pon `mode: "0777"` en una tarea `copy` del playbook y añade a cualquier `.tf` una línea con un token falso con el formato de Proxmox (`terraform@pve!tofu=` y un uuid inventado). Vuelve a pasar las tres herramientas (para el árbol de trabajo, `gitleaks detect --no-git` o `gitleaks dir .` según tu versión) y apunta qué herramienta ve cada fallo y cuál no lo ve: ninguna de las tres los ve los dos, y esa es la razón de pasarlas todas. Deshaz los cambios con `git checkout -- .` y confirma con `git status` que el árbol vuelve a estar limpio.
+7. Escribe `informe/hallazgos.md`. Una fila por hallazgo alto o crítico, con estas columnas: id, severidad, fichero y línea, descripción, categoría del paso 3, riesgo en una frase del paso 4, decisión (corregir o aceptar) y **corrección prevista**. Esa última columna es la que hace el trabajo: para los que vas a corregir, escribe qué fichero tocarás, en qué línea y qué vas a poner en ella; para los que vas a aceptar, escribe la línea de supresión completa (`#checkov:skip=ID: motivo` o `#trivy:ignore:ID motivo`) con el motivo ya redactado. No apliques nada todavía: eso es la A5.8.
 
-<span class="et et-com">Comprobación</span> La tabla cubre todos los hallazgos de severidad alta o crítica de los tres informes.
+<span class="et et-com">Comprobación</span> La tabla cubre todos los hallazgos de severidad alta o crítica de los tres informes y ninguna fila tiene la columna de corrección prevista vacía. Los dos fallos del paso 6 aparecen en la salida de alguna herramienta y `git status` vuelve a estar limpio.
 
-<span class="et et-ent">Entrega</span> La carpeta `informe/` (antes, `hallazgos.md`), en `A5.7`.
+<span class="et et-ent">Entrega</span> La carpeta `informe/` (los tres `antes-*.txt`, `hallazgos.md` y la comparación del paso 5), en `A5.7`. La columna de corrección prevista es el plan de trabajo de la A5.8 y el arranque del punto 5 de la práctica evaluable.
+
+<span class="et et-ext">Si te sobra tiempo</span> Pasa `checkov --compact --framework ansible -d ansible/` y compara el recuento con el de la pasada general del paso 2. Mira si `.terraform.lock.hcl` está en el repositorio y qué versiones del provider fija por hash.
 
 ## Sesión 27 · Corrección de hallazgos
 

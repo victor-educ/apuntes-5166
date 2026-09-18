@@ -51,7 +51,7 @@ Cada sesión de 110 minutos empieza con una explicación corta y sigue con labor
 
 | Sesión | Fecha | Tipo | Se explica | Se practica |
 |---:|-------|------|------------|-------------|
-| [14](#sesion-14-modelo-de-seguridad-por-capas) | 20 nov | Teoría y práctica | Defensa en profundidad, zonas y DMZ con uno y dos cortafuegos; cortafuegos con estado; qué es OPNsense (30 min). | Instalar OPNsense con cinco interfaces, una por VNet de dev, asignar .1 en cada zona, traspasarle el DHCP y el DNS de router-dev y acceder solo desde MGMT. |
+| [14](#sesion-14-modelo-de-seguridad-por-capas) | 20 nov | Teoría y práctica | Defensa en profundidad, zonas y DMZ con uno y dos cortafuegos; cortafuegos con estado; qué es OPNsense (25 min). | Instalar OPNsense con cinco interfaces, una por VNet de dev, asignar .1 en cada zona, traspasarle el DHCP y el DNS de router-dev y acceder solo desde MGMT. |
 | [15](#sesion-15-reglas-por-zona-y-publicacion-de-un-servicio) | 25 nov | Teoría y práctica | Orden de evaluación de reglas, aliases, port forward y outbound NAT (25 min). | Comprobar que sin reglas nada pasa; nginx en web01; port forward WAN:443 y regla; curl desde el aula. |
 | [16](#sesion-16-dmz-interna-y-zona-interna) | 27 nov | Teoría y práctica | Patrón proxy inverso, aplicación, base de datos; terminación TLS y cabeceras (20 min). | app01 con API en 8080, db01 con PostgreSQL limitado a la subred back, reglas mínimas entre capas, nginx como proxy inverso; probar desde fuera. |
 | [17](#sesion-17-separacion-de-clientes) | 2 dic | Teoría y práctica | Opciones de aislamiento multi-tenant y por qué se usa una VLAN por cliente (15 min). | VLAN 101 y 102 sobre bridge VLAN aware, reglas que solo permiten llegar al proxy, comprobar que A no alcanza a B. |
@@ -60,7 +60,7 @@ Cada sesión de 110 minutos empieza con una explicación corta y sigue con labor
 
 ## Sesión 14 · Modelo de seguridad por capas
 
-<p class="ut-meta" markdown>20 de noviembre · Teoría y práctica · <span class="dur" tabindex="0" aria-label="Defensa en profundidad y zonas · 5 min&#10;DMZ con uno y con dos cortafuegos · 5 min&#10;Cortafuegos con estado · 10 min&#10;OPNsense · 10 min&#10;A3.1 Instalar el firewall · 80 min" data-dur="Defensa en profundidad y zonas · 5 min&#10;DMZ con uno y con dos cortafuegos · 5 min&#10;Cortafuegos con estado · 10 min&#10;OPNsense · 10 min&#10;A3.1 Instalar el firewall · 80 min">:material-school:<i class="dur-barra" style="--teoria:27%"></i>:material-flask:</span></p>
+<p class="ut-meta" markdown>20 de noviembre · Teoría y práctica · <span class="dur" tabindex="0" aria-label="Defensa en profundidad y zonas · 5 min&#10;DMZ con uno y con dos cortafuegos · 5 min&#10;Cortafuegos con estado · 10 min&#10;OPNsense · 5 min&#10;A3.1 Instalar el firewall · 85 min" data-dur="Defensa en profundidad y zonas · 5 min&#10;DMZ con uno y con dos cortafuegos · 5 min&#10;Cortafuegos con estado · 10 min&#10;OPNsense · 5 min&#10;A3.1 Instalar el firewall · 85 min">:material-school:<i class="dur-barra" style="--teoria:23%"></i>:material-flask:</span></p>
 
 Al acabar la sesión hay un OPNsense con una pata en cada una de las cinco zonas, con la IP .1 en cada red y la consola web accesible solo desde gestión. Para la hoja hace falta entender el modelo de zonas y el mapa sobre la VPC de la UT2 (qué zona es cada subred ya creada), por qué basta un cortafuegos con estado y una regla por conexión, y la tabla de interfaces de la instalación de OPNsense. La alternativa con nftables no se explica: queda apuntada al final de la teoría, con el fichero de reglas en Para ampliar, para quien prefiera un router Debian.
 
@@ -238,6 +238,7 @@ El fichero `/etc/nftables.conf` completo del laboratorio, el recorrido de un paq
 - La VPC dev de la UT2 completa: las cuatro VNets (`devmgmt`, `devfront`, `devback`, `devdata`), `router-dev` repartiendo IP y nombres, `web01` (10.10.1.10) en `devfront` y `db01` (10.10.3.10) en `devdata`. Las dos se crearon en la UT2; hoy no hay que crear ninguna. `app01` y `mon01` siguen en `vmbr0` mientras Mantenimiento trabaja con ellas: se trasladan a la VPC en la A3.3, el 27 de noviembre, y sus reservas por MAC ya están escritas en `dev.conf` desde la A2.3.
 - Una VM en `devmgmt` con la 10.10.0.50: el puesto desde el que administrarás el firewall toda la unidad.
 - La ISO `dvd` de OPNsense 26.x en el almacenamiento de Proxmox.
+- Si puedes, trae hechos de casa los pasos 2, 3 y 4: la VM con sus cinco NIC, las MAC apuntadas y el instalador pasado. Son unos veinte minutos que no dependen de nadie más, la sesión de hoy va justa y el trabajo de verdad empieza en el paso 5.
 - Explicado en clase: [el modelo de zonas](#defensa-en-profundidad-y-zonas), [el mapa sobre la VPC](#mapa-sobre-la-vpc-de-la-ut2) y [qué es un cortafuegos con estado](#cortafuegos-con-estado). Para la instalación, la tabla de interfaces de [Instalación en Proxmox](#instalacion-en-proxmox).
 
 <span class="et et-pas">Pasos</span>
@@ -263,14 +264,14 @@ El fichero `/etc/nftables.conf` completo del laboratorio, el recorrido de un paq
     `router-dev` sigue encendido mientras montas el firewall, y es el `.1` de las cuatro subredes. Dos máquinas no pueden tener la misma IP, así que hasta el paso 8 el firewall se configura con las cuatro interfaces internas **sin activar** y con una dirección provisional en MGMT. El relevo se hace de una vez en el paso 8, con todo preparado.
 
 3. Antes de arrancar, apunta la MAC de cada NIC (pestaña Hardware de la VM); te hará falta si algo no cuadra en Interfaces → Assignments.
-4. Arranca desde la ISO, entra como `installer` / `opnsense`, instala con las opciones por defecto, cambia la contraseña de root, retira la ISO y reinicia.
+4. Si no lo hiciste antes de clase: arranca desde la ISO, entra como `installer` / `opnsense`, instala con las opciones por defecto, cambia la contraseña de root, retira la ISO y reinicia.
 5. En la consola de la VM, opción 1 "Assign interfaces": WAN → vtnet0, LAN → vtnet4 (OPNsense llama LAN a la primera interfaz protegida; será MGMT). Opción 2 "Set interface IP address" para LAN: `10.10.0.2/24`, sin DHCP. Es una dirección provisional, del rango reservado `.2` a `.9`, porque el `.1` lo tiene todavía `router-dev`. WAN queda en DHCP.
 6. Desde el puesto de gestión, entra en `https://10.10.0.2`. En Interfaces → Assignments añade vtnet1, vtnet2 y vtnet3; en cada una pon la descripción (DMZEXT, DMZINT, INT), IPv4 estática con el `.1/24` de su zona y sin gateway, pero **deja sin marcar "Enable interface"** hasta el paso 8. Renombra LAN a MGMT.
 7. Mueve la administración a MGMT: System → Settings → Administration, en "Listen interfaces" deja solo MGMT. No desactives la regla anti-lockout hasta tener una regla propia en MGMT (sesión 15).
 8. El relevo: OPNsense pasa a ser el `.1`, el DHCP y el DNS de las cuatro zonas, y `router-dev` se apaga. El orden importa. Todo se deja configurado en el firewall **antes** de tocar el router; si se apaga primero el router, las máquinas se quedan sin IP en cuanto caduque su concesión y sin resolver un solo nombre, y el laboratorio se para a mitad de sesión.
 
-    1. Con las interfaces internas todavía apagadas, configura en OPNsense el reparto de direcciones: Services → Dnsmasq DHCP & DNS (o el servicio DHCP que traiga tu versión), activo en DMZEXT, DMZINT, INT y MGMT, con el rango `.100` a `.199` de cada red y el `.1` de cada zona como router y como servidor DNS. Copia las reservas por MAC de tu `dev.conf`: `web01` 10.10.1.10, `app01` 10.10.2.10, `db01` 10.10.3.10 y `mon01` 10.10.0.20. Las de `app01` y `mon01` quedan preparadas para el traslado de la A3.3, aunque hoy esas dos VM sigan en el bridge del aula.
-    2. Configura el DNS: dominio `dev.lab`, y los nombres que servía dnsmasq, incluido `api.dev.lab` apuntando a 10.10.1.10. Guarda, sin aplicar todavía.
+    1. Con las interfaces internas todavía apagadas, configura en OPNsense el reparto de direcciones: Services → Dnsmasq DHCP & DNS (o el servicio DHCP que traiga tu versión), activo en DMZEXT, DMZINT, INT y MGMT, con el rango `.100` a `.199` de cada red. Deja vacíos el router y el servidor DNS de cada rango: cuando están vacíos, el servicio anuncia la propia IP de la interfaz, que es justo el `.1` de esa zona, y te ahorras ocho campos. Copia las cuatro reservas por MAC de tu `dev.conf` tal cual: `web01` 10.10.1.10, `app01` 10.10.2.10, `db01` 10.10.3.10 y `mon01` 10.10.0.20. Las de `app01` y `mon01` quedan preparadas para el traslado de la A3.3, aunque hoy esas dos VM sigan en el bridge del aula.
+    2. Configura el DNS: dominio `dev.lab` y un registro para `api.dev.lab` apuntando a 10.10.1.10. Los nombres de las máquinas no hay que escribirlos uno a uno: el servicio los da de alta solo, con cada reserva y cada concesión, igual que hacía dnsmasq en el router. Guarda, sin aplicar todavía.
     3. Deja `router-dev` sin sus IP internas, desde la consola de Proxmox de esa VM:
 
         ```bash
@@ -280,7 +281,7 @@ El fichero `/etc/nftables.conf` completo del laboratorio, el recorrido de un paq
 
     4. Ahora sí, en OPNsense marca "Enable interface" en DMZEXT, DMZINT e INT, cambia la IP de MGMT de `10.10.0.2` a `10.10.0.1` y aplica. Perderás la sesión del navegador: vuelve a entrar en `https://10.10.0.1`. Arranca el servicio de DHCP y DNS.
     5. Comprueba que el relevo está hecho antes de apagar nada más: desde el puesto de gestión responden `ping 10.10.0.1`, `ping 10.10.1.1`, `ping 10.10.2.1` y `ping 10.10.3.1`; en `web01`, `dhclient -r ens18 && dhclient ens18` devuelve otra vez la 10.10.1.10 y `dig db01.dev.lab` sigue respondiendo 10.10.3.10.
-    6. Apaga `router-dev` (`qm shutdown` desde el nodo) y anota en la memoria qué se ha traspasado. Las VM de servicio no cambian de gateway: siguen apuntando al `.1` de su zona, que ahora es el firewall; compruébalo con `ip route` en web01 y db01.
+    6. Apaga `router-dev` (`qm shutdown` desde el nodo) y anota en una línea qué se ha traspasado. Las VM de servicio no cambian de gateway: siguen apuntando al `.1` de su zona, que ahora es el firewall.
 
 9. Alternativa nftables: una VM Debian 13 con las mismas cinco NIC, `net.ipv4.ip_forward=1` en `/etc/sysctl.d/99-router.conf`, las .1 en las interfaces y el fichero de reglas de [Para ampliar](../ampliacion.md#nftables-el-fichero-de-reglas-completo) cargado con `nft -f`.
 
@@ -291,9 +292,9 @@ El fichero `/etc/nftables.conf` completo del laboratorio, el recorrido de un paq
 - En Interfaces → Assignments la MAC de cada vtnet coincide con la que apuntaste para cada bridge.
 - `ip route` en web01 y db01 muestra `default via 10.10.X.1`.
 
-<span class="et et-ent">Entrega</span> En la carpeta `ut3/` de tu repositorio, captura de Interfaces → Assignments y un esquema de zonas (texto o Mermaid) con las cinco redes, la IP del firewall en cada una y las máquinas.
+<span class="et et-ent">Entrega</span> En la carpeta `ut3/` de tu repositorio, captura de Interfaces → Assignments y la tabla de interfaces del paso 2 completada con la MAC real de cada NIC y la IP que le has puesto.
 
-<span class="et et-ext">Si te sobra tiempo</span> Añade ya la sexta NIC (bridge VLAN aware, sin tag) que necesitarás en la sesión 17.
+<span class="et et-ext">Si te sobra tiempo</span> Dibuja el esquema de zonas (texto o Mermaid) con las cinco redes, la IP del firewall en cada una y las máquinas: es el primer punto del informe de la sesión 19 y se agradece tenerlo hecho desde hoy. Añade también la sexta NIC (bridge VLAN aware, sin tag) que necesitarás en la sesión 17.
 
 ## Sesión 15 · Reglas por zona y publicación de un servicio
 

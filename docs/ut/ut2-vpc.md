@@ -624,60 +624,34 @@ Del lado de las VM, la plantilla 9000 de la UT1 lleva cloud-init, así que `qm s
     systemctl enable --now nftables
     ```
 
-5. Apunta las MAC de `web01` y de `db01`, las dos VM que clonaste en la A2.2:
+5. Apunta las MAC de `web01` y de `db01`, las dos VM que clonaste en la A2.2 (las vas a necesitar en el paso siguiente):
 
     ```bash
     qm config 110 | grep net0
     qm config 130 | grep net0
     ```
 
-6. Instala dnsmasq en el router y escribe el fichero de dev. Sustituye las MAC por las tuyas y las IP por las de tu tabla:
+6. Instala dnsmasq en el router y escribe el fichero de dev. No lo teclees entero: el fichero está completo y comentado línea a línea en [dnsmasq: DHCP y DNS en uno](#dnsmasq-dhcp-y-dns-en-uno), y lo que hay que hacer es copiarlo tal cual y cambiar dos cosas. Una, las cuatro MAC de ejemplo por las tuyas (las de `web01` y `db01` las acabas de sacar; las de `app01` y `mon01`, con `qm config 120 | grep net0` y `qm config 103 | grep net0`). Dos, los rangos, el dominio y las IP por los de tu tabla de direccionamiento, si no usas el ejemplo del curso.
+
+    ```bash
+    apt install dnsmasq
+    nano /etc/dnsmasq.d/dev.conf     # pega aquí el fichero del apartado de teoría
+    ```
+
+    Las reservas son cuatro, no dos, y esta es la parte que hay que revisar con cuidado:
 
     ```ini
-    # /etc/dnsmasq.d/dev.conf
-    interface=ens19
-    interface=ens20
-    interface=ens21
-    interface=ens22
-    bind-interfaces
-
-    domain=dev.lab
-    local=/dev.lab/
-    expand-hosts
-    no-resolv
-    server=1.1.1.1
-    server=9.9.9.9
-    dhcp-authoritative
-
-    dhcp-range=set:mgmt,10.10.0.100,10.10.0.199,12h
-    dhcp-option=tag:mgmt,option:router,10.10.0.1
-    dhcp-range=set:front,10.10.1.100,10.10.1.199,12h
-    dhcp-option=tag:front,option:router,10.10.1.1
-    dhcp-range=set:back,10.10.2.100,10.10.2.199,12h
-    dhcp-option=tag:back,option:router,10.10.2.1
-    dhcp-range=set:data,10.10.3.100,10.10.3.199,12h
-    dhcp-option=tag:data,option:router,10.10.3.1
-    dhcp-option=option:dns-server,10.10.0.1
-    dhcp-option=option:domain-search,dev.lab
-
     dhcp-host=bc:24:11:aa:bb:cc,web01,10.10.1.10
     dhcp-host=bc:24:11:aa:bb:dd,app01,10.10.2.10
     dhcp-host=bc:24:11:aa:bb:ee,db01,10.10.3.10
     dhcp-host=bc:24:11:aa:bb:ff,mon01,10.10.0.20
-
-    address=/api.dev.lab/10.10.1.10
-    host-record=lb.dev.lab,10.10.1.200
-
-    log-dhcp
-    log-queries
     ```
 
-    Incluye desde ya las reservas de `app01` (`10.10.2.10`, en back) y `mon01` (`10.10.0.20`, en gestión): son las VM que se trasladan a esta VPC en la UT3 de Mantenimiento, y al llegar tienen que seguir llamándose igual. Ninguna de las dos lleva una segunda tarjeta: cada máquina tiene una sola pata, la de su zona.
+    Las de `app01` (`10.10.2.10`, en back) y `mon01` (`10.10.0.20`, en gestión) van desde hoy aunque esas dos VM sigan en el bridge del aula: son las que se trasladan a esta VPC en la UT3 de Mantenimiento, y al llegar tienen que seguir llamándose igual. Ninguna de las dos lleva una segunda tarjeta: cada máquina tiene una sola pata, la de su zona.
 
 7. Comprueba la sintaxis, arranca y deja el log abierto:
 
     ```bash
-    apt install dnsmasq
     dnsmasq --test          # "syntax check OK"
     systemctl restart dnsmasq
     journalctl -u dnsmasq -f

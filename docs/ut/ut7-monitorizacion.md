@@ -31,7 +31,7 @@ El problema: el jueves a las tres de la tarde el disco de `db01` se llena, Postg
 | PromQL | Lenguaje de consulta de Prometheus, el SQL de las series temporales | Calcular los KPI, los paneles y las reglas de alerta |
 | Reglas de alerta | Fichero YAML que dice "si esta consulta da cierto durante tanto tiempo, avisa" | Detectar hosts caídos, discos llenos, CPU alta y builds fallidas |
 | Alertmanager | Recibe las alertas de Prometheus y decide a quién avisar, por dónde y cuándo callar | Enviar por correo, Telegram o webhook sin recibir 15 correos por una misma caída |
-| Grafana y su provisioning | Interfaz web que dibuja consultas en paneles; el provisioning son ficheros que lee al arrancar en lugar de configurar por clics | El panel de KPI de operaciones, el dashboard 1860 y todo en Git |
+| Grafana y su provisioning | Interfaz web que dibuja consultas en paneles; el provisioning son ficheros que lee al arrancar en lugar de configurar por clics | El panel de KPI de operaciones cargado desde fichero y todo en Git |
 | Docker Compose y Mailpit | Compose describe varios contenedores para levantarlos de una vez; Mailpit es un correo falso con interfaz web | Desplegar la pila en `mon01` y ver las notificaciones sin SMTP real |
 | file_sd | Prometheus lee la lista de máquinas a vigilar de un fichero que escribe otro programa (Ansible) | Que los targets salgan del inventario y no se editen a mano |
 | TLS, basic auth y proxy inverso nginx | El cifrado, la contraseña y la puerta de entrada de la UT3 | Que nadie fuera de la red de gestión lea los exporters ni entre en Grafana |
@@ -48,13 +48,13 @@ Cada sesión de 110 minutos empieza con una explicación corta y sigue con labor
 
 | Sesión | Fecha | Tipo | Se explica | Se practica |
 |---:|-------|------|------------|-------------|
-| [42](#sesion-42-ingesta-de-metricas) | 7 abr | Teoría y práctica | Métricas, logs y trazas; modelo pull; exporters; comparativa de gestores de ingesta (30 min). | Pila Prometheus, Alertmanager y Grafana en mon01; node_exporter, cAdvisor y el plugin de Jenkins; todos los targets en UP y las nueve consultas PromQL. |
-| [43](#sesion-43-visualizacion-y-alertas) | 9 abr | Teoría y práctica | Repaso de PromQL, reglas y Alertmanager; métricas del orquestador de CI (25 min). | Panel propio con cinco KPI, dashboard 1860, dos alertas y envío por correo; provocar HostDown y ver la notificación y la resolución. |
+| [42](#sesion-42-ingesta-de-metricas) | 7 abr | Teoría y práctica | Métricas, logs y trazas; modelo pull; exporters; comparativa de gestores de ingesta (25 min). | Pila Prometheus, Alertmanager y Grafana en mon01; node_exporter, cAdvisor y el plugin de Jenkins; todos los targets en UP y las consultas que prueban las tres fuentes. |
+| [43](#sesion-43-visualizacion-y-alertas) | 9 abr | Teoría y práctica | Repaso de PromQL, reglas y Alertmanager; métricas del orquestador de CI (25 min). | Panel propio con cinco KPI cargado por provisioning, reglas de alerta y envío por correo; provocar HostDown y ver la notificación y la resolución. |
 | [44](#sesion-44-practica-evaluable) | 14 abr | Práctica evaluable | Seguridad de la monitorización: red, TLS, accesos y repositorio de datos (15 min). | Cortafuegos que reserva los exporters a mon01, Grafana tras nginx con TLS y entrega del repositorio monitoring sin secretos. |
 
 ## Sesión 42 · Ingesta de métricas
 
-<p class="ut-meta" markdown>7 de abril · Teoría y práctica · <span class="dur" tabindex="0" aria-label="Monitorización y observabilidad · 5 min&#10;Elegir el gestor de ingesta · 10 min&#10;Pila de monitorización y exporters · 15 min&#10;A7.1 Ingesta · 80 min" data-dur="Monitorización y observabilidad · 5 min&#10;Elegir el gestor de ingesta · 10 min&#10;Pila de monitorización y exporters · 15 min&#10;A7.1 Ingesta · 80 min">:material-school:<i class="dur-barra" style="--teoria:27%"></i>:material-flask:</span></p>
+<p class="ut-meta" markdown>7 de abril · Teoría y práctica · <span class="dur" tabindex="0" aria-label="Monitorización y observabilidad · 5 min&#10;Elegir el gestor de ingesta · 10 min&#10;Pila de monitorización y exporters · 10 min&#10;A7.1 Ingesta · 85 min" data-dur="Monitorización y observabilidad · 5 min&#10;Elegir el gestor de ingesta · 10 min&#10;Pila de monitorización y exporters · 10 min&#10;A7.1 Ingesta · 85 min">:material-school:<i class="dur-barra" style="--teoria:23%"></i>:material-flask:</span></p>
 
 Al terminar la sesión, Prometheus corre en `mon01` y lee de node_exporter en las cuatro máquinas, de cAdvisor en `app01` y del plugin de Jenkins, con todos los targets en UP y las consultas de la tabla devolviendo datos. En clase se explican los tres apartados siguientes: qué son métricas, logs y trazas, por qué se elige Prometheus frente a las otras opciones (esa justificación se pide en la práctica) y cómo se despliega la pila con sus exporters. El formato de exposición, el modelo de datos y la chuleta de exporters son material de consulta para la hoja A7.1.
 
@@ -349,7 +349,7 @@ Blackbox cambia el punto de vista: los demás miden desde dentro ("el proceso us
 
 ### A7.1 Ingesta (sesión 42)
 
-<span class="et et-obj">Objetivo</span> Al terminar, Prometheus corre en `mon01`, lee de sí mismo, de node_exporter en las cuatro máquinas, de cAdvisor en `app01` y de Jenkins, todos los targets están en UP y las nueve consultas de la tabla devuelven datos.
+<span class="et et-obj">Objetivo</span> Al terminar, Prometheus corre en `mon01`, lee de sí mismo, de node_exporter en las cuatro máquinas, de cAdvisor en `app01` y de Jenkins, todos los targets están en UP y las consultas de comprobación devuelven datos de las tres fuentes.
 
 <span class="et et-pre">Antes de empezar</span>
 
@@ -357,7 +357,7 @@ Blackbox cambia el punto de vista: los demás miden desde dentro ("el proceso us
 - El cortafuegos del entorno deja pasar de `mon01` a los puertos de los exporters de `app01` y de `db01`; si no, no hay scrape posible. Desde `mon01`, `ping -c1 app01.dev.lab` responde y los nombres los resuelve OPNsense, que es el `.1` de cada subred desde la sesión 14.
 - El fichero `ca.crt` de la CA del aula que creaste en la UT6, copiado a `~/monitoring/certs/ca.crt` en `mon01`: es lo que hace que Prometheus se fíe de `https://jenkins.lab`.
 - El repositorio `monitoring` de 5169, que aquí se reescribe como despliegue definitivo, clonado en `mon01` en `~/monitoring`; en la sesión 44 se entrega. Trabaja en una rama nueva para no pisar lo que allí funciona.
-- `mon01` lleva desde octubre la pila de 5169 en `/opt/monitoring` (Prometheus 9090, Alertmanager 9093, Grafana 3000, Mailpit 8025 y Loki) y `app01` un contenedor llamado `cadvisor` publicado en el 8081. Antes de empezar, `docker compose down` en `/opt/monitoring` y `docker rm -f cadvisor` en `app01`; si no, el primer `docker compose up -d` falla con `port is already allocated` y el `docker run` con el nombre ya en uso.
+- `mon01` lleva desde octubre la pila de 5169 en `/opt/monitoring` (Prometheus 9090, Alertmanager 9093, Grafana 3000, Mailpit 8025 y Loki): haz `docker compose down` ahí antes de empezar o el primer `docker compose up -d` falla con `port is already allocated`. El contenedor `cadvisor` que `app01` tiene publicado en el 8081 desde aquella pila, en cambio, se aprovecha tal cual: no lo borres.
 - Explicado en clase: [Elegir el gestor de ingesta](#elegir-el-gestor-de-ingesta), el modelo pull y los exporters de [Pila de monitorización](#pila-de-monitorizacion). Para consultar durante la práctica: [El formato de exposición](#el-formato-de-exposicion) y [Descubrimiento de targets](#descubrimiento-de-targets).
 
 <span class="et et-pas">Pasos</span>
@@ -374,10 +374,13 @@ Blackbox cambia el punto de vista: los demás miden desde dentro ("el proceso us
     ```
 
 2. Abre `http://mon01.lab:9090/targets`. El job `prometheus` tiene que estar en UP; los demás en DOWN todavía, es normal.
-3. Instala node_exporter en `app01`, `db01`, `jenkins01` y `mon01`. En `app01`, `db01` y `mon01` el node_exporter ya está instalado desde la UT3 de Mantenimiento, y allí se le pusieron TLS y autenticación básica: sustituir `/etc/default/prometheus-node-exporter` deja sin cifrar lo que se endureció el 3 de diciembre, así que anótalo y recupéralo al acabar la unidad. En `jenkins01`, que es nuevo, se instala ahora. Las VM del laboratorio no descargan binarios de Internet, así que se usa el paquete de Debian, que ya trae la unidad de systemd y su usuario propio. Lo único que se toca es la dirección en la que escucha: **la de la zona de cada host**, nunca `0.0.0.0` (`app01` la `10.10.2.10`, `db01` la `10.10.3.10`, `jenkins01` la `10.10.0.10` y `mon01` la `10.10.0.20`; `ip -br a` te la confirma). Repite los cuatro comandos en cada máquina cambiando la IP:
+3. Deja node_exporter escuchando en las cuatro máquinas. Instalarlo solo hace falta en `jenkins01`, que es nueva: en `app01`, `db01` y `mon01` ya está puesto desde la UT3 de Mantenimiento y ahí basta con cambiar la dirección de escucha y reiniciar el servicio. Ojo con esas tres: allí se le pusieron TLS y autenticación básica, y sustituir `/etc/default/prometheus-node-exporter` deja sin cifrar lo que se endureció el 3 de diciembre, así que anótalo y recupéralo al acabar la unidad. Lo único que se toca es la dirección en la que escucha: **la de la zona de cada host**, nunca `0.0.0.0` (`app01` la `10.10.2.10`, `db01` la `10.10.3.10`, `jenkins01` la `10.10.0.10` y `mon01` la `10.10.0.20`; `ip -br a` te la confirma).
 
     ```bash
+    # solo en jenkins01: las VM del laboratorio no bajan binarios de Internet, así que
+    # se usa el paquete de Debian, que ya trae la unidad de systemd y su usuario propio
     sudo apt-get update && sudo apt-get install -y prometheus-node-exporter
+    # en las cuatro, cambiando la IP por la de la zona del host
     echo 'ARGS="--web.listen-address=10.10.2.10:9100"' | sudo tee /etc/default/prometheus-node-exporter
     sudo systemctl restart prometheus-node-exporter
     curl -s http://10.10.2.10:9100/metrics | grep '^node_cpu_seconds_total' | head -3
@@ -386,13 +389,19 @@ Blackbox cambia el punto de vista: los demás miden desde dentro ("el proceso us
     !!! truco "Si necesitas una versión más nueva que la de Debian"
         El binario oficial se descarga **una sola vez** en la máquina que tenga salida (el puesto de administración, `10.10.0.50`) y se reparte con `scp`, sin pedir Internet a las VM de servicio: `curl -sSLO https://github.com/prometheus/node_exporter/releases/download/v1.9.1/node_exporter-1.9.1.linux-amd64.tar.gz`, `tar xzf` para sacar el binario, y `for h in app01.dev.lab db01.dev.lab jenkins01.lab mon01.lab; do scp node_exporter ops@$h:/tmp/; done`. En cada host, `sudo install -m 0755 /tmp/node_exporter /usr/local/bin/` y una unidad de systemd propia con el mismo `--web.listen-address`.
 
-4. En `app01`, arranca cAdvisor como contenedor. Dentro de la red de Docker sigue escuchando en el 8080, pero se publica en el **8081** de la IP de `app01`, porque el 8080 del host lo ocupa la API del curso:
+4. cAdvisor en `app01` ya corre desde la pila de 5169. Compruébalo desde `mon01` antes de tocar nada: si contesta, este paso está hecho y el job `cadvisor` de `prometheus.yml` lo va a encontrar.
 
     ```bash
+    curl -s http://10.10.2.10:8081/metrics | grep -c '^container_cpu_usage_seconds_total'
+    ```
+
+    Solo si no contesta, o si en `app01` `docker inspect cadvisor --format '{{.HostConfig.PortBindings}}'` enseña que publica en todas las interfaces en lugar de en la IP de la zona, recréalo. Dentro de la red de Docker sigue escuchando en el 8080, pero se publica en el **8081** de la IP de `app01`, porque el 8080 del host lo ocupa la API del curso:
+
+    ```bash
+    docker rm -f cadvisor
     docker run -d --name cadvisor --restart unless-stopped -p 10.10.2.10:8081:8080 \
       -v /:/rootfs:ro -v /var/run:/var/run:ro -v /sys:/sys:ro -v /var/lib/docker:/var/lib/docker:ro \
       gcr.io/cadvisor/cadvisor:v0.52.1 --docker_only=true --housekeeping_interval=30s
-    curl -s http://10.10.2.10:8081/metrics | grep -c '^container_cpu_usage_seconds_total'
     ```
 
 5. Instala el plugin **Prometheus metrics** en Jenkins. No se instaló en la UT6, así que hay que añadirlo ahora, y se añade donde está el resto: en el `plugins.txt` de la imagen propia del repositorio `jenkins-config`, para que un Jenkins reconstruido desde cero siga exponiendo sus métricas. En `jenkins01`:
@@ -424,21 +433,20 @@ Blackbox cambia el punto de vista: los demás miden desde dentro ("el proceso us
     ```
 
 7. En `http://mon01.lab:9090/targets` espera un minuto (el `refresh_interval` de `file_sd`) y confirma que todos los endpoints están en UP. Si alguno está en DOWN, el mensaje de error de esa fila y la lista de [Errores frecuentes](#errores-frecuentes-en-el-laboratorio) te dicen dónde mirar; lo habitual en esta sesión son dos cosas: un exporter escuchando en otra interfaz, o el cortafuegos del entorno bloqueando el camino de gestión a `back` o a `data`.
-8. En la pestaña Graph (`http://mon01.lab:9090/graph`) ejecuta una a una las nueve consultas de [Consultas del laboratorio](#consultas-del-laboratorio) y apunta en una tabla el valor de cada una para un host. Las de cAdvisor (`{name="app"}`) necesitan que el contenedor de tu aplicación se llame así; si no, cambia el valor de `name` por el tuyo (`docker ps --format '{{.Names}}'` en `app01`). La de Jenkins dará 0 si no hay builds fallidas en la última hora; lanza un job que falle a propósito para verla subir.
-9. Añade una consulta propia con `topk` o `predict_linear`. Ejemplos de partida: `topk(3, instance:node_cpu_utilisation:ratio)` no funciona todavía (la regla de grabación llega en la sesión 43), así que usa `topk(2, 1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])))` o el `predict_linear` del disco con una ventana de `[1h]`.
-10. Haz commit de `compose.yml`, `prometheus.yml`, `alerts.yml`, `alertmanager.yml` y `targets/` en el repositorio `monitoring` (sin `.env`).
+8. En la pestaña Graph (`http://mon01.lab:9090/graph`) prueba que llegan datos de las tres fuentes con cuatro consultas de [Consultas del laboratorio](#consultas-del-laboratorio): CPU usada por host, disco libre, CPU de un contenedor y ejecuciones de Jenkins fallidas. Apunta en una tabla el valor de cada una para un host. La de cAdvisor (`{name="app"}`) necesita que el contenedor de tu aplicación se llame así; si no, cambia el valor de `name` por el tuyo (`docker ps --format '{{.Names}}'` en `app01`). La de Jenkins dará 0 si no hay builds fallidas en la última hora, que también es un resultado válido: para ver un número distinto de cero consulta `default_jenkins_builds_success_build_count`, que cuenta las ejecuciones correctas de la UT6.
+9. Haz commit de `compose.yml`, `prometheus.yml`, `alerts.yml`, `alertmanager.yml` y `targets/` en el repositorio `monitoring` (sin `.env`).
 
 <span class="et et-com">Comprobación</span> En `http://mon01.lab:9090/targets` los cuatro jobs (`prometheus`, `node`, `cadvisor`, `jenkins`) sin ninguna fila en DOWN, y las series del job `node` llevan las etiquetas `env` y `rol` (en Graph, `up{rol="ci"}` devuelve una serie). `prometheus_tsdb_head_series` está entre 3 000 y 10 000.
 
-<span class="et et-ent">Entrega</span> En una carpeta `A7.1` de Aules: captura de la página Targets con todo en UP, el fichero `targets/node_lab.yml` y una tabla (Markdown o captura) con las nueve consultas y la que añadas, con su resultado. El repositorio `monitoring` con el primer commit.
+<span class="et et-ent">Entrega</span> En una carpeta `A7.1` de Aules: captura de la página Targets con todo en UP, el fichero `targets/node_lab.yml` y una tabla (Markdown o captura) con las cuatro consultas y su resultado. El repositorio `monitoring` con el primer commit.
 
-<span class="et et-ext">Si te sobra tiempo</span> Abre Status → TSDB Status y anota qué métrica tiene más series y por qué. Instala `postgres_exporter` en `db01` (puerto 9187, usuario de solo lectura con `pg_monitor`) y añádelo a un job `postgres`.
+<span class="et et-ext">Si te sobra tiempo</span> Ejecuta las cinco consultas que te has dejado de [Consultas del laboratorio](#consultas-del-laboratorio) y añade una propia con `topk` o `predict_linear`: `topk(3, instance:node_cpu_utilisation:ratio)` no funciona todavía (la regla de grabación llega en la sesión 43), así que parte de `topk(2, 1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])))` o del `predict_linear` del disco con una ventana de `[1h]`. Lanza en Jenkins un job que falle a propósito y mira subir `increase(default_jenkins_builds_failed_build_count[1h])`. Abre Status → TSDB Status y anota qué métrica tiene más series y por qué. Instala `postgres_exporter` en `db01` (puerto 9187, usuario de solo lectura con `pg_monitor`) y añádelo a un job `postgres`.
 
 ## Sesión 43 · Visualización y alertas
 
 <p class="ut-meta" markdown>9 de abril · Teoría y práctica · <span class="dur" tabindex="0" aria-label="Repaso: PromQL, reglas, Alertmanager, Grafana y KPI · 10 min&#10;Métricas del orquestador: Jenkins en Prometheus · 15 min&#10;A7.2 Paneles y alertas · 85 min" data-dur="Repaso: PromQL, reglas, Alertmanager, Grafana y KPI · 10 min&#10;Métricas del orquestador: Jenkins en Prometheus · 15 min&#10;A7.2 Paneles y alertas · 85 min">:material-school:<i class="dur-barra" style="--teoria:23%"></i>:material-flask:</span></p>
 
-Con los datos ya guardados, esta sesión los convierte en paneles y avisos: un dashboard propio con los cinco KPI cargado por provisioning, el 1860 importado y la alerta `HostDown` llegando a Mailpit en FIRING y en RESOLVED. Los cinco primeros apartados son repaso y en clase ocupan diez minutos entre todos: PromQL, las reglas, Alertmanager, Grafana y el vocabulario de indicadores se explicaron a fondo en el módulo 5169 entre octubre y diciembre, y aquí queda solo lo que la hoja A7.2 necesita, con el enlace al apartado donde está entero. Los quince minutos restantes van a lo que aquel módulo no toca y aquí se evalúa: qué publica el orquestador de integración continua y qué dicen esos números sobre la salud de la CI.
+Con los datos ya guardados, esta sesión los convierte en paneles y avisos: un dashboard propio con los cinco KPI cargado por provisioning y la alerta `HostDown` llegando a Mailpit en FIRING y en RESOLVED. Los cinco primeros apartados son repaso y en clase ocupan diez minutos entre todos: PromQL, las reglas, Alertmanager, Grafana y el vocabulario de indicadores se explicaron a fondo en el módulo 5169 entre octubre y diciembre, y aquí queda solo lo que la hoja A7.2 necesita, con el enlace al apartado donde está entero. Los quince minutos restantes van a lo que aquel módulo no toca y aquí se evalúa: qué publica el orquestador de integración continua y qué dicen esos números sobre la salud de la CI.
 
 ### PromQL: repaso y consultas del laboratorio
 
@@ -584,7 +592,7 @@ Mailpit acepta cualquier correo en el puerto 1025 y lo enseña en `http://mon01.
   <figcaption>Un dashboard de Grafana con series temporales, gauges y stats de un host. Fuente: Joel Kennedy, dominio público, vía Wikimedia Commons.</figcaption>
 </figure>
 
-Lo que la hoja pide de la interfaz cabe en cuatro reglas. La **unidad** de cada panel (percent, bytes(IEC), seconds) hace que Grafana escale los ejes y escriba 5,73 GiB en lugar de 6.1e+09. Los **umbrales** de color dicen lo mismo que dirá la alerta (verde hasta 70, naranja hasta 85, rojo). La **leyenda** se escribe como `{{instance}}` y no como la serie entera. Y una **variable** `$instance`, definida con `label_values(node_uname_info, instance)`, convierte un dashboard por host en uno para todos: las consultas pasan a ser `...{instance=~"$instance"}`. El dashboard 1860 se importa por su identificador (Dashboards → New → Import) y se usa como cantera de consultas: tiene más de cuarenta paneles y nadie mira cuarenta paneles.
+Lo que la hoja pide de la interfaz cabe en cuatro reglas. La **unidad** de cada panel (percent, bytes(IEC), seconds) hace que Grafana escale los ejes y escriba 5,73 GiB en lugar de 6.1e+09. Los **umbrales** de color dicen lo mismo que dirá la alerta (verde hasta 70, naranja hasta 85, rojo). La **leyenda** se escribe como `{{instance}}` y no como la serie entera. Y una **variable** `$instance`, definida con `label_values(node_uname_info, instance)`, convierte un dashboard por host en uno para todos: las consultas pasan a ser `...{instance=~"$instance"}`. El dashboard 1860 se importa por su identificador (Dashboards → New → Import) y sirve de cantera de consultas cuando sobra tiempo: tiene más de cuarenta paneles y nadie mira cuarenta paneles.
 
 #### Provisioning: dashboards en Git
 
@@ -670,7 +678,7 @@ La tercera es la duración media de una ejecución en la última hora: un `summa
 
 ### A7.2 Paneles y alertas (sesión 43)
 
-<span class="et et-obj">Objetivo</span> Un dashboard propio con los cinco KPI cargado por provisioning, el 1860 importado, y la alerta `HostDown` que llega a Mailpit en FIRING y en RESOLVED al apagar y encender `db01`.
+<span class="et et-obj">Objetivo</span> Un dashboard propio con los cinco KPI cargado por provisioning, y la alerta `HostDown` que llega a Mailpit en FIRING y en RESOLVED al apagar y encender `db01`.
 
 <span class="et et-pre">Antes de empezar</span>
 
@@ -681,8 +689,7 @@ La tercera es la duración media de una ejecución en la última hora: un `summa
 <span class="et et-pas">Pasos</span>
 
 1. Fuente de datos por provisioning: crea `grafana/provisioning/datasources/prometheus.yml` y `grafana/provisioning/dashboards/lab.yml` con el contenido del apartado [Provisioning](#provisioning-dashboards-en-git). Reinicia Grafana (`docker compose restart grafana`) y entra en `http://mon01.lab:3000` con `admin` y la contraseña del `.env`. En Connections → Data sources tiene que aparecer Prometheus marcado como default y no editable.
-2. Importa el dashboard 1860: Dashboards → New → Import, id `1860`, fuente Prometheus. Ábrelo, elige un host en el desplegable y localiza el panel de CPU: Edit te enseña la consulta que usa. Quédate con la idea, no con los 40 paneles.
-3. Crea un dashboard nuevo llamado `KPI operaciones` con estos cinco paneles, tomando las consultas de [Consultas del laboratorio](#consultas-del-laboratorio):
+2. Crea un dashboard nuevo llamado `KPI operaciones` con estos cinco paneles, tomando las consultas de [Consultas del laboratorio](#consultas-del-laboratorio):
 
     | Panel | Tipo | Consulta | Unidad y umbrales |
     |----|----|----|----|
@@ -692,11 +699,11 @@ La tercera es la duración media de una ejecución en la última hora: un `summa
     | Memoria del contenedor app | Time series | `container_memory_working_set_bytes{name="app"}` | bytes(IEC) |
     | Disco libre en db01 | Gauge | `node_filesystem_avail_bytes{instance="db01.dev.lab:9100",mountpoint="/"} / node_filesystem_size_bytes{instance="db01.dev.lab:9100",mountpoint="/"} * 100` | percent; rojo hasta 10 |
 
-    Añade, si te da tiempo, un sexto panel con la salud de la CI tomando las consultas de [Métricas del orquestador](#metricas-del-orquestador-jenkins-en-prometheus): la cola de Jenkins, la ocupación de los ejecutores o `increase(default_jenkins_builds_failed_build_count[1h])`. En cada panel, pestaña Legend, escribe `{{instance}}`.
+    En cada panel, pestaña Legend, escribe `{{instance}}`.
 
-4. La variable: Dashboard settings → Variables → New, nombre `instance`, tipo Query, consulta `label_values(node_uname_info, instance)`, marca "Multi-value" e "Include All". Guarda y comprueba que el desplegable filtra los paneles de CPU y memoria.
-5. Exporta el JSON: Share → Export → marca "Export for sharing externally" → Save to file. Cópialo a `~/monitoring/grafana/dashboards/kpi-operaciones.json` en `mon01`, reinicia Grafana y verifica que el dashboard aparece en la carpeta Laboratorio con el candado de "provisioned" (no se puede guardar desde la interfaz). A partir de aquí se edita el fichero, no la interfaz.
-6. Reglas: sustituye el `alerts.yml` vacío por el completo del apartado [Reglas: grabación y alerta](#reglas-grabacion-y-alerta). Valida y recarga:
+3. La variable: Dashboard settings → Variables → New, nombre `instance`, tipo Query, consulta `label_values(node_uname_info, instance)`, marca "Multi-value" e "Include All". Guarda y comprueba que el desplegable filtra los paneles de CPU y memoria.
+4. Exporta el JSON: Share → Export → marca "Export for sharing externally" → Save to file. Cópialo a `~/monitoring/grafana/dashboards/kpi-operaciones.json` en `mon01`, reinicia Grafana y verifica que el dashboard aparece en la carpeta Laboratorio con el candado de "provisioned" (no se puede guardar desde la interfaz). A partir de aquí se edita el fichero, no la interfaz.
+5. Reglas: sustituye el `alerts.yml` vacío por el completo del apartado [Reglas: grabación y alerta](#reglas-grabacion-y-alerta). Valida y recarga:
 
     ```bash
     docker compose exec prometheus promtool check rules /etc/prometheus/alerts.yml
@@ -705,23 +712,22 @@ La tercera es la duración media de una ejecución en la última hora: un `summa
 
     En `http://mon01.lab:9090/alerts` tienen que verse las cuatro alertas en inactive, y en Graph la serie `instance:node_cpu_utilisation:ratio` con un valor por host al cabo de un minuto.
 
-7. Alertmanager: sustituye el `alertmanager.yml` mínimo por el del apartado [Alertmanager](#alertmanager-agrupar-enrutar-silenciar). Si no tienes bot de Telegram, borra el receiver `telegram` y la ruta `severity = "critical"` (o deja la ruta y apunta el receiver a `mail`); el webhook a Jenkins puedes dejarlo, fallará sin ruido. Con bot: crea el fichero `tg_token` con el token, móntalo en el contenedor y añádelo a `.gitignore`. Valida y reinicia:
+6. Alertmanager: sustituye el `alertmanager.yml` mínimo por el del apartado [Alertmanager](#alertmanager-agrupar-enrutar-silenciar) y quítale el receiver `telegram` y su ruta `severity = "critical"`, que quedan para la ampliación; el webhook a Jenkins puedes dejarlo, fallará sin ruido. Valida y reinicia:
 
     ```bash
     docker compose exec alertmanager amtool check-config /etc/alertmanager/alertmanager.yml
     docker compose restart alertmanager
     ```
 
-8. Provoca `HostDown`: apaga `db01` (`sudo poweroff`) y anota la hora. Sigue el camino: en Prometheus → Alerts la alerta pasa a pending y, a los 2 minutos, a firing; en `http://mon01.lab:9093` aparece agrupada; a los 30 segundos de `group_wait`, en `http://mon01.lab:8025` hay un correo con asunto `[FIRING:1] HostDown`. Mientras `db01` está caído, en Alertmanager la alerta `DiskLow` o `HighCPU` de `db01`, si estuviera activa, aparece como inhibida.
-9. Enciende `db01`. Cuando el target vuelva a UP, Prometheus manda la resolución y en Mailpit llega `[RESOLVED] HostDown`. Captura los dos correos.
-10. Silencio: en `http://mon01.lab:9093` → Silences → New, matcher `instance=db01.dev.lab:9100`, duración 30 min, comentario `mantenimiento A7.2`. Apaga `db01` otra vez y comprueba que la alerta pasa a firing en Prometheus pero Alertmanager la marca como silenciada y no llega correo. Enciende `db01` y expira el silencio.
-11. Commit en `monitoring` de `alerts.yml`, `alertmanager.yml` (revisa que no lleve token: `grep -i token alertmanager.yml` solo debe mostrar `bot_token_file`), `grafana/provisioning/` y `grafana/dashboards/`.
+7. Provoca `HostDown`: apaga `db01` (`sudo poweroff`) y anota la hora. Sigue el camino: en Prometheus → Alerts la alerta pasa a pending y, a los 2 minutos, a firing; en `http://mon01.lab:9093` aparece agrupada; a los 30 segundos de `group_wait`, en `http://mon01.lab:8025` hay un correo con asunto `[FIRING:1] HostDown`. Mientras `db01` está caído, en Alertmanager la alerta `DiskLow` o `HighCPU` de `db01`, si estuviera activa, aparece como inhibida.
+8. Enciende `db01`. Cuando el target vuelva a UP, Prometheus manda la resolución y en Mailpit llega `[RESOLVED] HostDown`. Captura los dos correos.
+9. Commit en `monitoring` de `alerts.yml`, `alertmanager.yml` (revisa que no lleve ningún secreto: `grep -i token alertmanager.yml` no debe devolver nada, y si hiciste la parte de Telegram de la ampliación, solo la línea `bot_token_file`), `grafana/provisioning/` y `grafana/dashboards/`.
 
-<span class="et et-com">Comprobación</span> El dashboard `KPI operaciones` se carga desde fichero y muestra datos en los cinco paneles con unidades y colores; `http://mon01.lab:9090/alerts` lista las cuatro reglas; en Mailpit hay al menos un FIRING y un RESOLVED de `HostDown`; `amtool silence query` en el contenedor muestra el silencio expirado.
+<span class="et et-com">Comprobación</span> El dashboard `KPI operaciones` se carga desde fichero y muestra datos en los cinco paneles con unidades y colores; `http://mon01.lab:9090/alerts` lista las cuatro reglas; en Mailpit hay al menos un FIRING y un RESOLVED de `HostDown`.
 
 <span class="et et-ent">Entrega</span> En Aules, carpeta `A7.2`: `kpi-operaciones.json`, `alerts.yml`, `alertmanager.yml` sin secretos y las capturas de los correos FIRING y RESOLVED. El commit correspondiente en `monitoring`.
 
-<span class="et et-ext">Si te sobra tiempo</span> Añade la alerta `DiskFillingIn4h` con el `predict_linear` de la tabla y llena el disco de `db01` con `fallocate -l 2G /tmp/relleno` para verla en pending. Con Telegram, comprueba que una alerta critical llega a los dos sitios (correo y chat) gracias a `continue: true`.
+<span class="et et-ext">Si te sobra tiempo</span> Pon un silencio: en `http://mon01.lab:9093` → Silences → New, matcher `instance=db01.dev.lab:9100`, duración 30 min, comentario `mantenimiento A7.2`; apaga `db01` otra vez y comprueba que la alerta pasa a firing en Prometheus pero Alertmanager la marca como silenciada y no llega correo. Importa el dashboard 1860 (Dashboards → New → Import, id `1860`, fuente Prometheus), localiza su panel de CPU y mira con Edit la consulta que usa: es una buena cantera, aunque nadie mire cuarenta paneles. Añade un sexto panel con la salud de la CI tomando las consultas de [Métricas del orquestador](#metricas-del-orquestador-jenkins-en-prometheus): la cola de Jenkins, la ocupación de los ejecutores o `increase(default_jenkins_builds_failed_build_count[1h])`. Añade la alerta `DiskFillingIn4h` con el `predict_linear` de la tabla y llena el disco de `db01` con `fallocate -l 2G /tmp/relleno` para verla en pending. Y si tienes bot de Telegram, crea el fichero `tg_token`, móntalo en el contenedor, añádelo a `.gitignore`, recupera el receiver y la ruta que quitaste y comprueba que una alerta critical llega a los dos sitios gracias a `continue: true`.
 
 ## Sesión 44 · Práctica evaluable
 

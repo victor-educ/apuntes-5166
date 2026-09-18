@@ -54,7 +54,7 @@ Cada sesión de 110 minutos empieza con una explicación corta y sigue con labor
 | Sesión | Fecha | Tipo | Se explica | Se practica |
 |---:|-------|------|------------|-------------|
 | [1](#sesion-1-presentacion-e-instalacion-del-hipervisor) | 2 oct | Teoría y práctica | Presentación del módulo, evaluación y laboratorio (20 min). Qué es virtualizar; hipervisores tipo 1 y 2; qué es Proxmox y por qué se usa (25 min). | Comprobar VT-x/AMD-V, crear la VM anidada e instalar Proxmox VE desde la ISO. Al final: consola web accesible en el puerto 8006. |
-| [2](#sesion-2-configuracion-inicial-de-proxmox) | 7 oct | Teoría y práctica | Repositorios, almacenamiento (local, LVM-thin), bridges y realms de usuarios: qué es cada cosa y para qué sirve (25 min). | Cambiar repositorios y actualizar, crear usuario admin en realm pve, crear vmbr1 sin interfaz física, revisar los almacenes. |
+| [2](#sesion-2-configuracion-inicial-de-proxmox) | 7 oct | Teoría y práctica | Repositorios, almacenamiento (local, LVM-thin), bridges y realms de usuarios: qué es cada cosa y para qué sirve (25 min). | Cambiar repositorios y actualizar, crear usuario admin en realm pve, crear vmbr1 sin interfaz física, revisar los almacenes y dejar descargada la imagen cloud de la sesión 3. |
 | [3](#sesion-3-primera-vm-y-plantilla) | 14 oct | Teoría y práctica | cloud-init, plantillas y clon completo frente a enlazado (20 min). | Crear la plantilla 9000 desde la imagen cloud de Debian con el agente QEMU dentro, clonar web01, app01 y mon01 (las dos últimas, con Docker, para Mantenimiento), acceder por SSH. |
 | [4](#sesion-4-vm-vs-lxc-snapshots-y-limites) | 16 oct | Teoría y práctica | Cómo funcionan KVM/QEMU y virtio; LXC frente a VM; qué es un snapshot en LVM-thin y qué no es (25 min). | Crear un LXC y compararlo con la VM; snapshot, romper e instalar nginx, rollback; backup con vzdump. |
 | [5](#sesion-5-redes-en-el-hipervisor) | 21 oct | Teoría y práctica | Bridge, VLAN-aware bridge, bond y NAT: qué resuelve cada uno (20 min). | vmbr1 VLAN aware, tres VM en dos VLAN, comprobar con ping quién ve a quién. Medir CPU, disco y red con stress-ng, fio e iperf3. |
@@ -490,12 +490,19 @@ pveum acl list
    ```bash
    apt install -y stress-ng fio iperf3 sysstat
    ```
+7. Deja preparado el material de la sesión 3. Son dos descargas largas y en la sesión 3 no sobra ni un minuto; hechas hoy, mañana el laboratorio empieza de verdad por la plantilla:
+   ```bash
+   cd /root
+   wget https://cloud.debian.org/images/cloud/trixie/latest/debian-13-genericcloud-amd64.qcow2
+   apt install -y libguestfs-tools
+   ```
+   La imagen cloud de Debian 13 es la base de la plantilla, y `libguestfs-tools` trae `virt-customize`, la herramienta con la que en la A1.3 se mete el agente QEMU dentro de esa imagen antes de importarla. Si tu Proxmox es 8, descarga la imagen de bookworm (`debian-12-genericcloud-amd64.qcow2`).
 
-<span class="et et-com">Comprobación</span> `apt update` termina sin errores 401; `pveum user list` muestra `admin@pve`; `ip -br addr` muestra `vmbr0` con la IP del aula y `vmbr1` con `10.10.10.1/24`; `fio --version` responde.
+<span class="et et-com">Comprobación</span> `apt update` termina sin errores 401; `pveum user list` muestra `admin@pve`; `ip -br addr` muestra `vmbr0` con la IP del aula y `vmbr1` con `10.10.10.1/24`; `fio --version` responde; `ls -lh /root/debian-13-genericcloud-amd64.qcow2` muestra la imagen entera y `virt-customize --version` contesta.
 
-<span class="et et-ent">Entrega</span> Captura de `/etc/network/interfaces` y de la lista de usuarios (`pveum user list`), más el tamaño del pool thin, en el documento de la unidad.
+<span class="et et-ent">Entrega</span> Captura de `/etc/network/interfaces` y de la lista de usuarios (`pveum user list`), el tamaño del pool thin y la salida de `virt-customize --version`, en el documento de la unidad.
 
-<span class="et et-ext">Si te sobra tiempo</span> Descarga ya en `/root` la imagen cloud de Debian 13 que usarás en la sesión 3 (el `wget` del paso 1 de A1.3) para no depender de la red del aula ese día. Crea un segundo usuario con rol `PVEAuditor` sobre `/`, entra con él y anota qué puede ver y qué no puede tocar.
+<span class="et et-ext">Si te sobra tiempo</span> Crea un segundo usuario con rol `PVEAuditor` sobre `/`, entra con él y anota qué puede ver y qué no puede tocar.
 
 ## Sesión 3 · Primera VM y plantilla
 
@@ -654,19 +661,19 @@ flowchart TB
 <span class="et et-pre">Antes de empezar</span>
 
 - Proxmox actualizado, `vmbr1` creado y usuario `admin` (A1.2).
+- La imagen cloud de Debian 13 en `/root` y `libguestfs-tools` instalado, del paso 7 de la A1.2. Si no lo dejaste hecho, hazlo ahora: son unos minutos de descarga y el resto de la hoja no se puede empezar sin eso.
 - Par de claves SSH en el host Proxmox. Si `ls ~/.ssh/id_ed25519.pub` no existe, créalo con `ssh-keygen -t ed25519` (sin contraseña, es un laboratorio).
 - Lo explicado al principio de la sesión: [cloud-init](#cloud-init) y [plantillas y clonado](#plantillas-y-clonado). Para entender cada parámetro del `qm create`, [crear una VM](#crear-una-vm-los-parametros-que-importan) y [tipos de CPU](#tipos-de-cpu-y-su-efecto-en-la-migracion).
 
 <span class="et et-pas">Pasos</span>
 
-1. Descarga la imagen cloud en el host. Con Debian 13 (trixie); si tu Proxmox es 8, la imagen de bookworm (`debian-12-genericcloud-amd64.qcow2`) funciona igual.
+1. Comprueba que tienes en el host lo que descargaste en la A1.2:
    ```bash
-   cd /root
-   wget https://cloud.debian.org/images/cloud/trixie/latest/debian-13-genericcloud-amd64.qcow2
+   ls -lh /root/debian-13-genericcloud-amd64.qcow2
+   virt-customize --version
    ```
-2. Mete el agente QEMU dentro de la imagen, antes de importarla. Se hace en el nodo Proxmox, sobre el fichero qcow2 recién descargado:
+2. Mete el agente QEMU dentro de la imagen, antes de importarla. Se hace en el nodo Proxmox, sobre el fichero qcow2 descargado:
    ```bash
-   apt install -y libguestfs-tools
    export LIBGUESTFS_BACKEND=direct
    virt-customize -a /root/debian-13-genericcloud-amd64.qcow2 --install qemu-guest-agent
    ```
@@ -697,14 +704,13 @@ flowchart TB
    qm clone 9000 110 --name web01 --full
    qm start 110
    ```
-   Espera un minuto y pregunta por la IP con el agente, que ya viene dentro de la plantilla: `qm guest cmd 110 network-get-interfaces`. Si todavía no responde, mira la IP en la consola noVNC de la VM (o con `qm terminal 110`, se sale con Ctrl+O). Con esa IP, entra desde el host: `ssh ops@IP`.
-8. Dentro de `web01`, comprueba cloud-init y el agente:
+   Espera un minuto y pregunta por la IP con el agente, que ya viene dentro de la plantilla: `qm guest cmd 110 network-get-interfaces`. Si todavía no responde, mira la IP en la consola noVNC de la VM (o con `qm terminal 110`, se sale con Ctrl+O). Con esa IP, entra desde el host (`ssh ops@IP`) y comprueba dentro las dos cosas que la plantilla tenía que traer hechas:
    ```bash
    cloud-init status --long
    systemctl is-active qemu-guest-agent
    ```
    Al volver a la web, Proxmox muestra la IP de la VM en Summary: ese dato se lo da el agente.
-9. Clona `app01` (ID 120) y `mon01` (ID 103), que son las dos VM que usa Mantenimiento mañana. Van en `vmbr0` con IP por DHCP, igual que `web01`:
+8. Clona `app01` (ID 120) y `mon01` (ID 103), que son las dos VM que usa Mantenimiento mañana. Van en `vmbr0` con IP por DHCP, igual que `web01`:
    ```bash
    qm clone 9000 120 --name app01 --full
    qm clone 9000 103 --name mon01 --full
@@ -721,18 +727,18 @@ flowchart TB
    ```
    El script oficial `get.docker.com` añade el repositorio de Docker para Debian 13 e instala Docker Engine con el plugin `compose`. El usuario `ops` que crea cloud-init ya tiene `sudo` sin contraseña, que es lo que usan estos dos comandos. El `usermod` deja a `ops` usar `docker` sin `sudo`, pero el grupo nuevo no se aplica hasta que sales y vuelves a entrar por SSH. Comprueba entonces `docker --version` y `docker compose version`.
    Las dos VM se entregan con Docker y sin servicios: el compose del servicio del curso (`app01`) y el de la pila de monitorización con Prometheus, Alertmanager y Grafana (`mon01`) los da la asignatura de Mantenimiento en su sesión 1 y se despliegan allí.
-10. Crea también un linked clone para comparar, y mira el almacén antes y después:
-    ```bash
-    lvs pve
-    qm clone 9000 150 --name web02
-    lvs pve
-    ```
 
-<span class="et et-com">Comprobación</span> `qm list` muestra 9000 como plantilla y las VM 110, 120, 103 y 150; entras por SSH en `web01`, `app01` y `mon01` como `ops` sin contraseña; `qm guest cmd 110 network-get-interfaces` responde sin haber instalado nada dentro; `cloud-init status --long` dice `done`; en `app01` y en `mon01`, `docker --version` y `docker compose version` responden con el usuario `ops` y sin `sudo`; en `lvs pve` el disco de `web02` aparece como volumen que depende de `base-9000-disk-0`, y el de `web01` como volumen independiente.
+<span class="et et-com">Comprobación</span> `qm list` muestra 9000 como plantilla y las VM 110, 120 y 103; entras por SSH en `web01`, `app01` y `mon01` como `ops` sin contraseña; `qm guest cmd 110 network-get-interfaces` responde sin haber instalado nada dentro; `cloud-init status --long` dice `done`; en `app01` y en `mon01`, `docker --version` y `docker compose version` responden con el usuario `ops` y sin `sudo`.
 
-<span class="et et-ent">Entrega</span> Salida de `qm list`, de `cloud-init status --long` dentro de `web01`, de `docker compose version` en `app01` y en `mon01`, y de `lvs pve` con los clones, más una explicación de dos o tres líneas de la diferencia entre clon completo y enlazado con lo que ocupa cada uno. Anota las IP de `app01` y `mon01`: las necesitas mañana en 5169.
+<span class="et et-ent">Entrega</span> Salida de `qm list`, de `cloud-init status --long` dentro de `web01` y de `docker compose version` en `app01` y en `mon01`, más una explicación de dos o tres líneas, con lo explicado en clase, de en qué se diferencian un clon completo y uno enlazado y de lo que ocupa cada uno. Anota las IP de `app01` y `mon01`: las necesitas mañana en 5169.
 
-<span class="et et-ext">Si te sobra tiempo</span> Practica con los snippets de cloud-init, que es como se personaliza una VM cuando no se puede tocar la imagen: activa el contenido `snippets` en `local` (Datacenter > Storage > local > Edit), guarda el YAML del [apartado de cloud-init](#cloud-init) en `/var/lib/vz/snippets/web.yaml`, clona una VM con `--cicustom "user=local:snippets/web.yaml"` y comprueba qué ha hecho el fichero en el primer arranque. Ten en cuenta que el `packages:` de ese YAML solo funciona si la VM tiene salida a Internet; por eso el agente de esta plantilla va dentro de la imagen y no aquí. Rompe algo a propósito: clona una VM sin `--ipconfig0` y depúrala con `cloud-init status --long` y `/var/log/cloud-init.log`.
+<span class="et et-ext">Si te sobra tiempo</span> Comprueba con números esa diferencia: mira el almacén, saca un clon enlazado de la plantilla y vuelve a mirarlo.
+```bash
+lvs pve
+qm clone 9000 150 --name web02
+lvs pve
+```
+El disco de `web02` aparece como un volumen que depende de `base-9000-disk-0` y el de `web01` como uno independiente, y ahí se ve lo que ocupa cada tipo de clon. Practica también con los snippets de cloud-init, que es como se personaliza una VM cuando no se puede tocar la imagen: activa el contenido `snippets` en `local` (Datacenter > Storage > local > Edit), guarda el YAML del [apartado de cloud-init](#cloud-init) en `/var/lib/vz/snippets/web.yaml`, clona una VM con `--cicustom "user=local:snippets/web.yaml"` y comprueba qué ha hecho el fichero en el primer arranque. Ten en cuenta que el `packages:` de ese YAML solo funciona si la VM tiene salida a Internet; por eso el agente de esta plantilla va dentro de la imagen y no aquí. Rompe algo a propósito: clona una VM sin `--ipconfig0` y depúrala con `cloud-init status --long` y `/var/log/cloud-init.log`.
 
 ## Sesión 4 · VM vs LXC, snapshots y límites
 
@@ -1145,7 +1151,7 @@ Conviene anotar no solo el resultado sino la condición: "fio 4k aleatorio 70/30
 - Lo explicado al principio de la sesión: [red](#red) y [modalidades de red](#modalidades-de-red-bridge-nat-vlan-y-bond) (bridge simple, VLAN-aware, bond y NAT). Para las medidas, [capacidades y limitaciones](#capacidades-y-limitaciones-y-como-medirlas) es material de consulta: lee los comandos de ese apartado antes del paso 6.
 
 !!! ojo "Haz la cuenta de RAM antes de encender"
-    La VM de Proxmox del laboratorio tiene 12 GB y el propio Proxmox se queda con cerca de 2 GB. Con `web01`, `app01` y `mon01` encendidas ya hay 6 GB asignados, 2 GB por VM. Los clones de esta hoja heredarían otros 2 GB cada uno y pasarían de los 10 GB disponibles: por eso las tres VM de prueba se bajan a 512 MB, que de sobra les llega para hacer `ping`, y se apagan en cuanto termina la comprobación de VLAN. `app01` y `mon01` tienen que seguir encendidas durante toda la sesión: las usa la asignatura de Mantenimiento. Si vas justo, apaga `web02`, la VM 151 restaurada y el contenedor `ct01` de la sesión 4, que ya no hacen falta.
+    La VM de Proxmox del laboratorio tiene 12 GB y el propio Proxmox se queda con cerca de 2 GB. Con `web01`, `app01` y `mon01` encendidas ya hay 6 GB asignados, 2 GB por VM. Los clones de esta hoja heredarían otros 2 GB cada uno y pasarían de los 10 GB disponibles: por eso las tres VM de prueba se bajan a 512 MB, que de sobra les llega para hacer `ping`, y se apagan en cuanto termina la comprobación de VLAN. `app01` y `mon01` tienen que seguir encendidas durante toda la sesión: las usa la asignatura de Mantenimiento. Si vas justo, apaga la VM 151 restaurada, el contenedor `ct01` de la sesión 4 y `web02` si llegaste a crearla, que ya no hacen falta.
 
 <span class="et et-pas">Pasos</span>
 

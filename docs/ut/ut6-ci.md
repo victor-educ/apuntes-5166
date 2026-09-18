@@ -59,13 +59,13 @@ Cada sesión de 110 minutos empieza con una explicación corta y sigue con labor
 |---:|-------|------|------------|-------------|
 | [30](#sesion-30-ci-y-eleccion-del-orquestador) | 3 feb | Teoría y práctica | Integración, entrega y despliegue continuos; piezas de un sistema de CI; criterios para elegir orquestador (30 min). | Demo en 30 minutos de Jenkins y Gitea Actions con el mismo hola mundo; tabla comparativa y justificación de media página. |
 | [31](#sesion-31-instalacion-segura) | 5 feb | Teoría y práctica | Cómo se instala Jenkins en contenedor, TLS con CA propia, roles y hardening (20 min). | Desplegar Jenkins con TLS de la CA propia, roles admin/dev/lector, ejecutores del controlador a 0 y comprobar Agent → Controller Access Control. |
-| [32](#sesion-32-plugins) | 10 feb | Teoría y práctica | Qué plugins hacen falta y por qué JCasC (15 min). | Instalar los plugins con plugins.txt en una imagen propia, exportar la configuración a jenkins-config y comprobar que rearranca igual tras borrar el volumen. |
+| [32](#sesion-32-plugins) | 10 feb | Teoría y práctica | Qué plugins hacen falta y por qué JCasC (15 min). | Revisar los plugins uno a uno y fijar sus versiones, instalarlos con plugins.txt en una imagen propia, exportar la configuración a jenkins-config, escribir el README de instalación y reconstruir desde cero siguiéndolo. |
 | [33](#sesion-33-agentes) | 12 feb | Teoría y práctica | Controlador frente a agentes; tipos de agente y etiquetas (15 min). | VM agent01 como agente SSH, cloud Docker para agentes efímeros, un job en cada tipo y comprobar en el log dónde ha corrido. |
 | [34](#sesion-34-proyecto-y-credenciales) | 17 feb | Teoría y práctica | Tipos de proyecto, credenciales con ámbito, webhooks (15 min). | Usuario de servicio y token en Gitea, Multibranch Pipeline del servicio, webhook con secreto y primer disparo por push. |
-| [35](#sesion-35-pipeline-i-build-y-test) | 19 feb | Teoría y práctica | Sintaxis del Jenkinsfile declarativo: agent, stages, steps, post (20 min). | Jenkinsfile con Checkout y Build & Test en agente Docker, informe JUnit, una prueba que falla y el estado UNSTABLE. |
+| [35](#sesion-35-pipeline-i-build-y-test) | 19 feb | Teoría y práctica | Sintaxis del Jenkinsfile declarativo: agent, stages, steps, post (20 min). | Jenkinsfile con Checkout y Build & Test en agente Docker, Dockerfile del servicio construido y probado a mano, informe JUnit, comprobación de stash y de options, una prueba que falla y el estado UNSTABLE. |
 | [36](#sesion-36-pipeline-ii-package) | 24 feb | Teoría y práctica | Registry local con TLS y cómo confía Docker en una CA propia (15 min). | Levantar el registry, etapa Package que construye y sube la imagen con la etiqueta del commit, comprobar con pull y con la API. |
-| [37](#sesion-37-parametros-condiciones-y-paralelismo) | 26 feb | Teoría y práctica | Parámetros, when, parallel y los estados de un pipeline (15 min). | Parámetros ENV y RUN_DEPLOY, etapa Lint en paralelo con Test, Package solo en main; comprobar en una rama feature/x que Package aparece saltada. |
-| [38](#sesion-38-gestion-de-errores) | 10 mar | Teoría y práctica | timeout, retry, catchError y cleanWs; notificación por Telegram o Slack (10 min). | Ejecutar los cinco casos del plan de pruebas de fallos y corregir lo que no se comporte; configurar la notificación por Telegram o Slack. |
+| [37](#sesion-37-parametros-condiciones-y-paralelismo) | 26 feb | Teoría y práctica | Parámetros, when, parallel y los estados de un pipeline (15 min). | Parámetros ENV y RUN_DEPLOY usados de verdad, etapa Lint en paralelo con Test, Package solo en main y Deploy provisional; recorrer la tabla de verdad de las cuatro combinaciones de rama y parámetro. |
+| [38](#sesion-38-gestion-de-errores) | 10 mar | Teoría y práctica | timeout, retry, catchError y cleanWs; notificación por Telegram o Slack (10 min). | Ejecutar uno a uno los cinco casos del plan de pruebas de fallos con su ficha de evidencias, corregir lo que no se comporte y repetirlo; configurar la notificación por Telegram o Slack. |
 | [39](#sesion-39-minimo-privilegio) | 12 mar | Teoría y práctica | Usuarios de servicio, tokens con alcance, credenciales por carpeta (15 min). | Usuario jenkins@pve con token limitado, credenciales en carpetas dev y pre, comprobar que dev no ve las de pre, inventario de credenciales. |
 | [40](#sesion-40-pipeline-que-despliega) | 17 mar | Práctica | Repaso de cinco minutos de los tres caminos que hay que recorrer. | Etapa Deploy que ejecuta tofu, ansible y test.sh contra el entorno del parámetro; recorrer despliegue correcto, fallo en apply y fallo en smoke test. |
 | **[41](#sesion-41-practica-evaluable)** | **24 mar** | Práctica evaluable | Aclaración del enunciado (10 min). | Cerrar jenkins-config, el Jenkinsfile completo, el informe de pruebas del pipeline y el inventario de credenciales. |
@@ -482,22 +482,26 @@ Regla: instalar solo lo que se usa y actualizar con criterio; un plugin abandona
 
 ### A6.3 Plugins (sesión 32)
 
-<span class="et et-obj">Objetivo</span> Los plugins de la unidad instalados desde una imagen propia, la configuración exportada a JCasC y subida a `jenkins-config`, reconstruible desde cero.
+<span class="et et-obj">Objetivo</span> Los plugins de la unidad instalados desde una imagen propia, con versión fijada y revisados uno a uno, la configuración exportada a JCasC y subida a `jenkins-config`, y un Jenkins que se reconstruye desde cero siguiendo tu propia documentación.
 
 <span class="et et-pre">Antes de empezar</span> El Jenkins de la A6.2 funcionando. Se ha explicado [qué plugins hacen falta](#plugins).
 
 <span class="et et-pas">Pasos</span>
 
 1. Amplía el `plugins.txt` de la A6.2 (que solo tenía `configuration-as-code` y `role-strategy`) con el resto de identificadores de la tabla del apartado de plugins, uno por línea. El `Dockerfile` y el `build: .` del compose ya están de la hoja anterior.
-2. Configura la herramienta Git y la URL de tu Gitea (Manage Jenkins → System). Exporta la configuración (Manage Jenkins → Configuration as Code → View Configuration), compárala con tu `casc/jenkins.yaml` de la A6.2 y pasa a él lo que falte, limpiando ruido y secretos (`${VARIABLE}`).
-3. Sube compose, `Dockerfile`, `plugins.txt`, `nginx.conf` y `casc/jenkins.yaml` al repositorio `jenkins-config`.
-4. `docker compose down -v` (borra el volumen) y `docker compose up -d --build`. Si Jenkins arranca con los mismos roles, plugins y URL, la configuración está completa.
+2. Antes de instalar nada, revisa lo que vas a meter dentro de tu Jenkins. Elige seis plugins de tu `plugins.txt`, entre ellos `docker-plugin`, `role-strategy` y el de notificaciones que vayas a usar, y busca cada uno en [plugins.jenkins.io](https://plugins.jenkins.io/). Haz una tabla con id, última versión, fecha de esa versión, avisos de seguridad abiertos y tu veredicto: se queda, se cambia por otro o se quita porque no lo usas. Justifica el veredicto en media línea.
+3. Fija las versiones: escribe cada línea de `plugins.txt` como `id:version` con la versión que acabas de mirar, no a secas. Un `plugins.txt` sin versiones instala lo último que haya ese día, y entonces la imagen no es reproducible aunque el `Dockerfile` sea el mismo.
+4. Reconstruye con `docker compose up -d --build` y cuenta: mira cuántos plugins lista Manage Jenkins → Plugins → Installed y compáralo con el número de líneas de tu `plugins.txt`. La diferencia son dependencias que ha arrastrado el instalador. Localiza tres de ellas y anota de qué plugin tuyo cuelgan.
+5. Configura la herramienta Git y la URL de tu Gitea (Manage Jenkins → System). Exporta la configuración (Manage Jenkins → Configuration as Code → View Configuration), compárala con tu `casc/jenkins.yaml` de la A6.2 y pasa a él lo que falte, limpiando ruido y secretos (`${VARIABLE}`).
+6. Sube compose, `Dockerfile`, `plugins.txt`, `nginx.conf` y `casc/jenkins.yaml` al repositorio `jenkins-config`.
+7. Escribe en ese repositorio un `README.md` de instalación: cómo se emiten los certificados y dónde vive `ca.key`, qué roles hay y qué puede hacer cada uno, de dónde salen los plugins, qué variables de entorno hacen falta (`ADMIN_PASSWORD` y las demás) y los dos comandos para levantarlo. Es la documentación de instalación que pide el punto 1 de la práctica evaluable, y escribirla ahora es mucho más barato que reconstruirla en marzo de memoria.
+8. `docker compose down -v` (borra el volumen) y vuelve a levantarlo siguiendo tu `README.md` al pie de la letra, sin abrir estos apuntes. Cada vez que tengas que recordar algo que no está escrito, apúntalo en el README y sigue. Si Jenkins arranca con los mismos roles, los mismos plugins y la misma URL, la configuración está completa.
 
-<span class="et et-com">Comprobación</span> Manage Jenkins → Plugins lista todos los de `plugins.txt`; tras el paso 4 no hace falta reconfigurar nada a mano.
+<span class="et et-com">Comprobación</span> Manage Jenkins → Plugins lista todos los de `plugins.txt` y con la versión que fijaste; tras el paso 8 no hace falta reconfigurar nada a mano ni consultar nada fuera del `README.md`; la tabla del paso 2 no tiene ningún plugin con aviso de seguridad abierto sin decisión tomada.
 
-<span class="et et-ent">Entrega</span> La URL del repositorio `jenkins-config` con compose, `Dockerfile`, `plugins.txt`, `nginx.conf` y `casc/jenkins.yaml`, en `A6.3`.
+<span class="et et-ent">Entrega</span> La URL del repositorio `jenkins-config` con compose, `Dockerfile`, `plugins.txt` con versiones, `nginx.conf`, `casc/jenkins.yaml` y `README.md`, más la tabla de revisión de plugins del paso 2, en `A6.3`.
 
-<span class="et et-ext">Si te sobra tiempo</span> Deja escrito el `server` del registry que hará falta en `gitea01` el día de la sesión 36; y comprueba en Manage Jenkins → Plugins cuántos plugins tienes en total frente a los que pusiste en `plugins.txt`.
+<span class="et et-ext">Si te sobra tiempo</span> Deja escrito el `server` del registry que hará falta en `gitea01` el día de la sesión 36. Y prueba `pre-commit autoupdate` de la UT5 aplicado a este repositorio, o `jenkins-plugin-cli --available-updates --output txt` dentro del contenedor, para ver cómo se mantiene al día un `plugins.txt` con versiones fijadas.
 
 ## Sesión 33 · Agentes
 
@@ -843,12 +847,16 @@ flowchart TD
     Cambia la imagen si el servicio no es Python.
 
 2. Push y espera la ejecución. Abre la pestaña "Test Result" y comprueba que lista las pruebas.
-3. Añade en un test `assert False`, push, y observa el estado UNSTABLE y la prueba roja en el informe.
-4. Añade al `post` del pipeline un bloque `fixed { echo 'Vuelve a estar en verde' }`, arregla la prueba y push: la ejecución debe salir SUCCESS y el log mostrar el mensaje de `fixed`.
+3. En el log de esa ejecución, localiza para cada etapa en qué agente ha corrido y anótalo. `Checkout` va a `agent01` y `Build & Test` a un contenedor `python:3.12` que arranca sobre `agent01`: son agentes distintos y por eso el código viaja de una etapa a otra con `stash` y `unstash`. Para verlo, quita el `unstash 'src'` de `Build & Test`, push, y comprueba que la etapa falla porque el workspace está vacío. Vuelve a ponerlo.
+4. El servicio todavía no se construye, solo se prueba. Escribe en la raíz del repositorio del servicio el `Dockerfile` que la etapa `Package` de la sesión 36 va a necesitar: imagen base oficial de la versión que use tu servicio, instalación de `requirements.txt` en una capa aparte de la del código, un usuario que no sea root, `EXPOSE` del puerto y `CMD`. Constrúyelo a mano en `agent01` con `docker build -t app:prueba .` y arráncalo con `docker run --rm -p 8080:8080 app:prueba` hasta que `curl` responda. Que funcione hoy a mano es lo que hará que la sesión 36 sea solo escribir la etapa.
+5. Comprueba las tres opciones del bloque `options`. Lanza dos ejecuciones a la vez (push y, sin esperar, "Build Now") y mira en la cola qué hace `disableConcurrentBuilds()`. Después mira en el historial cuántas ejecuciones guarda `buildDiscarder`. Anota las dos observaciones.
+6. Añade en un test `assert False`, push, y observa el estado UNSTABLE y la prueba roja en el informe.
+7. Añade al `post` del pipeline un bloque `fixed { echo 'Vuelve a estar en verde' }`, arregla la prueba y push: la ejecución debe salir SUCCESS y el log mostrar el mensaje de `fixed`.
+8. Documenta el pipeline tal como está hoy en una tabla: etapa, agente donde corre, qué hace, qué produce (informe JUnit, `stash`, imagen) y en qué estado deja la ejecución si falla. Esta tabla crece en cada sesión hasta la práctica evaluable, así que déjala en el repositorio del servicio, no en un fichero suelto.
 
-<span class="et et-com">Comprobación</span> Tres ejecuciones seguidas: verde, amarilla, verde; en la tercera aparece el `echo` de `fixed`; el contenedor `python:3.12` no queda en `docker ps -a` de `agent01`.
+<span class="et et-com">Comprobación</span> Tres ejecuciones seguidas: verde, amarilla, verde; en la tercera aparece el `echo` de `fixed`; el contenedor `python:3.12` no queda en `docker ps -a` de `agent01`; `docker run` de tu imagen responde por `curl`; la ejecución sin `unstash` del paso 3 falló y la siguiente volvió a pasar.
 
-<span class="et et-ent">Entrega</span> El `Jenkinsfile` en el repositorio del servicio y una captura del historial con las tres ejecuciones.
+<span class="et et-ent">Entrega</span> El `Jenkinsfile` y el `Dockerfile` en el repositorio del servicio, la tabla de etapas, y una captura del historial con las tres ejecuciones y otra de la ejecución encolada del paso 5.
 
 <span class="et et-ext">Si te sobra tiempo</span> Mide cuánto tarda `pip install` y prueba una imagen propia con las dependencias ya instaladas.
 
@@ -897,7 +905,7 @@ Comprobación: `curl --cacert ca.crt -u jenkins https://registry.lab:5000/v2/_ca
 
 <span class="et et-obj">Objetivo</span> Un registry local con TLS y autenticación, y una etapa `Package` que sube la imagen del servicio etiquetada con el commit.
 
-<span class="et et-pre">Antes de empezar</span> El pipeline de la sesión 35 en verde, la `ca.key` de la sesión 31 a mano, `registry.lab` resolviendo a `gitea01` (10.10.0.11), y un `Dockerfile` en el repositorio del servicio. Se ha explicado el [registry local y cómo confía Docker en una CA](#package-y-el-registry-local).
+<span class="et et-pre">Antes de empezar</span> El pipeline de la sesión 35 en verde, la `ca.key` de la sesión 31 a mano, `registry.lab` resolviendo a `gitea01` (10.10.0.11), y el `Dockerfile` del servicio escrito y probado a mano en la A6.6. Se ha explicado el [registry local y cómo confía Docker en una CA](#package-y-el-registry-local).
 
 <span class="et et-pas">Pasos</span>
 
@@ -994,20 +1002,25 @@ stage('Aprobar pre') {
 
 ### A6.8 Parámetros, condiciones y paralelismo (sesión 37)
 
-<span class="et et-obj">Objetivo</span> Un pipeline parametrizado, con `Lint` en paralelo y `Package` solo en `main`, documentado etapa por etapa.
+<span class="et et-obj">Objetivo</span> Un pipeline parametrizado, con `Lint` en paralelo y `Package` solo en `main`, y la tabla de verdad de sus caminos comprobada ejecución a ejecución.
 
 <span class="et et-pre">Antes de empezar</span> El pipeline con `Package` de la sesión 36 en verde. Se han explicado [las directivas `when`, `parallel`, `matrix` e `input`](#mas-directivas-que-hacen-falta).
 
 <span class="et et-pas">Pasos</span>
 
 1. Añade el bloque `parameters` (`ENV` con `choice` y `RUN_DEPLOY` booleano) del pipeline teórico. La primera ejecución después de añadirlos falla o pide confirmación; es normal.
-2. Convierte `Build & Test` en una etapa `Calidad` con `parallel` y `failFast true`: `Test` y `Lint` (`pip install ruff && ruff check .`), tal como está en el apartado de directivas.
+2. Convierte `Build & Test` en una etapa `Calidad` con `parallel` y `failFast true`: `Test` y `Lint` (`pip install ruff && ruff check .`), tal como está en el apartado de directivas. Comprueba que `failFast` hace lo que dice: mete un error de estilo que `ruff` detecte, push, y anota si `Test` llegó a terminar o se cortó.
 3. Pon a `Package` un `when { beforeAgent true; branch 'main' }`. Crea una rama `feature/x`, push y comprueba que `Package` aparece como saltada.
-4. Documenta en una tabla cada etapa: nombre, agente, condición, salidas.
+4. Mira qué añade `beforeAgent true`. Quítalo, vuelve a lanzar en `feature/x` y busca en el log si Jenkins ha pedido agente para una etapa que no iba a ejecutar. Vuelve a ponerlo y escribe en una línea qué se ahorra con él.
+5. Los parámetros todavía no los usa nadie, y un parámetro que no se lee no está probado. Haz que los dos hagan algo hoy: añade al principio del pipeline un `echo` con `params.ENV` y `params.RUN_DEPLOY`, usa `params.ENV` en el `environment` para que la imagen de `Package` se etiquete también como `${params.ENV}-${GIT_COMMIT.take(7)}`, y añade una etapa `Deploy` provisional con `when { expression { params.RUN_DEPLOY } }`, `agent { label 'terraform' }` y un único `echo` que diga qué desplegaría. En la sesión 40 ese `echo` se sustituye por el despliegue de verdad; el andamiaje de parámetros y condiciones ya estará probado.
+6. Recorre la tabla de verdad. Son cuatro combinaciones: rama `main` y rama `feature/x`, cada una con `RUN_DEPLOY` marcado y sin marcar (las de `feature/x` se lanzan con "Build with Parameters" sobre el subjob de la rama). Para cada una anota qué etapas se ejecutaron, cuáles salieron NOT_BUILT y con qué etiqueta subió la imagen, si subió. Lo que esperabas y lo que ha pasado, en dos columnas: si alguna casilla no coincide, la condición está mal escrita y se corrige aquí.
+7. Documenta en una tabla cada etapa: nombre, agente, condición que la activa, variables y parámetros que lee, y salidas. Añádela a la tabla de etapas que empezaste en la A6.6, sustituyéndola.
 
-<span class="et et-com">Comprobación</span> En `feature/x`, `Package` sale como NOT_BUILT; en `main`, se ejecuta.
+<span class="et et-com">Comprobación</span> En `feature/x`, `Package` sale como NOT_BUILT; en `main`, se ejecuta. Las cuatro casillas de la tabla de verdad del paso 6 coinciden con lo esperado, y la imagen de `main` lleva en el registry la etiqueta con el entorno del parámetro.
 
-<span class="et et-ent">Entrega</span> El `Jenkinsfile` y la tabla de etapas, en `A6.8`.
+<span class="et et-ent">Entrega</span> El `Jenkinsfile`, la tabla de verdad del paso 6 con las cuatro ejecuciones y sus números de build, y la tabla de etapas, en `A6.8`.
+
+<span class="et et-ext">Si te sobra tiempo</span> Convierte `Calidad` en un bloque `matrix` sobre dos versiones de Python y compara el tiempo total con el del `parallel` de dos ramas.
 
 ## Sesión 38 · Gestión de errores
 
@@ -1128,19 +1141,25 @@ El mismo criterio de "estado conocido" se aplica a los tres caminos del desplieg
 
 ### A6.9 Gestión de errores (sesión 38)
 
-<span class="et et-obj">Objetivo</span> El pipeline de la A6.8 ha pasado los cinco casos del plan de pruebas de fallos con el comportamiento esperado.
+<span class="et et-obj">Objetivo</span> El pipeline de la A6.8 ha pasado uno a uno los cinco casos del plan de pruebas de fallos, y de cada uno queda una ficha con estado final, notificación y estado del agente.
 
 <span class="et et-pre">Antes de empezar</span> El pipeline de la A6.8, y un bot de Telegram (o un webhook de Slack) creado, porque el correo del aula no sale. Se han explicado [los estados de un pipeline, `timeout`, `retry` y `catchError`](#gestion-de-errores).
 
 <span class="et et-pas">Pasos</span>
 
-1. Añade a `Package` `options { timeout(time: 10, unit: 'MINUTES') }` y el `retry(3)` alrededor del push, como en el fragmento del apartado de gestión de errores; y al `post` del pipeline `failure` y `aborted` con la notificación por Telegram o Slack, más `always { cleanWs() }`.
-2. Ejecuta los cinco casos del [plan de pruebas](#plan-de-pruebas-del-pipeline): fallo en test, fallo en push (contraseña mala en `registry-cred`), timeout (`sleep 700` en una etapa con `timeout` de 10 minutos; puedes bajarlo a 1 minuto y `sleep 90` para no esperar), cancelación manual y fallo en deploy (este último queda pendiente hasta la sesión 40 si aún no hay etapa `Deploy`; anótalo). Para cada caso apunta cómo lo has provocado, estado final, notificación recibida y estado del workspace y del agente (`ps aux`, `docker ps -a`, contenido del workspace en `agent01`).
-3. Corrige lo que no se comporte como esperabas (timeouts, `retry`, `cleanWs`) y repite el caso.
+1. Añade a `Package` `options { timeout(time: 10, unit: 'MINUTES') }` y el `retry(3)` alrededor del push, como en el fragmento del apartado de gestión de errores; y al `post` del pipeline `failure` y `aborted` con la notificación por Telegram o Slack, más `always { cleanWs() }`. Guarda el token del bot como credencial, nunca en el `Jenkinsfile`.
+2. Prepara la ficha que vas a rellenar cinco veces, porque el trabajo de hoy es documentar tanto como provocar. Cada caso lleva: número de build, cómo lo has provocado (el commit o el cambio exacto), estado esperado, estado obtenido, qué dice la notificación que ha llegado, y el estado en que ha quedado el agente `agent01` justo después (`ps aux | grep -E 'sleep|tofu|pytest'`, `docker ps -a`, y si el workspace del job está vacío o no).
+3. Caso 1, fallo en test. Un `assert False` en una prueba y push. Se espera UNSTABLE. Comprueba además, y anótalo, si `Package` se ha ejecutado igualmente sobre un código con pruebas rojas: es lo que hace `junit` por defecto y es una decisión que hay que tomar a conciencia, no heredar.
+4. Caso 2, fallo en push al registry. Cambia la contraseña de `registry-cred` por una mala y lanza. Se espera FAILURE después de tres intentos. Cuenta en el log los tres intentos del `retry`, comprueba que la contraseña sale como `****` y que la etiqueta del commit **no** está en el registry (`curl --cacert ca.crt -u jenkins https://registry.lab:5000/v2/app/tags/list`). Deja la credencial buena antes de seguir.
+5. Caso 3, timeout. Un `sleep` más largo que el `timeout` de una etapa. Para no perder la sesión esperando, baja ese `timeout` a 1 minuto y pon `sleep 90`. Se espera ABORTED. Comprueba que el ejecutor queda libre en Manage Jenkins → Nodes, que `cleanWs()` se ha ejecutado y que el proceso `sleep` ya no vive en `agent01`: si sigue ahí, el `timeout` ha matado el step pero no el proceso, y eso es justo lo que hay que descubrir hoy.
+6. Caso 4, cancelación manual. Lanza y pulsa la X en mitad de `Calidad`. Se espera ABORTED. Comprueba que el contenedor `python:3.12` no queda en `docker ps -a` de `agent01` y que el workspace está limpio.
+7. Caso 5, fallo en deploy. Con la etapa `Deploy` todavía provisional, este caso queda abierto hasta la sesión 40: deja la ficha escrita con el cómo provocarlo y el estado esperado, y la fecha en que la completarás. Si prefieres adelantarlo, haz que el `echo` de la etapa provisional devuelva error (`sh 'exit 1'`) y comprueba al menos que la notificación de `failure` distingue en qué etapa se rompió.
+8. Corrige lo que no se comporte como esperabas (un `timeout` que no corta, un `retry` mal colocado, un `cleanWs` que no llega a ejecutarse porque está en el `post` equivocado) y repite ese caso hasta que la ficha cuadre. Anota en la ficha qué cambiaste: un caso que sale bien a la primera enseña menos que uno que hubo que arreglar.
+9. Monta el informe con las cinco fichas, en el formato que pide el punto 3 de la práctica evaluable, y deja hueco para los tres caminos del despliegue de la sesión 40. Cada ficha con su captura del historial y el trozo de log que demuestra el estado.
 
-<span class="et et-com">Comprobación</span> Cada caso acaba en el estado de la tabla del plan (UNSTABLE, FAILURE, ABORTED, ABORTED), la notificación llega en todos los fallos, no queda ningún `sleep` ni contenedor vivo en `agent01`.
+<span class="et et-com">Comprobación</span> Cada caso acaba en el estado de la tabla del plan (UNSTABLE, FAILURE, ABORTED, ABORTED), la notificación llega en todos los fallos, no queda ningún `sleep` ni contenedor vivo en `agent01`, y ninguna ficha tiene la fila de "estado del agente" sin rellenar.
 
-<span class="et et-ent">Entrega</span> El informe de los casos ejecutados (el quinto se completa en la sesión 40), en `A6.9`. Este informe es parte del entregable de la práctica evaluable.
+<span class="et et-ent">Entrega</span> El informe con las cinco fichas (la del quinto caso, abierta hasta la sesión 40), en `A6.9`. Este informe es el punto 3 del entregable de la práctica evaluable, y la sesión 40 solo le añade tres fichas más.
 
 <span class="et et-ext">Si te sobra tiempo</span> Añade `catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE')` a `Lint` y comprueba que un error de estilo deja el pipeline amarillo sin parar `Package`.
 
@@ -1231,7 +1250,7 @@ Sesión de práctica: no hay teoría nueva, solo un repaso de cinco minutos de l
 
 <span class="et et-pas">Pasos</span>
 
-1. Añade al `Jenkinsfile` la etapa `Deploy` de la versión con gestión de errores: `when { expression { params.RUN_DEPLOY } }`, `agent { label 'terraform' }`, `timeout` de 15 minutos, el `git` que clona `iac-lab` en `iac/` con `git-ro`, `withCredentials` con `pve-token-${params.ENV}` como `TF_VAR_pve_token`, `tofu init && tofu apply` en `iac/envs/${params.ENV}`, el inventario, el playbook y `test.sh` con `returnStatus`, y el `post { aborted }` que archiva `tofu state list`.
+1. Sustituye la etapa `Deploy` provisional de la A6.8 (la del `echo`) por la etapa `Deploy` de la versión con gestión de errores: `when { expression { params.RUN_DEPLOY } }`, `agent { label 'terraform' }`, `timeout` de 15 minutos, el `git` que clona `iac-lab` en `iac/` con `git-ro`, `withCredentials` con `pve-token-${params.ENV}` como `TF_VAR_pve_token`, `tofu init && tofu apply` en `iac/envs/${params.ENV}`, el inventario, el playbook y `test.sh` con `returnStatus`, y el `post { aborted }` que archiva `tofu state list`.
 2. Camino 1, despliegue correcto: lanza el job de `main` con "Build with Parameters", `ENV=pre` y `RUN_DEPLOY` marcado. Al terminar, `curl` al servicio desde tu portátil.
 3. Camino 2, fallo en `apply`: cambia en `iac-lab`, en el tfvars de `envs/pre`, el `vmid` de una VM por uno ya ocupado (por ejemplo el 120 de `app01` de dev), push y lanza con despliegue. Anota qué recursos creó `tofu` antes de fallar (`tofu state list` en `agent01`), vuelve a poner el `vmid` bueno y comprueba que el siguiente `apply` reconcilia sin destruir nada.
 4. Camino 3, fallo en smoke test: pon un puerto equivocado en `test.sh`, push y lanza. El entorno debe quedar levantado, el pipeline en FAILURE con el `error(...)` que lo dice, y la notificación recibida. Corrige y relanza.

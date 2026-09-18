@@ -515,7 +515,7 @@ Esto es lo que sustituye en la empresa a las alertas de "CPU por encima del 85 %
 - [Prometheus storage](https://prometheus.io/docs/prometheus/latest/storage/): cómo funciona la TSDB, retención, snapshots y remote write.
 - [Grafana documentation: Provisioning](https://grafana.com/docs/grafana/latest/administration/provisioning/): fuentes de datos y dashboards desde ficheros, la base para versionarlos en Git.
 - [Grafana Alerting](https://grafana.com/docs/grafana/latest/alerting/): para comparar con las reglas de Prometheus.
-- [Node Exporter Full (dashboard 1860)](https://grafana.com/grafana/dashboards/1860-node-exporter-full/): el dashboard que se importa en la A7.2 y una buena cantera de consultas.
+- [Node Exporter Full (dashboard 1860)](https://grafana.com/grafana/dashboards/1860-node-exporter-full/): el dashboard que la A7.2 deja para cuando sobra tiempo, y una buena cantera de consultas.
 - [Google SRE Workbook: Alerting on SLOs](https://sre.google/workbook/alerting-on-slos/): el método de burn rate y error budget que aparece en la empresa.
 - [cAdvisor](https://github.com/google/cadvisor) y [node_exporter](https://github.com/prometheus/node_exporter): el README de cada uno tiene la lista de métricas y los flags de arranque (los colectores de node_exporter se activan y desactivan uno a uno).
 
