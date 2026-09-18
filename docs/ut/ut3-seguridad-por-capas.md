@@ -1,6 +1,6 @@
 # UT3 · Seguridad por capas: DMZ externa, DMZ interna y zona interna
 
-<p class="ut-meta">12 h · Sesiones 13 a 18 · RA1 CE d</p>
+<p class="ut-meta">12 h · Sesiones 14 a 19 · RA1 CE d</p>
 
 En la UT2 montasteis una VPC por entorno (dev, pre, pro) con dos subredes, front y back, y comprobasteis que el enrutado entre ellas funcionaba. Funcionaba demasiado bien: cualquier máquina de front podía hablar con cualquier puerto de back. En esta unidad ponemos un cortafuegos en medio, añadimos dos zonas más (datos y gestión) y convertimos esa red plana en una red por capas donde cada salto está justificado, permitido de forma explícita y registrado. Después tendremos que demostrar con nmap y tcpdump (un escáner de puertos y un capturador de tráfico) que el aislamiento es real, y separar dos clientes que comparten la misma infraestructura. Lo que construyáis aquí no se tira: en la UT5 lo describiréis como código con OpenTofu y Ansible, y en la UT6 el pipeline de Jenkins desplegará contenedores dentro de estas zonas, respetando las reglas que escribáis ahora.
 
@@ -38,11 +38,11 @@ Un jueves por la tarde un compañero de otro grupo lanza desde su VM del aula un
 | tcpdump | Un grabador de tráfico: muestra los paquetes que pasan por una interfaz | Saber en qué interfaz muere un paquete |
 | IDS/IPS y WAF | Filtros que miran el contenido de los paquetes o de las peticiones web, no solo los puertos | Solo se mencionan como capas adicionales; el apartado está en [Para ampliar](../ampliacion.md#idsips-y-waf-dos-capas-mas) |
 
-Cómo está organizada la unidad: sigue las seis sesiones en el orden en que se dan, y cada sesión trae primero la teoría que se explica ese día (con el material de consulta que necesita la hoja) y después su hoja de práctica. En la sesión 13 se explica el modelo de zonas y el cortafuegos con estado, y se instala OPNsense con una interfaz por zona. En la 14 se aprenden las reglas, los aliases y el NAT, y se publica la primera web con certificado de una CA propia. En la 15 se completa la cadena proxy, aplicación y base de datos con las reglas mínimas entre capas, y en la 16 se añaden dos clientes en VLAN que comparten el proxy sin verse. La 17 ejecuta la matriz de pruebas con nmap, nc y tcpdump, y la 18 cierra el informe de la práctica evaluable. Al final quedan, como consulta, los errores frecuentes del laboratorio.
+Cómo está organizada la unidad: sigue las seis sesiones en el orden en que se dan, y cada sesión trae primero la teoría que se explica ese día (con el material de consulta que necesita la hoja) y después su hoja de práctica. En la sesión 14 se explica el modelo de zonas y el cortafuegos con estado, y se instala OPNsense con una interfaz por zona. En la 15 se aprenden las reglas, los aliases y el NAT, y se publica la primera web con certificado de una CA propia. En la 16 se completa la cadena proxy, aplicación y base de datos con las reglas mínimas entre capas, y en la 17 se añaden dos clientes en VLAN que comparten el proxy sin verse. La 18 ejecuta la matriz de pruebas con nmap, nc y tcpdump, y la 19 cierra el informe de la práctica evaluable. Al final quedan, como consulta, los errores frecuentes del laboratorio.
 
-!!! info "Dónde se usa esto en la otra asignatura"
-    La [UT3 de Mantenimiento, seguridad de la monitorización](https://victor-educ.github.io/apuntes-5169/ut/ut3-seguridad-monitorizacion/) (24 nov a 3 dic) va en paralelo con esta (18 nov a 4 dic) y da por sabido lo que se explica aquí: nmap, tcpdump, nftables, la CA del curso y las reglas de OPNsense se aprenden en esta quincena y allí se aplican a los puertos de la monitorización.
-    Hasta ahora app01 y mon01 vivían en el entorno provisional del bridge del aula (vmbr0); esta unidad es el momento de moverlas a la VPC dev, detrás del firewall de la sesión 13, con mon01 en la red de gestión.
+!!! otra "Dónde se usa esto en la otra asignatura"
+    La [UT3 de Mantenimiento, seguridad de la monitorización](https://victor-educ.github.io/apuntes-5169/ut/ut3-seguridad-monitorizacion/) (26 nov a 10 dic) va en paralelo con esta (20 nov a 9 dic) y da por sabido lo que se explica aquí: nmap, tcpdump, nftables, la CA del curso y las reglas de OPNsense se aprenden en esta quincena y allí se aplican a los puertos de la monitorización.
+    Hasta ahora app01 y mon01 vivían en el entorno provisional del bridge del aula (vmbr0); esta unidad es el momento de moverlas a la VPC dev, detrás del firewall de la sesión 14, con mon01 en la red de gestión.
     La matriz de reglas de la sección de documentación es la que en la 5169 se amplía con los puertos de los exporters (9100, 8080, 9187) desde mon01 y el 3100 de Loki desde cada host: allí no se hace una matriz nueva, se añaden filas a esta.
 
 ### Plan de sesiones
@@ -51,16 +51,16 @@ Cada sesión de dos horas empieza con una explicación corta y sigue con laborat
 
 | Sesión | Fecha | Tipo | Se explica | Se practica |
 |---:|-------|------|------------|-------------|
-| [13](#sesion-13-modelo-de-seguridad-por-capas) | 18 nov | Teoría y práctica | Defensa en profundidad, zonas y DMZ con uno y dos cortafuegos; cortafuegos con estado; qué es OPNsense (30 min). | Crear las VNets vdata y vmgmt, instalar OPNsense con cinco interfaces, asignar .1 en cada zona, acceder solo desde MGMT. |
-| [14](#sesion-14-reglas-por-zona-y-publicacion-de-un-servicio) | 20 nov | Teoría y práctica | Orden de evaluación de reglas, aliases, port forward y outbound NAT (20 min). | Comprobar que sin reglas nada pasa; nginx en web01; port forward WAN:443 y regla; curl desde el aula. |
-| [15](#sesion-15-dmz-interna-y-zona-interna) | 25 nov | Teoría y práctica | Patrón proxy inverso, aplicación, base de datos; terminación TLS y cabeceras (20 min). | app01 con API en 8080, db01 con PostgreSQL limitado a la subred back, reglas mínimas entre capas, nginx como proxy inverso; probar desde fuera. |
-| [16](#sesion-16-separacion-de-clientes) | 27 nov | Teoría y práctica | Opciones de aislamiento multi-tenant y por qué usamos VLAN por cliente (15 min). | VLAN 101 y 102 sobre bridge VLAN aware, reglas que solo permiten llegar al proxy, comprobar que A no alcanza a B. |
-| [17](#sesion-17-pruebas-de-seguridad) | 2 dic | Práctica | Cómo leer open, closed y filtered en nmap (10 min). | Ejecutar la matriz de pruebas completa desde cada zona, capturar con tcpdump dos denegaciones y localizarlas en el log del firewall. |
-| [18](#sesion-18-practica-evaluable) | 4 dic | Práctica evaluable | Aclaración del enunciado (10 min). | Cerrar el informe: diagrama, matriz de reglas justificada, matriz de pruebas, un hallazgo corregido y el procedimiento de reglas nuevas. |
+| [14](#sesion-14-modelo-de-seguridad-por-capas) | 20 nov | Teoría y práctica | Defensa en profundidad, zonas y DMZ con uno y dos cortafuegos; cortafuegos con estado; qué es OPNsense (30 min). | Crear las VNets vdata y vmgmt, instalar OPNsense con cinco interfaces, asignar .1 en cada zona, acceder solo desde MGMT. |
+| [15](#sesion-15-reglas-por-zona-y-publicacion-de-un-servicio) | 25 nov | Teoría y práctica | Orden de evaluación de reglas, aliases, port forward y outbound NAT (25 min). | Comprobar que sin reglas nada pasa; nginx en web01; port forward WAN:443 y regla; curl desde el aula. |
+| [16](#sesion-16-dmz-interna-y-zona-interna) | 27 nov | Teoría y práctica | Patrón proxy inverso, aplicación, base de datos; terminación TLS y cabeceras (20 min). | app01 con API en 8080, db01 con PostgreSQL limitado a la subred back, reglas mínimas entre capas, nginx como proxy inverso; probar desde fuera. |
+| [17](#sesion-17-separacion-de-clientes) | 2 dic | Teoría y práctica | Opciones de aislamiento multi-tenant y por qué usamos VLAN por cliente (15 min). | VLAN 101 y 102 sobre bridge VLAN aware, reglas que solo permiten llegar al proxy, comprobar que A no alcanza a B. |
+| [18](#sesion-18-pruebas-de-seguridad) | 4 dic | Práctica | Cómo leer open, closed y filtered en nmap (10 min). | Ejecutar la matriz de pruebas completa desde cada zona, capturar con tcpdump dos denegaciones y localizarlas en el log del firewall. |
+| [19](#sesion-19-practica-evaluable) | 9 dic | Práctica evaluable | Aclaración del enunciado (10 min). | Cerrar el informe: diagrama, matriz de reglas justificada, matriz de pruebas, un hallazgo corregido y el procedimiento de reglas nuevas. |
 
-## Sesión 13 · Modelo de seguridad por capas
+## Sesión 14 · Modelo de seguridad por capas
 
-<p class="ut-meta" markdown>18 de noviembre · Teoría y práctica · <span class="dur" title="Explicación unos 30 min, práctica unos 90 min">:material-school:<i class="dur-barra" style="--teoria:25%"></i>:material-flask:</span></p>
+<p class="ut-meta" markdown>20 de noviembre · Teoría y práctica · <span class="dur" tabindex="0" aria-label="Defensa en profundidad y zonas · 5 min&#10;DMZ con uno y con dos cortafuegos · 5 min&#10;Cortafuegos con estado · 5 min&#10;OPNsense · 5 min&#10;Alternativa: nftables en una VM Linux · 10 min&#10;A3.1 Instalar el firewall · 80 min" data-dur="Defensa en profundidad y zonas · 5 min&#10;DMZ con uno y con dos cortafuegos · 5 min&#10;Cortafuegos con estado · 5 min&#10;OPNsense · 5 min&#10;Alternativa: nftables en una VM Linux · 10 min&#10;A3.1 Instalar el firewall · 80 min">:material-school:<i class="dur-barra" style="--teoria:27%"></i>:material-flask:</span></p>
 
 Al acabar la sesión tendréis un OPNsense con una pata en cada una de las cinco zonas, con la IP .1 en cada red y la consola web accesible solo desde gestión. Para la hoja hace falta entender el modelo de zonas y el mapa sobre la VPC de la UT2 (qué zona es cada subred que ya tenéis), por qué basta un cortafuegos con estado y una regla por conexión, y la tabla de interfaces de la instalación de OPNsense. La alternativa con nftables es material de consulta para quien prefiera un router Debian: la hoja la enlaza en su último paso.
 
@@ -103,14 +103,28 @@ No hay que rehacer la red; lo que ya tenéis se reasigna y se amplía: la subred
 
 ```mermaid
 flowchart LR
-    INET[Internet / red del aula] -->|443| FW{{Firewall}}
-    FW -->|443| WEB[web01 · proxy inverso<br/>10.10.1.10]
+    INET["<b>Internet</b><br><small>red del aula</small>"]:::infra
+    FW{{"<b>Firewall</b><br><small>todo pasa por aquí</small>"}}:::act
+    WEB["<b>web01</b><br><small>proxy inverso · 10.10.1.10</small>"]:::pieza
+    APP["<b>app01</b><br><small>API · 10.10.2.10</small>"]:::pieza
+    DB["<b>db01</b><br><small>PostgreSQL · 10.10.3.10</small>"]:::dato
+    ADM["<b>Puesto admin</b><br><small>10.10.0.50</small>"]:::act
+    INET -->|443| FW
+    FW -->|443| WEB
     WEB -->|8080| FW
-    FW -->|8080| APP[app01 · API<br/>10.10.2.10]
+    FW -->|8080| APP
     APP -->|5432| FW
-    FW -->|5432| DB[db01 · PostgreSQL<br/>10.10.3.10]
-    ADM[Puesto admin<br/>10.10.0.50] -->|22, 443 gestión| FW
+    FW -->|5432| DB
+    ADM -->|22, 443 gestión| FW
+    classDef act fill:#ea580c22,stroke:#ea580c,stroke-width:1.5px
+    classDef pieza fill:#64748b22,stroke:#64748b,stroke-width:1.5px
+    classDef dato fill:#2563eb22,stroke:#2563eb,stroke-width:1.5px
+    classDef infra fill:#a1a1aa14,stroke:#a1a1aa,stroke-width:1.5px
+    classDef ok fill:#16a34a22,stroke:#16a34a,stroke-width:1.5px
+    classDef riesgo fill:#dc262622,stroke:#dc2626,stroke-width:1.5px
 ```
+
+<p class="pie" markdown>Ningún salto entre capas es directo: todos vuelven a pasar por el cortafuegos, y por eso se puede filtrar cada uno por separado.</p>
 
 El cortafuegos es el gateway de todas las zonas, con la IP .1 en cada una, así que ningún paquete cruza de una subred a otra sin pasar por él. Si en la UT2 pusisteis un router entre front y back, esa VM se sustituye por el firewall o se convierte en él.
 
@@ -141,6 +155,29 @@ Antes de escribir la primera regla hay que entender cómo decide el cortafuegos 
 Un cortafuegos sin estado (stateless, un filtro de paquetes puro) mira cada paquete de forma aislada: origen, destino, protocolo, puerto, flags. Para permitir que web01 abra una conexión a app01:8080 necesitaría dos reglas, una para el SYN de ida (el primer paquete de una conexión TCP, el que pide abrirla) y otra para la respuesta de vuelta, y la de vuelta tendría que permitir tráfico desde el puerto 8080 de app01 hacia cualquier puerto alto de web01, lo cual es un agujero: cualquier cosa que se origine en app01 con puerto origen 8080 pasaría.
 
 Un cortafuegos **con estado** (stateful) recuerda las conexiones. Cuando ve el SYN de web01:43812 hacia app01:8080 y una regla lo permite, crea una entrada en su **tabla de estados** con la tupla (protocolo, IP origen, puerto origen, IP destino, puerto destino) y el estado de la conexión. Cuando llega el SYN-ACK de vuelta, no evalúa las reglas: busca en la tabla, encuentra la entrada, comprueba que el paquete es coherente con el estado (números de secuencia, flags) y lo deja pasar. Lo mismo con todos los paquetes siguientes en ambas direcciones, hasta que ve el cierre (FIN/RST) o la entrada expira por inactividad.
+
+```mermaid
+sequenceDiagram
+    participant W as web01:43812
+    participant F as Cortafuegos
+    participant T as Tabla de estados
+    participant A as app01:8080
+    W->>F: SYN
+    F->>F: evalúa las reglas · hay una que lo permite
+    F->>T: crea la entrada (tcp, web01:43812, app01:8080)
+    F->>A: SYN
+    A->>F: SYN-ACK
+    F->>T: ¿coincide con algún estado?
+    T-->>F: sí, y el paquete es coherente
+    Note over F: no vuelve a mirar las reglas
+    F->>W: SYN-ACK
+    W->>A: datos en los dos sentidos
+    W->>F: FIN
+    F->>T: cierra la entrada
+```
+
+<p class="pie" markdown>Solo hay que permitir el **primer** paquete de cada conexión. Quien lo tiene claro escribe la mitad de reglas y entiende el error de «abre pero no responde».</p>
+
 
 En Linux este mecanismo se llama **conntrack** y es un módulo del kernel (`nf_conntrack`) que usan tanto iptables (el antecesor de nftables) como nftables. En OPNsense y pfSense lo hace el propio `pf` (el filtro de paquetes de FreeBSD, el sistema sobre el que se construyen ambos), con una tabla que podéis ver en Firewall → Diagnostics → States. Los estados que manejan son, de forma simplificada:
 
@@ -184,7 +221,8 @@ Tras la instalación, la interfaz web escucha en todas las interfaces con la reg
 
 ### Alternativa: nftables en una VM Linux
 
-*Material de consulta: no se explica en clase; lo necesitas para la hoja de práctica de esta sesión.*
+!!! consulta "Material de consulta"
+    Esto no se explica en clase: lo necesitas para la hoja de práctica de esta sesión.
 
 El mismo modelo se puede montar con un router Debian 13 con cinco interfaces y nftables, que es el framework de filtrado del kernel Linux desde la 3.13 y el sucesor de iptables. Se pierde la interfaz web y sus comodidades (aliases con resolución DNS, live view); se gana un fichero de texto de 40 líneas que se versiona en git y que Ansible despliega en la UT5 sin magia. Es el mismo motor que usan el firewall de Proxmox y Docker, así que os interesa entenderlo aunque uséis OPNsense.
 
@@ -196,13 +234,28 @@ Los hooks son los puntos del recorrido de un paquete por la pila de red donde ne
 
 ```mermaid
 flowchart LR
-    IN[Paquete entra] --> PRE[prerouting]
-    PRE --> DEC{¿Para esta máquina?}
-    DEC -->|sí| INP[input] --> PROC[Proceso local]
-    DEC -->|no| FWD[forward] --> POST[postrouting]
-    PROC --> OUT[output] --> POST
-    POST --> SAL[Paquete sale]
+    IN["<b>Paquete entra</b>"]:::dato
+    PRE["<b>prerouting</b>"]:::pieza
+    DEC{"<b>¿Para esta máquina?</b>"}:::act
+    INP["<b>input</b>"]:::pieza
+    PROC["<b>Proceso local</b>"]:::dato
+    FWD["<b>forward</b>"]:::pieza
+    OUT["<b>output</b>"]:::pieza
+    POST["<b>postrouting</b>"]:::pieza
+    SAL["<b>Paquete sale</b>"]:::dato
+    IN --> PRE --> DEC
+    DEC -->|sí| INP --> PROC --> OUT --> POST
+    DEC -->|no| FWD --> POST
+    POST --> SAL
+    classDef act fill:#ea580c22,stroke:#ea580c,stroke-width:1.5px
+    classDef pieza fill:#64748b22,stroke:#64748b,stroke-width:1.5px
+    classDef dato fill:#2563eb22,stroke:#2563eb,stroke-width:1.5px
+    classDef infra fill:#a1a1aa14,stroke:#a1a1aa,stroke-width:1.5px
+    classDef ok fill:#16a34a22,stroke:#16a34a,stroke-width:1.5px
+    classDef riesgo fill:#dc262622,stroke:#dc2626,stroke-width:1.5px
 ```
+
+<p class="pie" markdown>Saber por qué hook pasa un paquete es lo que decide en qué cadena va la regla. El tráfico que atraviesa la máquina nunca toca `input`.</p>
 
 Para un router entre zonas casi todo ocurre en `forward`: el tráfico que va de una zona a otra no es para el firewall, así que nunca pasa por `input` ni `output`. `input` protege al propio firewall (quién puede hacerle SSH o abrir su web) y `prerouting`/`postrouting` son donde se hace el NAT (DNAT en prerouting, antes de decidir la ruta; SNAT en postrouting, después).
 
@@ -278,21 +331,21 @@ Fijaos en que el `masquerade` solo cubre la DMZ externa: la DMZ interna y la zon
 
 Para probarlo sin cargarlo, `nft -c -f /etc/nftables.conf` valida la sintaxis. Se carga con `nft -f /etc/nftables.conf` y se persiste activando el servicio: `systemctl enable --now nftables`, que en Debian lee exactamente ese fichero en cada arranque. Antes de todo hay que activar el reenvío en el kernel, `net.ipv4.ip_forward=1` en `/etc/sysctl.d/99-router.conf`, porque sin eso el router descarta todo lo que no es para él aunque nftables lo permita. `nft list ruleset` muestra lo cargado, y `nft list ruleset -a` añade los handles de cada regla para poder borrar una concreta. Los logs salen por el kernel, `journalctl -k -f | grep FW-`, o a un fichero propio si configuráis rsyslog (el servicio de logs de Debian) con un filtro por prefijo.
 
-!!! warning "Orden de las reglas y bloqueo remoto"
+!!! ojo "Orden de las reglas y bloqueo remoto"
     Si administráis el router Debian por SSH desde MGMT y cargáis un ruleset con `policy drop` en `input` sin la regla que permite vuestro SSH, os quedáis fuera en el acto (la sesión actual sobrevive gracias a `established`, pero la siguiente no entra). Probad siempre con un `at now + 5 min` (una orden programada que se ejecuta pasado ese tiempo) que restaure el fichero anterior, o desde la consola de Proxmox.
 
-### A3.1 Instalar el firewall (sesión 13)
+### A3.1 Instalar el firewall (sesión 14)
 
-**Objetivo.** Un OPNsense con una pata en cada una de las cinco zonas, con la IP .1 en cada red, cuya consola web solo responde desde MGMT, y web01, app01 y db01 usándolo como puerta de enlace.
+<span class="et et-obj">Objetivo</span> Un OPNsense con una pata en cada una de las cinco zonas, con la IP .1 en cada red, cuya consola web solo responde desde MGMT, y web01, app01 y db01 usándolo como puerta de enlace.
 
-**Antes de empezar.**
+<span class="et et-pre">Antes de empezar</span>
 
 - La VPC dev de la UT2 con vfront, vback, web01 (10.10.1.10) y app01 (10.10.2.10). Si db01 no existe, créala hoy como Debian 13 mínima en vdata con la 10.10.3.10.
 - Una VM en vmgmt con la 10.10.0.50: el puesto desde el que administrarás el firewall toda la unidad.
 - La ISO `dvd` de OPNsense 26.x en el almacenamiento de Proxmox.
 - Explicado en clase: [el modelo de zonas](#defensa-en-profundidad-y-zonas), [el mapa sobre la VPC](#mapa-sobre-la-vpc-de-la-ut2) y [qué es un cortafuegos con estado](#cortafuegos-con-estado). Para la instalación, la tabla de interfaces de [Instalación en Proxmox](#instalacion-en-proxmox).
 
-**Pasos.**
+<span class="et et-pas">Pasos</span>
 
 1. Crea las dos VNets nuevas en el entorno dev, junto a vfront y vback: Datacenter → SDN → VNets, `vdata` con la subred 10.10.3.0/24 y `vmgmt` con la 10.10.0.0/24, en la misma zona que las anteriores. Pulsa Apply en SDN para que existan en el host.
 2. Crea la VM del firewall (2 vCPU, 2 GB, 20 GB, la ISO) con cinco NIC VirtIO en este orden exacto, porque FreeBSD las numera por orden de bus PCI:
@@ -309,25 +362,25 @@ Para probarlo sin cargarlo, `nft -c -f /etc/nftables.conf` valida la sintaxis. S
 4. Arranca desde la ISO, entra como `installer` / `opnsense`, instala con las opciones por defecto, cambia la contraseña de root, retira la ISO y reinicia.
 5. En la consola de la VM, opción 1 "Assign interfaces": WAN → vtnet0, LAN → vtnet4 (OPNsense llama LAN a la primera interfaz protegida; será MGMT). Opción 2 "Set interface IP address" para LAN: 10.10.0.1/24, sin DHCP. WAN queda en DHCP.
 6. Desde el puesto de gestión, entra en `https://10.10.0.1`. En Interfaces → Assignments añade vtnet1, vtnet2 y vtnet3; en cada una activa la interfaz, descripción (DMZEXT, DMZINT, INT), IPv4 estática .1/24 de su zona y sin gateway. Renombra LAN a MGMT.
-7. Mueve la administración a MGMT: System → Settings → Administration, en "Listen interfaces" deja solo MGMT. No desactives la regla anti-lockout hasta tener una regla propia en MGMT (sesión 14).
+7. Mueve la administración a MGMT: System → Settings → Administration, en "Listen interfaces" deja solo MGMT. No desactives la regla anti-lockout hasta tener una regla propia en MGMT (sesión 15).
 8. Cambia la puerta de enlace de las VM de servicio: en `/etc/network/interfaces` de cada una, `gateway 10.10.1.1` en web01, `10.10.2.1` en app01 y `10.10.3.1` en db01; `systemctl restart networking` e `ip route` para comprobarlo. Si en la UT2 había un router entre front y back, apágalo.
 
 9. Alternativa nftables: una VM Debian 13 con las mismas cinco NIC, `net.ipv4.ip_forward=1` en `/etc/sysctl.d/99-router.conf`, las .1 en las interfaces y el fichero de [El fichero completo y persistente](#el-fichero-completo-y-persistente) cargado con `nft -f`.
 
-**Comprobación.**
+<span class="et et-com">Comprobación</span>
 
 - Desde el puesto de gestión, `ping 10.10.0.1` responde y la consola web abre.
 - Desde web01, `ping 10.10.1.1` responde, pero `curl -k -m 3 https://10.10.1.1` falla por timeout: la consola no escucha en DMZEXT.
 - En Interfaces → Assignments la MAC de cada vtnet coincide con la que apuntaste para cada bridge.
 - `ip route` en web01, app01 y db01 muestra `default via 10.10.X.1`.
 
-**Entrega.** En la carpeta `ut3/` de tu repositorio, captura de Interfaces → Assignments y un esquema de zonas (texto o Mermaid) con las cinco redes, la IP del firewall en cada una y las máquinas.
+<span class="et et-ent">Entrega</span> En la carpeta `ut3/` de tu repositorio, captura de Interfaces → Assignments y un esquema de zonas (texto o Mermaid) con las cinco redes, la IP del firewall en cada una y las máquinas.
 
-**Si te sobra tiempo.** Añade ya la sexta NIC (bridge VLAN aware, sin tag) que necesitarás en la sesión 16.
+<span class="et et-ext">Si te sobra tiempo</span> Añade ya la sexta NIC (bridge VLAN aware, sin tag) que necesitarás en la sesión 17.
 
-## Sesión 14 · Reglas por zona y publicación de un servicio
+## Sesión 15 · Reglas por zona y publicación de un servicio
 
-<p class="ut-meta" markdown>20 de noviembre · Teoría y práctica · <span class="dur" title="Explicación unos 20 min, práctica unos 100 min">:material-school:<i class="dur-barra" style="--teoria:17%"></i>:material-flask:</span></p>
+<p class="ut-meta" markdown>25 de noviembre · Teoría y práctica · <span class="dur" tabindex="0" aria-label="Aliases · 5 min&#10;Reglas y orden de evaluación · 5 min&#10;NAT: port forward y outbound · 5 min&#10;Logs · 5 min&#10;Certificados · 5 min&#10;A3.2 Publicar la web · 85 min" data-dur="Aliases · 5 min&#10;Reglas y orden de evaluación · 5 min&#10;NAT: port forward y outbound · 5 min&#10;Logs · 5 min&#10;Certificados · 5 min&#10;A3.2 Publicar la web · 85 min">:material-school:<i class="dur-barra" style="--teoria:23%"></i>:material-flask:</span></p>
 
 Hoy el firewall empieza a hacer su trabajo: comprobaréis que sin reglas nada pasa, crearéis los aliases, publicaréis nginx en web01 con un port forward en la WAN y lo probaréis con curl y nmap desde el aula. Los apartados que siguen son la parte de OPNsense que se explica en clase: aliases, orden de evaluación de las reglas, NAT y logs. El apartado de certificados no se explica, pero lo necesitáis para crear la CA y el certificado del proxy en el paso 3 de la hoja.
 
@@ -337,7 +390,32 @@ Un alias es un nombre para un conjunto de IPs, redes, puertos o URLs. `srv_web` 
 
 ### Reglas y orden de evaluación
 
-Las reglas se organizan por interfaz y se evalúan sobre el tráfico que **entra** por esa interfaz (dirección "in", que es la que usaréis casi siempre). Para permitir que web01 hable con app01:8080, la regla va en la pestaña DMZEXT, porque es por donde entra el paquete al firewall, aunque el destino esté en DMZINT. Pensad siempre "¿por qué interfaz llega este paquete al cortafuegos?".
+Las reglas se organizan por interfaz y se evalúan sobre el tráfico que **entra** por esa interfaz (dirección "in", que es la que usaréis casi siempre). Para permitir que web01 hable con app01:8080, la regla va en la pestaña DMZEXT, porque es por donde entra el paquete al firewall, aunque el destino esté en DMZINT. !!! truco "La pregunta que resuelve el 90 % de las dudas"
+    «¿Por qué interfaz **llega** este paquete al cortafuegos?». Esa es la pestaña donde va la regla. Para que
+    `web01` hable con `app01:8080` la regla va en DMZEXT, que es por donde entra, aunque el destino esté en
+    DMZINT.
+
+```mermaid
+flowchart LR
+    P["<b>Llega un paquete</b>"]:::dato
+    I{"<b>¿Por qué interfaz<br>entra?</b>"}:::act
+    PEST["<b>Esa pestaña</b><br><small>y solo esa · dirección in</small>"]:::pieza
+    AUT["<b>1 · Reglas automáticas</b><br><small>anti-lockout y las de los port forward</small>"]:::infra
+    MIAS["<b>2 · Vuestras reglas</b><br><small>en orden, de arriba abajo</small>"]:::pieza
+    PRIM(["<b>La primera que coincide decide</b><br><small>las de debajo ya no se miran</small>"]):::ok
+    DENY(["<b>Si ninguna coincide: se descarta</b>"]):::riesgo
+    P --> I --> PEST --> AUT --> MIAS --> PRIM
+    MIAS -. "ninguna coincide" .-> DENY
+    classDef act fill:#ea580c22,stroke:#ea580c,stroke-width:1.5px
+    classDef pieza fill:#64748b22,stroke:#64748b,stroke-width:1.5px
+    classDef dato fill:#2563eb22,stroke:#2563eb,stroke-width:1.5px
+    classDef infra fill:#a1a1aa14,stroke:#a1a1aa,stroke-width:1.5px
+    classDef ok fill:#16a34a22,stroke:#16a34a,stroke-width:1.5px
+    classDef riesgo fill:#dc262622,stroke:#dc2626,stroke-width:1.5px
+```
+
+<p class="pie" markdown>El orden importa porque gana la primera coincidencia. Una regla permisiva arriba anula todas las restrictivas de debajo.</p>
+
 
 El orden de evaluación es el siguiente:
 
@@ -357,7 +435,39 @@ Las reglas nuevas se guardan y luego se aplican con "Apply changes". Hasta que n
 
 Dos tipos de NAT os van a hacer falta:
 
-**Port forward** (DNAT, NAT de destino: cambia la IP de destino del paquete) publica un servicio interno en la IP WAN: WAN:443 → srv_web:443. Se configura en Firewall → NAT → Port Forward, y al crearlo OPNsense ofrece generar la regla de filtro asociada ("Filter rule association: add associated filter rule"). Aceptadlo; sin regla de filtro, el paquete se traduce pero después se bloquea en la interfaz WAN. En pf el NAT va antes que el filtro, así que la regla de filtro se escribe con el destino ya traducido (srv_web:443), no con la IP WAN.
+**Port forward** (DNAT, NAT de destino: cambia la IP de destino del paquete) publica un servicio interno en la IP WAN: WAN:443 → srv_web:443. Se configura en Firewall → NAT → Port Forward, y al crearlo OPNsense ofrece generar la regla de filtro asociada ("Filter rule association: add associated filter rule"). !!! ojo "El port forward sin regla de filtro no publica nada"
+    OPNsense ofrece generar la regla asociada al crear el port forward. Aceptadla: si no, el paquete se
+    traduce y después se bloquea en la interfaz WAN, y el síntoma es un `curl` que se queda colgado sin
+    respuesta ni error claro.
+
+```mermaid
+flowchart LR
+    subgraph IN["Port forward · DNAT, hacia dentro"]
+        direction LR
+        C1["<b>curl desde el aula</b><br><small>a WAN:443</small>"]:::act
+        N1["<b>NAT</b><br><small>destino → srv_web:443</small>"]:::pieza
+        FIL["<b>Filtro</b><br><small>la regla se escribe con el destino YA traducido</small>"]:::dato
+        S1(["<b>srv_web</b>"]):::ok
+        C1 --> N1 --> FIL --> S1
+    end
+    subgraph OUT["Outbound NAT · SNAT, hacia fuera"]
+        direction LR
+        Z["<b>Zona interna</b>"]:::pieza
+        N2["<b>NAT</b><br><small>origen → IP del firewall</small>"]:::pieza
+        I2(("<b>Internet</b>")):::infra
+        Z --> N2 --> I2
+    end
+    IN ~~~ OUT
+    classDef act fill:#ea580c22,stroke:#ea580c,stroke-width:1.5px
+    classDef pieza fill:#64748b22,stroke:#64748b,stroke-width:1.5px
+    classDef dato fill:#2563eb22,stroke:#2563eb,stroke-width:1.5px
+    classDef infra fill:#a1a1aa14,stroke:#a1a1aa,stroke-width:1.5px
+    classDef ok fill:#16a34a22,stroke:#16a34a,stroke-width:1.5px
+    classDef riesgo fill:#dc262622,stroke:#dc2626,stroke-width:1.5px
+```
+
+<p class="pie" markdown>En `pf` el NAT va **antes** que el filtro. Es el motivo de que la regla lleve `srv_web:443` y no la IP WAN, y de que mucha gente la escriba mal la primera vez.</p>
+
 
 **Outbound NAT** (SNAT, NAT de origen: cambia la IP de origen) permite que las zonas internas salgan a Internet con la IP del firewall. En modo automático OPNsense lo hace para todas las redes de sus interfaces. En nuestro laboratorio lo queremos restringido: la DMZ interna y la zona interna no deberían salir a Internet salvo para actualizaciones, y eso se resuelve mejor con un proxy de paquetes (apt-cacher-ng, una caché de paquetes Debian, o un mirror interno en MGMT) que con NAT abierto. Ponedlo en modo "Hybrid" y cread solo las reglas de salida que justifiquéis.
 
@@ -369,7 +479,8 @@ Activad el log en todas las reglas de denegación y en las de permiso hacia INT.
 
 ### Certificados
 
-*Material de consulta: no se explica en clase; lo necesitas para la hoja de práctica de esta sesión.*
+!!! consulta "Material de consulta"
+    Esto no se explica en clase: lo necesitas para la hoja de práctica de esta sesión.
 
 El `curl -kv` de las actividades usa `-k` para saltarse la validación del certificado, y eso está bien para probar el primer día, pero no es la forma de trabajar. Hay dos escenarios:
 
@@ -394,17 +505,17 @@ Después se instala `ca.crt` en los clientes (`/usr/local/share/ca-certificates/
 
 **Let's Encrypt** en producción, para todo lo que tiene nombre público. Emite certificados de 90 días (y está pasando a 6 días para quien los quiera) gratis, validando que controláis el dominio: con `HTTP-01` publicando un fichero en `/.well-known/acme-challenge/` por el puerto 80 (por eso el port forward del 80 en el firewall aunque redirijáis a HTTPS), o con `DNS-01` creando un registro TXT, que es la única opción para wildcards y para servicios que no exponen el 80. Certbot, Caddy, Traefik y el plugin ACME de OPNsense renuevan solos. Vigilad que la renovación funcione: un certificado caducado un domingo es la avería más tonta y más frecuente de un servicio publicado.
 
-### A3.2 Publicar la web (sesión 14)
+### A3.2 Publicar la web (sesión 15)
 
-**Objetivo.** `https://IP_WAN` responde desde el aula con la web de web01, con un certificado firmado por tu CA, y un nmap desde el aula solo ve el 443 (y el 80).
+<span class="et et-obj">Objetivo</span> `https://IP_WAN` responde desde el aula con la web de web01, con un certificado firmado por tu CA, y un nmap desde el aula solo ve el 443 (y el 80).
 
-**Antes de empezar.**
+<span class="et et-pre">Antes de empezar</span>
 
 - El firewall de la A3.1 con las cinco interfaces y las tres VM apuntando a él.
 - web01 con nginx instalable (proxy APT de MGMT o una regla temporal de salida).
 - Explicado en clase: [Aliases](#aliases), [Reglas y orden de evaluación](#reglas-y-orden-de-evaluacion) y [NAT: port forward y outbound](#nat-port-forward-y-outbound). Para el certificado, [Certificados](#certificados).
 
-**Pasos.**
+<span class="et et-pas">Pasos</span>
 
 1. Comprueba la política por defecto. Desde web01, `nc -zv -w 3 10.10.2.10 22` y `nc -zv -w 3 10.10.3.10 5432` deben terminar por timeout, no con "Connection refused". En Firewall → Log Files → Live View, filtra por DMZEXT y localiza las dos denegaciones (si no aparecen, activa el log de la regla por defecto en Firewall → Settings → Advanced y repite).
 
@@ -458,19 +569,19 @@ Después se instala `ca.crt` en los clientes (`/usr/local/share/ca-certificates/
 
 9. Escanea la IP WAN desde el aula: `sudo nmap -sS -Pn -p 22,80,443,8080 IP_WAN`.
 
-**Comprobación.**
+<span class="et et-com">Comprobación</span>
 
 - El `curl -v` sin `-k` termina con `SSL certificate verify ok` y un 200 con la página por defecto de nginx; `curl -v http://app.lab` devuelve un 301 a `https://app.lab/`.
 - El nmap muestra 443 y 80 `open`; 22 y 8080 `filtered`. Si alguno sale `closed`, revisa las reglas de WAN antes de seguir.
 - En el log, con filtro por interfaz WAN, ves los SYN al 22 y al 8080 denegados por la regla por defecto.
 
-**Entrega.** En `ut3/`: captura de Firewall → Rules (WAN y MGMT) y de NAT → Port Forward, la salida del `curl -v` sin `-k` y la del nmap. Guarda también `ca.crt` (nunca `ca.key`): lo necesitaréis en la 5169.
+<span class="et et-ent">Entrega</span> En `ut3/`: captura de Firewall → Rules (WAN y MGMT) y de NAT → Port Forward, la salida del `curl -v` sin `-k` y la del nmap. Guarda también `ca.crt` (nunca `ca.key`): lo necesitaréis en la 5169.
 
-**Si te sobra tiempo.** Mira en la salida del curl la cabecera `Server` y añade `server_tokens off;` en `/etc/nginx/nginx.conf` para dejar de regalar la versión.
+<span class="et et-ext">Si te sobra tiempo</span> Mira en la salida del curl la cabecera `Server` y añade `server_tokens off;` en `/etc/nginx/nginx.conf` para dejar de regalar la versión.
 
-## Sesión 15 · DMZ interna y zona interna
+## Sesión 16 · DMZ interna y zona interna
 
-<p class="ut-meta" markdown>25 de noviembre · Teoría y práctica · <span class="dur" title="Explicación unos 20 min, práctica unos 100 min">:material-school:<i class="dur-barra" style="--teoria:17%"></i>:material-flask:</span></p>
+<p class="ut-meta" markdown>27 de noviembre · Teoría y práctica · <span class="dur" tabindex="0" aria-label="Publicar un servicio · 15 min&#10;Documentación operativa · 5 min&#10;A3.3 Aplicación y datos · 90 min" data-dur="Publicar un servicio · 15 min&#10;Documentación operativa · 5 min&#10;A3.3 Aplicación y datos · 90 min">:material-school:<i class="dur-barra" style="--teoria:18%"></i>:material-flask:</span></p>
 
 Al terminar, la cadena Internet, proxy, aplicación y base de datos funciona con solo dos reglas entre capas, y un intento del proxy contra la base de datos muere en el firewall y queda en el log. En clase se explica el patrón de publicación y el proxy inverso con sus cabeceras; la matriz de reglas de la documentación operativa es consulta, pero hoy empezáis a rellenarla en el paso 8 de la hoja.
 
@@ -559,7 +670,8 @@ Prefiero nginx para enseñar porque obliga a entender cada cabecera, Traefik par
 
 ### Documentación operativa
 
-*Material de consulta: no se explica en clase; lo necesitas para la hoja de práctica de esta sesión.*
+!!! consulta "Material de consulta"
+    Esto no se explica en clase: lo necesitas para la hoja de práctica de esta sesión.
 
 Lo que se entrega a operaciones cuando la red pasa a producción, y lo que pedirá cualquier auditoría, son cuatro documentos. El diagrama de zonas con subredes, gateways y máquinas. La matriz de pruebas ejecutada, con evidencias. Y dos más que merecen detalle.
 
@@ -590,17 +702,17 @@ Quién puede pedir una regla, qué información tiene que dar, quién la revisa,
 
 Lo que no puede pasar es que alguien entre un viernes a las 18:00, abra "cualquiera → cualquiera" para que funcione algo y se olvide. Sin procedimiento, todos los cortafuegos acaban así en dos años.
 
-### A3.3 Aplicación y datos (sesión 15)
+### A3.3 Aplicación y datos (sesión 16)
 
-**Objetivo.** La cadena Internet → proxy → app01 → db01 funciona con las reglas mínimas, y un intento del proxy contra la base de datos muere en el firewall y queda en el log.
+<span class="et et-obj">Objetivo</span> La cadena Internet → proxy → app01 → db01 funciona con las reglas mínimas, y un intento del proxy contra la base de datos muere en el firewall y queda en el log.
 
-**Antes de empezar.**
+<span class="et et-pre">Antes de empezar</span>
 
 - La A3.2 terminada: aliases, port forward, nginx con certificado en web01.
 - app01 (10.10.2.10) con Docker y db01 (10.10.3.10) con el paquete `postgresql`. Como no tienen salida a Internet, instala desde el proxy APT de MGMT o con una regla temporal de salida, apuntada y con fecha, que borrarás al terminar.
 - Explicado en clase: [Publicar un servicio](#publicar-un-servicio), [El proxy inverso](#el-proxy-inverso) y la matriz de [Matriz de reglas](#matriz-de-reglas) que rellenarás hoy.
 
-**Pasos.**
+<span class="et et-pas">Pasos</span>
 
 1. API mínima en app01. Un contenedor `whoami` devuelve las cabeceras que recibe, que es lo que queremos ver:
 
@@ -660,19 +772,19 @@ Lo que no puede pasar es que alguien entre un viernes a las 18:00, abra "cualqui
 7. La que no debe funcionar, desde web01: `nc -zv -w 3 10.10.3.10 5432` termina por timeout. En Live View, filtra por interfaz DMZEXT y destino 10.10.3.10 y localiza la denegación.
 8. Empieza la matriz de reglas con el formato de [Matriz de reglas](#matriz-de-reglas): una fila por regla que exista ahora en el firewall, con justificación, quién la pidió y cuándo se revisa. El número de fila va al principio de la descripción de la regla en OPNsense.
 
-**Comprobación.**
+<span class="et et-com">Comprobación</span>
 
 - `curl https://app.lab` desde el aula devuelve whoami con tu IP en `X-Forwarded-For`; `/metrics` devuelve 403 desde el aula y 200 desde gestión.
 - Desde web01, el nc al 5432 termina por timeout (no "refused") y la línea está en el log en la interfaz DMZEXT.
 - `sudo nmap -sS -Pn -p 8080,5432 IP_WAN` desde el aula: los dos `filtered`.
 
-**Entrega.** En `ut3/`, `matriz-reglas.md` con la matriz justificada (las reglas actuales más la denegación por defecto) y la captura de la línea del log del paso 7.
+<span class="et et-ent">Entrega</span> En `ut3/`, `matriz-reglas.md` con la matriz justificada (las reglas actuales más la denegación por defecto) y la captura de la línea del log del paso 7.
 
-**Si te sobra tiempo.** Pon en web01 `proxy_set_header X-Forwarded-For "1.2.3.4";` y observa que whoami se lo cree: por eso la aplicación solo debe confiar en la cabecera si viene del proxy.
+<span class="et et-ext">Si te sobra tiempo</span> Pon en web01 `proxy_set_header X-Forwarded-For "1.2.3.4";` y observa que whoami se lo cree: por eso la aplicación solo debe confiar en la cabecera si viene del proxy.
 
-## Sesión 16 · Separación de clientes
+## Sesión 17 · Separación de clientes
 
-<p class="ut-meta" markdown>27 de noviembre · Teoría y práctica · <span class="dur" title="Explicación unos 15 min, práctica unos 105 min">:material-school:<i class="dur-barra" style="--teoria:12%"></i>:material-flask:</span></p>
+<p class="ut-meta" markdown>2 de diciembre · Teoría y práctica · <span class="dur" tabindex="0" aria-label="Separación de clientes · 15 min&#10;A3.4 Dos clientes · 95 min" data-dur="Separación de clientes · 15 min&#10;A3.4 Dos clientes · 95 min">:material-school:<i class="dur-barra" style="--teoria:14%"></i>:material-flask:</span></p>
 
 Dos clientes en VLAN distintas llegan los dos al proxy por 443 y no se alcanzan entre sí ni llegan a ninguna otra zona. La explicación de hoy repasa las opciones de aislamiento multi-tenant y por qué elegimos una VLAN por cliente; el apartado sobre VLAN en Proxmox y en OPNsense es lo que necesitáis para los pasos 1 y 2 de la hoja.
 
@@ -706,18 +818,18 @@ Las reglas para cada cliente son dos líneas, en la pestaña de su VLAN:
 
 La regla explícita de Block al final de cada pestaña es redundante con la denegación implícita, pero deja en el log una descripción legible y muestra la intención a quien lea la matriz sin conocer OPNsense. Con el proxy compartido hay un detalle más: si el cliente A hace una petición a app.lab, el proxy la reenvía a app01 desde su propia IP, así que la aplicación tiene que distinguir clientes por otro medio (nombre de host, cabecera, autenticación), no por la IP de origen. El aislamiento de red garantiza que A no llega a la red de B; el aislamiento de datos sigue siendo responsabilidad de la aplicación.
 
-### A3.4 Dos clientes (sesión 16)
+### A3.4 Dos clientes (sesión 17)
 
-**Objetivo.** Dos VM de cliente en VLAN distintas llegan las dos al proxy por 443 y no se alcanzan entre sí ni llegan a ninguna otra zona, con la denegación registrada en el log.
+<span class="et et-obj">Objetivo</span> Dos VM de cliente en VLAN distintas llegan las dos al proxy por 443 y no se alcanzan entre sí ni llegan a ninguna otra zona, con la denegación registrada en el log.
 
-**Antes de empezar.**
+<span class="et et-pre">Antes de empezar</span>
 
 - La A3.3 funcionando: `curl https://app.lab` devuelve whoami.
 - Un bridge de Proxmox VLAN aware (`vmbr1`, sin IP en el host) y una sexta NIC del firewall en él sin tag (será `vtnet5`; apaga y enciende la VM para que FreeBSD la vea).
 - Dos VM Debian mínimas para hacer de cliente A y cliente B.
 - Explicado en clase: [Separación de clientes](#separacion-de-clientes) y [VLAN en Proxmox y en OPNsense](#vlan-en-proxmox-y-en-opnsense).
 
-**Pasos.**
+<span class="et et-pas">Pasos</span>
 
 1. En Proxmox, la NIC del cliente A va en `vmbr1` con VLAN Tag `101`; la del cliente B, con tag `102`. Las VM no saben nada de VLAN; el bridge etiqueta por ellas.
 2. En OPNsense, Interfaces → Other Types → VLAN: VLAN 101 y 102 sobre `vtnet5`. En Assignments añade las dos, actívalas como CLI_A y CLI_B con IPv4 estática 10.10.101.1/24 y 10.10.102.1/24, sin gateway.
@@ -745,20 +857,20 @@ La regla explícita de Block al final de cada pestaña es redundante con la dene
 7. Desde el cliente A, lo que sí debe funcionar: `curl -k https://app.lab`. Repite 6 y 7 desde B hacia A.
 8. Añade las reglas 7 a 10 a `matriz-reglas.md`.
 
-**Comprobación.**
+<span class="et et-com">Comprobación</span>
 
 - `ping` desde A hacia B: 100 % de pérdida. `nmap -sn`: 0 hosts up. `nmap -Pn`: los tres puertos `filtered`.
 - `curl` desde A y desde B devuelve whoami con `X-Forwarded-For` 10.10.101.10 o 10.10.102.10: la aplicación ve al cliente por la cabecera, no por la IP de origen, que es siempre la del proxy.
 - En Live View, filtrando por CLI_A, cada intento contra B aparece con la descripción "8 Cliente A: resto denegado".
 - `bridge vlan show` en el host de Proxmox muestra cada VM de cliente con su VLAN y el firewall con las dos.
 
-**Entrega.** En `ut3/`: capturas de Firewall → Rules (CLI_A y CLI_B), la salida del paso 6 con su línea del log, y `matriz-reglas.md` actualizado.
+<span class="et et-ent">Entrega</span> En `ut3/`: capturas de Firewall → Rules (CLI_A y CLI_B), la salida del paso 6 con su línea del log, y `matriz-reglas.md` actualizado.
 
-**Si te sobra tiempo.** Quita el tag de la NIC del cliente B y repite el paso 6: es el error más frecuente de la unidad y conviene haberlo visto antes de que os pase por accidente. Vuelve a ponerlo.
+<span class="et et-ext">Si te sobra tiempo</span> Quita el tag de la NIC del cliente B y repite el paso 6: es el error más frecuente de la unidad y conviene haberlo visto antes de que os pase por accidente. Vuelve a ponerlo.
 
-## Sesión 17 · Pruebas de seguridad
+## Sesión 18 · Pruebas de seguridad
 
-<p class="ut-meta" markdown>2 de diciembre · Práctica · <span class="dur" title="Explicación unos 10 min, práctica unos 110 min">:material-school:<i class="dur-barra" style="--teoria:8%"></i>:material-flask:</span></p>
+<p class="ut-meta" markdown>4 de diciembre · Práctica · <span class="dur" tabindex="0" aria-label="Pruebas de seguridad · 10 min&#10;A3.5 Pruebas y evidencias · 100 min" data-dur="Pruebas de seguridad · 10 min&#10;A3.5 Pruebas y evidencias · 100 min">:material-school:<i class="dur-barra" style="--teoria:9%"></i>:material-flask:</span></p>
 
 Sesión casi entera de laboratorio: la matriz de pruebas completa ejecutada desde cada zona, con evidencias fechadas, y dos denegaciones demostradas con tcpdump en las dos interfaces del firewall. Lo único que se explica es cómo leer open, closed y filtered en nmap; nc, curl, tcpdump y la matriz de pruebas son consulta para la hoja.
 
@@ -822,17 +934,17 @@ Una fila por par origen/destino relevante, con puerto, resultado esperado (permi
 | cliente A | app | 8080 | Bloqueado | | nc |
 | Internet | firewall MGMT | 443 | Bloqueado | | nmap |
 
-### A3.5 Pruebas y evidencias (sesión 17)
+### A3.5 Pruebas y evidencias (sesión 18)
 
-**Objetivo.** La matriz de pruebas completa ejecutada desde las máquinas de origen, con evidencias fechadas, dos denegaciones demostradas con tcpdump en las dos interfaces del firewall, y cualquier discrepancia corregida y repetida.
+<span class="et et-obj">Objetivo</span> La matriz de pruebas completa ejecutada desde las máquinas de origen, con evidencias fechadas, dos denegaciones demostradas con tcpdump en las dos interfaces del firewall, y cualquier discrepancia corregida y repetida.
 
-**Antes de empezar.**
+<span class="et et-pre">Antes de empezar</span>
 
-- Todo lo de las sesiones 13 a 16 funcionando.
+- Todo lo de las sesiones 14 a 17 funcionando.
 - `nmap`, `netcat-openbsd` y `curl` en el equipo del aula, web01, app01, db01 y las dos VM de cliente; acceso a la consola del firewall para `tcpdump`.
 - Explicado en clase: [nmap](#nmap) y sus estados. De consulta: [nc, curl y tcpdump](#nc-curl-y-tcpdump) y [La matriz de pruebas](#la-matriz-de-pruebas).
 
-**Pasos.**
+<span class="et et-pas">Pasos</span>
 
 1. Copia la tabla de [La matriz de pruebas](#la-matriz-de-pruebas) a `ut3/matriz-pruebas.md` añadiendo una columna Fecha. Mínimo 8 filas, con las de los clientes.
 2. Ejecuta cada fila desde la máquina de origen que indica, nunca desde el firewall. Comandos de referencia:
@@ -862,19 +974,19 @@ Una fila por par origen/destino relevante, con puerto, resultado esperado (permi
 5. Si alguna fila da un resultado distinto del esperado (un `closed` donde debía haber `filtered`, un `succeeded` en una fila bloqueada), es un hallazgo. Escríbelo en `ut3/hallazgos.md` con qué viste, qué regla lo causaba, cómo lo corregiste y la repetición de la fila. Si no ha habido ninguno, prueba filas que no están en la tabla: gestión desde una VM de cliente o el 22 de web01 desde app01.
 6. Borra las reglas temporales que hayas usado para instalar paquetes y anótalo en la matriz de reglas.
 
-**Comprobación.**
+<span class="et et-com">Comprobación</span>
 
 - Cada fila de la matriz tiene "Obtenido", fecha y un fichero de evidencia en el repositorio.
 - Ninguna fila bloqueada tiene `closed` ni `succeeded` tras la corrección.
 - Las dos capturas de tcpdump muestran el SYN en la entrada y nada en la salida, y en el log está la línea que lo explica.
 
-**Entrega.** En `ut3/`: `matriz-pruebas.md`, la carpeta `evidencias/` y `hallazgos.md`. Es el material del informe de la sesión 18.
+<span class="et et-ent">Entrega</span> En `ut3/`: `matriz-pruebas.md`, la carpeta `evidencias/` y `hallazgos.md`. Es el material del informe de la sesión 19.
 
-## Sesión 18 · Práctica evaluable
+## Sesión 19 · Práctica evaluable
 
-<p class="ut-meta" markdown>4 de diciembre · Práctica evaluable · <span class="dur" title="Explicación unos 10 min, práctica unos 110 min">:material-school:<i class="dur-barra" style="--teoria:8%"></i>:material-flask:</span></p>
+<p class="ut-meta" markdown>9 de diciembre · Práctica evaluable · <span class="dur" tabindex="0" aria-label="Aclaración del enunciado · 10 min&#10;Trabajo en la práctica · 100 min" data-dur="Aclaración del enunciado · 10 min&#10;Trabajo en la práctica · 100 min">:material-school:<i class="dur-barra" style="--teoria:9%"></i>:material-flask:</span></p>
 
-La sesión empieza con diez minutos de aclaración del enunciado y el resto es para cerrar el informe con el material de las sesiones 13 a 17: el diagrama de zonas, la matriz de reglas justificada, la matriz de pruebas con evidencias, un hallazgo corregido y el procedimiento de cambios.
+La sesión empieza con diez minutos de aclaración del enunciado y el resto es para cerrar el informe con el material de las sesiones 14 a 18: el diagrama de zonas, la matriz de reglas justificada, la matriz de pruebas con evidencias, un hallazgo corregido y el procedimiento de cambios.
 
 Entrega un informe (máximo 6 páginas) sobre el entorno dev con los dos clientes:
 

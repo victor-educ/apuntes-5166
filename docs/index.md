@@ -1,6 +1,6 @@
 # Despliegue de plataformas de contenedores
 
-<p class="ut-meta">Apuntes de la asignatura · Curso de especialización · 112 h (82 en el centro, 30 en empresa) · Curso 2026-27</p>
+<p class="ut-meta">Apuntes de la asignatura · Curso de especialización · 120 h (90 en el centro, 30 en empresa) · Curso 2026-27</p>
 
 Aquí están los apuntes de toda la asignatura, unidad por unidad, con las actividades de cada sesión y las prácticas evaluables. Es el mismo material que se trabaja en clase, ampliado con lo que no cabe en dos horas y con enlaces a la documentación oficial para que no os quedéis en lo que yo cuento. La asignatura hermana, [Mantenimiento del sistema de contenedores](https://victor-educ.github.io/apuntes-5169/), tiene su propio sitio con la misma estructura.
 
@@ -20,14 +20,26 @@ Estos son los conceptos que vertebran el curso, en el orden en que aparecen:
 
 ```mermaid
 flowchart LR
-    UT1[UT1<br>Hipervisor] --> UT2[UT2<br>VPC]
-    UT2 --> UT3[UT3<br>Seguridad por capas]
-    UT3 --> UT5[UT5<br>IaC]
-    UT5 --> UT6[UT6<br>Pipeline CI]
-    UT6 --> UT7[UT7<br>Monitorización]
-    UT3 -.-> UT4[UT4<br>Nube pública<br>en la empresa]
-    UT7 -.-> FE[Formación en empresa<br>UT4 · UT7b · UT8]
+    UT1["<b>UT1</b><br><small>Hipervisor</small>"]:::pieza
+    UT2["<b>UT2</b><br><small>VPC</small>"]:::pieza
+    UT3["<b>UT3</b><br><small>Seguridad por capas</small>"]:::pieza
+    UT5["<b>UT5</b><br><small>IaC</small>"]:::pieza
+    UT6["<b>UT6</b><br><small>Pipeline CI</small>"]:::pieza
+    UT7["<b>UT7</b><br><small>Monitorización</small>"]:::pieza
+    UT4["<b>UT4</b><br><small>Nube pública<br>en la empresa</small>"]:::infra
+    FE["<b>Formación en empresa</b><br><small>UT4 · UT7b · UT8</small>"]:::infra
+    UT1 --> UT2 --> UT3 --> UT5 --> UT6 --> UT7
+    UT3 -.-> UT4
+    UT7 -.-> FE
+    classDef act fill:#ea580c22,stroke:#ea580c,stroke-width:1.5px
+    classDef pieza fill:#64748b22,stroke:#64748b,stroke-width:1.5px
+    classDef dato fill:#2563eb22,stroke:#2563eb,stroke-width:1.5px
+    classDef infra fill:#a1a1aa14,stroke:#a1a1aa,stroke-width:1.5px
+    classDef ok fill:#16a34a22,stroke:#16a34a,stroke-width:1.5px
+    classDef riesgo fill:#dc262622,stroke:#dc2626,stroke-width:1.5px
 ```
+
+<p class="pie" markdown>Cada unidad se apoya en la anterior. Las de trazo discontinuo se cursan en la empresa.</p>
 
 Cada unidad se apoya en la anterior: la red de la UT2 es donde la UT3 pone el cortafuegos, la UT5 recrea esa red desde código y la UT6 ejecuta ese código desde un pipeline. No conviene saltarse ninguna.
 
@@ -45,7 +57,7 @@ Cada unidad se apoya en la anterior: la red de la UT2 es donde la UT3 pone el co
 
     ---
 
-    Las 41 sesiones del curso con fecha, unidad y lo que se hace en cada una. La vista de calendario muestra el detalle al pasar el ratón y lleva a la actividad con un clic. Incluye festivos y el periodo de formación en empresa.
+    Las 45 sesiones del curso con fecha, unidad y lo que se hace en cada una. La vista de calendario muestra el detalle al pasar el ratón y lleva a la actividad con un clic. Incluye festivos y el periodo de formación en empresa.
 
 -   :material-school: **[Presentación y evaluación](modulo.md)**
 
@@ -96,15 +108,15 @@ Cada unidad se apoya en la anterior: la red de la UT2 es donde la UT3 pone el co
 | UT | Título | Horas | Dónde | RA · CE |
 |----|--------|------:|-------|---------|
 | [UT1](ut/ut1-virtualizacion.md) | Virtualización e hipervisores | 12 | Centro | RA1 a |
-| [UT2](ut/ut2-vpc.md) | Nubes privadas virtuales (VPC) | 12 | Centro | RA1 b, c |
+| [UT2](ut/ut2-vpc.md) | Nubes privadas virtuales (VPC) | 14 | Centro | RA1 b, c |
 | [UT3](ut/ut3-seguridad-por-capas.md) | Seguridad por capas: DMZ externa, DMZ interna y zona interna | 12 | Centro | RA1 d |
 | [UT4](ut/ut4-nube-publica.md) | Nube pública: consola, CLI y SDK | 12 | Empresa | RA2 a–e |
-| [UT5](ut/ut5-iac.md) | Infraestructura como código (OpenTofu + Ansible) | 16 | Centro | RA3 a–d |
-| [UT6](ut/ut6-ci.md) | Orquestador de integración continua (Jenkins / GitLab CI) | 20 | Centro | RA4 a–h |
+| [UT5](ut/ut5-iac.md) | Infraestructura como código (OpenTofu + Ansible) | 18 | Centro | RA3 a–d |
+| [UT6](ut/ut6-ci.md) | Orquestador de integración continua (Jenkins / GitLab CI) | 24 | Centro | RA4 a–h |
 | [UT7](ut/ut7-monitorizacion.md) | Monitorización: Prometheus + Grafana | 6 + 12 | Centro + Empresa | RA4 i, j, k |
 | UT8 | Proyecto integrador y puesta en producción | 6 | Empresa | Todos |
 
-Los exámenes de evaluación van después de la UT5 (primera evaluación, 22 de enero de 2027) y después de la UT7 (segunda evaluación, 24 de marzo de 2027).
+Los exámenes de evaluación van después de la UT5 (primera evaluación, 29 de enero de 2027) y después de la UT7 (segunda evaluación, 16 de abril de 2027).
 
 ## Cómo usar estos apuntes
 

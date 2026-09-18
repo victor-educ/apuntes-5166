@@ -108,3 +108,134 @@ h3 .num-apartado { min-width: 2.2em; }
 .ut-meta .dur { display: inline-flex; align-items: center; gap: .3em; vertical-align: middle; cursor: help; }
 .ut-meta .dur .twemoji { color: var(--md-default-fg-color--light); }
 .ut-meta .dur-barra { display: inline-block; width: 5.5em; height: .5em; border-radius: .3em; background: linear-gradient(to right, var(--md-accent-fg-color) var(--teoria), var(--md-default-fg-color--lightest) var(--teoria)); }
+
+/* Tooltip de duraciones del indicador de reparto */
+.ut-meta .dur { position: relative; }
+.ut-meta .dur::after {
+  content: attr(data-dur);
+  position: absolute;
+  top: calc(100% + .45em);
+  left: 0;
+  z-index: 5;
+  white-space: pre-line;
+  width: max-content;
+  max-width: min(30rem, 85vw);
+  padding: .45em .7em;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: .2rem;
+  background: var(--md-default-bg-color);
+  color: var(--md-default-fg-color);
+  box-shadow: var(--md-shadow-z2);
+  font-size: .68rem;
+  line-height: 1.6;
+  text-align: left;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .12s;
+}
+.ut-meta .dur:hover::after,
+.ut-meta .dur:focus::after { opacity: 1; visibility: visible; }
+@media print { .ut-meta .dur::after { display: none; } }
+
+/* Pie de los diagramas mermaid, con el mismo aire que un figcaption */
+.md-typeset p.pie {
+  margin-top: -.6em;
+  font-size: .72rem;
+  line-height: 1.5;
+  color: var(--md-default-fg-color--light);
+  text-align: center;
+}
+.md-typeset .mermaid { margin: 1em auto .4em; text-align: center; }
+
+/* ------------------------------------------------------------------
+   Gramática visual: cada tipo de información con su letra y su color
+   ------------------------------------------------------------------ */
+
+/* Etiquetas de las hojas de práctica.
+   Versalita ancha para que se distingan del texto corrido de un vistazo. */
+.md-typeset .et {
+  display: inline-block;
+  margin-right: .5em;
+  padding: .12em .55em;
+  border-radius: .2rem;
+  font-size: .6rem;
+  font-weight: 700;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  vertical-align: .1em;
+  white-space: nowrap;
+  background: var(--et-bg);
+  color: var(--et-fg);
+}
+.md-typeset .et-obj { --et-fg: #9a3412; --et-bg: rgba(234,88,12,.13); }   /* a dónde hay que llegar */
+.md-typeset .et-pre { --et-fg: #3f3f46; --et-bg: rgba(113,113,122,.15); } /* qué hace falta antes */
+.md-typeset .et-pas { --et-fg: #1e40af; --et-bg: rgba(37,99,235,.13); }   /* el procedimiento */
+.md-typeset .et-com { --et-fg: #14532d; --et-bg: rgba(22,163,74,.14); }   /* cómo sabes que va bien */
+.md-typeset .et-ent { --et-fg: #581c87; --et-bg: rgba(147,51,234,.13); }  /* lo que se entrega */
+.md-typeset .et-ext { --et-fg: #52525b; --et-bg: rgba(113,113,122,.1); }  /* ampliación opcional */
+
+[data-md-color-scheme="slate"] .md-typeset .et-obj { --et-fg: #fdba74; --et-bg: rgba(234,88,12,.2); }
+[data-md-color-scheme="slate"] .md-typeset .et-pre { --et-fg: #d4d4d8; --et-bg: rgba(161,161,170,.18); }
+[data-md-color-scheme="slate"] .md-typeset .et-pas { --et-fg: #93c5fd; --et-bg: rgba(59,130,246,.2); }
+[data-md-color-scheme="slate"] .md-typeset .et-com { --et-fg: #86efac; --et-bg: rgba(34,197,94,.18); }
+[data-md-color-scheme="slate"] .md-typeset .et-ent { --et-fg: #d8b4fe; --et-bg: rgba(168,85,247,.2); }
+[data-md-color-scheme="slate"] .md-typeset .et-ext { --et-fg: #a1a1aa; --et-bg: rgba(161,161,170,.12); }
+
+/* La entrega es lo que se califica: se marca también el párrafo entero. */
+.md-typeset p:has(> .et-ent) {
+  border-left: 3px solid rgba(147, 51, 234, .5);
+  padding-left: .8em;
+}
+
+/* ------------------------------------------------------------------
+   Notas propias del curso. Reutilizan los iconos de Material y se
+   distinguen por color, que es lo que el alumno lee primero.
+   ------------------------------------------------------------------ */
+:root {
+  --md-admonition-icon--truco:    var(--md-admonition-icon--tip);
+  --md-admonition-icon--ojo:      var(--md-admonition-icon--warning);
+  --md-admonition-icon--empresa:  var(--md-admonition-icon--abstract);
+  --md-admonition-icon--examen:   var(--md-admonition-icon--question);
+  --md-admonition-icon--consulta: var(--md-admonition-icon--note);
+  --md-admonition-icon--otra:     var(--md-admonition-icon--info);
+}
+
+.md-typeset .admonition, .md-typeset details { font-size: .72rem; }
+
+.md-typeset .truco    { border-color: #16a34a; }
+.md-typeset .ojo      { border-color: #ea580c; }
+.md-typeset .empresa  { border-color: #9333ea; }
+.md-typeset .examen   { border-color: #dc2626; }
+.md-typeset .consulta { border-color: #71717a; }
+.md-typeset .otra     { border-color: #0891b2; }
+
+.md-typeset .truco    > .admonition-title,
+.md-typeset .truco    > summary { background-color: rgba(22,163,74,.1); }
+.md-typeset .ojo      > .admonition-title,
+.md-typeset .ojo      > summary { background-color: rgba(234,88,12,.1); }
+.md-typeset .empresa  > .admonition-title,
+.md-typeset .empresa  > summary { background-color: rgba(147,51,234,.1); }
+.md-typeset .examen   > .admonition-title,
+.md-typeset .examen   > summary { background-color: rgba(220,38,38,.1); }
+.md-typeset .consulta > .admonition-title,
+.md-typeset .consulta > summary { background-color: rgba(113,113,122,.1); }
+.md-typeset .otra     > .admonition-title,
+.md-typeset .otra     > summary { background-color: rgba(8,145,178,.1); }
+
+.md-typeset .truco    > .admonition-title::before,
+.md-typeset .truco    > summary::before { background-color: #16a34a; -webkit-mask-image: var(--md-admonition-icon--truco); mask-image: var(--md-admonition-icon--truco); }
+.md-typeset .ojo      > .admonition-title::before,
+.md-typeset .ojo      > summary::before { background-color: #ea580c; -webkit-mask-image: var(--md-admonition-icon--ojo); mask-image: var(--md-admonition-icon--ojo); }
+.md-typeset .empresa  > .admonition-title::before,
+.md-typeset .empresa  > summary::before { background-color: #9333ea; -webkit-mask-image: var(--md-admonition-icon--empresa); mask-image: var(--md-admonition-icon--empresa); }
+.md-typeset .examen   > .admonition-title::before,
+.md-typeset .examen   > summary::before { background-color: #dc2626; -webkit-mask-image: var(--md-admonition-icon--examen); mask-image: var(--md-admonition-icon--examen); }
+.md-typeset .consulta > .admonition-title::before,
+.md-typeset .consulta > summary::before { background-color: #71717a; -webkit-mask-image: var(--md-admonition-icon--consulta); mask-image: var(--md-admonition-icon--consulta); }
+.md-typeset .otra     > .admonition-title::before,
+.md-typeset .otra     > summary::before { background-color: #0891b2; -webkit-mask-image: var(--md-admonition-icon--otra); mask-image: var(--md-admonition-icon--otra); }
+
+/* La de consulta es material de fondo: se queda en un tono menor. */
+.md-typeset .consulta > .admonition-title,
+.md-typeset .consulta > summary { font-weight: 500; }
+.md-typeset .consulta { font-size: .68rem; }

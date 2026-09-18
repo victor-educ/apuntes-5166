@@ -1,8 +1,8 @@
 # UT7 · Monitorización del entorno
 
-<p class="ut-meta">6 h en el centro + 12 h en la formación en empresa · Sesiones 38 a 40 · RA4 CE i, j, k</p>
+<p class="ut-meta">6 h en el centro + 12 h en la formación en empresa · Sesiones 42 a 44 · RA4 CE i, j, k</p>
 
-Última unidad del centro. En la UT6 dejasteis Jenkins ejecutando pipelines contra la plataforma de OpenTofu y Ansible, y activasteis el plugin que expone sus métricas en `/prometheus`. Ahora toca cerrar el círculo: una plataforma que no se vigila no está desplegada, está abandonada. En tres sesiones vais a montar Prometheus, Alertmanager y Grafana en la VM `mon01` de la subred de gestión, recoger datos de los hosts, de los contenedores y del orquestador de CI, dibujar paneles con los KPI del entorno y hacer que una alerta llegue a un buzón o a un chat. La sesión 40 es la práctica evaluable, la 41 (24 de marzo de 2027) el examen de la segunda evaluación, y las 12 horas de monitorización avanzada se hacen en la empresa. Los logs quedan para el módulo 5169.
+Última unidad del centro. En la UT6 dejasteis Jenkins ejecutando pipelines contra la plataforma de OpenTofu y Ansible, y activasteis el plugin que expone sus métricas en `/prometheus`. Ahora toca cerrar el círculo: una plataforma que no se vigila no está desplegada, está abandonada. En tres sesiones vais a montar Prometheus, Alertmanager y Grafana en la VM `mon01` de la subred de gestión, recoger datos de los hosts, de los contenedores y del orquestador de CI, dibujar paneles con los KPI del entorno y hacer que una alerta llegue a un buzón o a un chat. La sesión 44 es la práctica evaluable, la 45 (16 de abril de 2027) el examen de la segunda evaluación, y las 12 horas de monitorización avanzada se hacen en la empresa. Los logs quedan para el módulo 5169.
 
 ## Introducción
 
@@ -31,10 +31,10 @@ El problema: el jueves a las tres de la tarde el disco de `db01` se llena, Postg
 | file_sd | Prometheus lee la lista de máquinas a vigilar de un fichero que escribe otro programa (Ansible) | Que los targets salgan del inventario y no se editen a mano |
 | TLS, basic auth y proxy inverso nginx | El cifrado, la contraseña y la puerta de entrada de la UT3 | Que nadie fuera de la red de gestión lea los exporters ni entre en Grafana |
 
-Cómo está organizada la unidad: sigue las sesiones en orden, y cada sesión trae primero la teoría que se explica y después su hoja de práctica. En la sesión 38 se justifica la elección de Prometheus, se despliega la pila en `mon01` y se conectan los exporters de hosts, contenedores y Jenkins: al acabar hay datos y todos los targets en UP. En la sesión 39 se explotan esos datos con PromQL, se dibujan los cinco KPI en Grafana por provisioning y se escriben las reglas de alerta y las rutas de Alertmanager hasta ver llegar un correo. La sesión 40 asegura la pila (red, TLS, autenticación, secretos) y es la práctica evaluable. Las 12 horas de monitorización avanzada se hacen en la formación en empresa; lo que se espera de ellas está en [En la empresa: monitorización avanzada](../ampliacion.md#en-la-empresa-monitorizacion-avanzada), junto con el apartado de [retención y almacenamiento](../ampliacion.md#retencion-y-almacenamiento) a largo plazo.
+Cómo está organizada la unidad: sigue las sesiones en orden, y cada sesión trae primero la teoría que se explica y después su hoja de práctica. En la sesión 42 se justifica la elección de Prometheus, se despliega la pila en `mon01` y se conectan los exporters de hosts, contenedores y Jenkins: al acabar hay datos y todos los targets en UP. En la sesión 43 se explotan esos datos con PromQL, se dibujan los cinco KPI en Grafana por provisioning y se escriben las reglas de alerta y las rutas de Alertmanager hasta ver llegar un correo. La sesión 44 asegura la pila (red, TLS, autenticación, secretos) y es la práctica evaluable. Las 12 horas de monitorización avanzada se hacen en la formación en empresa; lo que se espera de ellas está en [En la empresa: monitorización avanzada](../ampliacion.md#en-la-empresa-monitorizacion-avanzada), junto con el apartado de [retención y almacenamiento](../ampliacion.md#retencion-y-almacenamiento) a largo plazo.
 
-!!! info "Dónde se usa esto en la otra asignatura"
-    Si sigues el módulo 5169, llevas desde octubre con Prometheus, Alertmanager y Grafana en el `mon01` provisional del bridge del aula, con Loki añadido en la [UT1 Observabilidad](https://victor-educ.github.io/apuntes-5169/ut/ut1-observabilidad/), las reglas y rutas de la UT2 Alarmas y los exporters detrás del firewall desde la UT3. Entre finales de febrero y marzo, en la [UT8 Terminación segura](https://victor-educ.github.io/apuntes-5169/ut/ut8-terminacion-segura/), desconfiguraste esa pila; lo que hacemos aquí es el ensayo inverso: la instalación definitiva, dentro de la subred de gestión de la VPC y desplegada como parte de la plataforma.
+!!! otra "Dónde se usa esto en la otra asignatura"
+    Si sigues el módulo 5169, llevas desde octubre con Prometheus, Alertmanager y Grafana en el `mon01` provisional del bridge del aula, con Loki añadido en la [UT1 Observabilidad](https://victor-educ.github.io/apuntes-5169/ut/ut1-observabilidad/), las reglas y rutas de la UT2 Alarmas y los exporters detrás del firewall desde la UT3. En marzo y principios de abril, en la [UT8 Terminación segura](https://victor-educ.github.io/apuntes-5169/ut/ut8-terminacion-segura/), desconfiguraste esa pila; lo que hacemos aquí es el ensayo inverso: la instalación definitiva, dentro de la subred de gestión de la VPC y desplegada como parte de la plataforma.
     Vocabulario, formato de exposición y PromQL básico te van a sonar; léelos en diagonal. Lo que 5169 no cubre y aquí se evalúa: la comparativa de gestores de ingesta (CE 4i), Jenkins como target, `file_sd` desde el inventario de Ansible, el dashboard 1860 y la seguridad de la pila vista desde el despliegue (proxy inverso, `web.yml`, secretos fuera del repositorio).
     Si no sigues 5169, no necesitas nada de allí: la unidad se explica desde cero.
 
@@ -44,13 +44,13 @@ Cada sesión de dos horas empieza con una explicación corta y sigue con laborat
 
 | Sesión | Fecha | Tipo | Se explica | Se practica |
 |---:|-------|------|------------|-------------|
-| [38](#sesion-38-ingesta-de-metricas) | 10 mar | Teoría y práctica | Métricas, logs y trazas; modelo pull; exporters; comparativa de gestores de ingesta (30 min). | Pila Prometheus, Alertmanager y Grafana en mon01; node_exporter, cAdvisor y el plugin de Jenkins; todos los targets en UP y las siete consultas PromQL. |
-| [39](#sesion-39-visualizacion-y-alertas) | 12 mar | Teoría y práctica | PromQL básico, reglas de alerta, rutas de Alertmanager (20 min). | Panel propio con cinco KPI, dashboard 1860, dos alertas y envío por correo; provocar HostDown y ver la notificación y la resolución. |
-| [40](#sesion-40-practica-evaluable) | 17 mar | Práctica evaluable | Aclaración del enunciado (10 min). | Asegurar la pila (TLS, autenticación, firewall a los exporters) y entregar el repositorio monitoring con panel y alerta funcionando. |
+| [42](#sesion-42-ingesta-de-metricas) | 7 abr | Teoría y práctica | Métricas, logs y trazas; modelo pull; exporters; comparativa de gestores de ingesta (30 min). | Pila Prometheus, Alertmanager y Grafana en mon01; node_exporter, cAdvisor y el plugin de Jenkins; todos los targets en UP y las siete consultas PromQL. |
+| [43](#sesion-43-visualizacion-y-alertas) | 9 abr | Teoría y práctica | PromQL básico, reglas de alerta, rutas de Alertmanager (25 min). | Panel propio con cinco KPI, dashboard 1860, dos alertas y envío por correo; provocar HostDown y ver la notificación y la resolución. |
+| [44](#sesion-44-practica-evaluable) | 14 abr | Práctica evaluable | Aclaración del enunciado (10 min). | Asegurar la pila (TLS, autenticación, firewall a los exporters) y entregar el repositorio monitoring con panel y alerta funcionando. |
 
-## Sesión 38 · Ingesta de métricas
+## Sesión 42 · Ingesta de métricas
 
-<p class="ut-meta" markdown>10 de marzo · Teoría y práctica · <span class="dur" title="Explicación unos 30 min, práctica unos 90 min">:material-school:<i class="dur-barra" style="--teoria:25%"></i>:material-flask:</span></p>
+<p class="ut-meta" markdown>7 de abril · Teoría y práctica · <span class="dur" tabindex="0" aria-label="Monitorización y observabilidad · 5 min&#10;Elegir el gestor de ingesta · 5 min&#10;Pila de monitorización · 5 min&#10;El formato de exposición · 5 min&#10;Modelo de datos y cardinalidad · 5 min&#10;Exporters que os vais a encontrar · 5 min&#10;A7.1 Ingesta · 80 min" data-dur="Monitorización y observabilidad · 5 min&#10;Elegir el gestor de ingesta · 5 min&#10;Pila de monitorización · 5 min&#10;El formato de exposición · 5 min&#10;Modelo de datos y cardinalidad · 5 min&#10;Exporters que os vais a encontrar · 5 min&#10;A7.1 Ingesta · 80 min">:material-school:<i class="dur-barra" style="--teoria:27%"></i>:material-flask:</span></p>
 
 Al terminar la sesión, Prometheus corre en `mon01` y lee de node_exporter en las cuatro máquinas, de cAdvisor en `app01` y del plugin de Jenkins, con todos los targets en UP y las consultas de la tabla devolviendo datos. En clase se explican los tres apartados siguientes: qué son métricas, logs y trazas, por qué elegimos Prometheus frente a las otras opciones (esa justificación se pide en la práctica) y cómo se despliega la pila con sus exporters. El formato de exposición, el modelo de datos y la chuleta de exporters son material de consulta para la hoja A7.1.
 
@@ -63,6 +63,28 @@ Monitorizar es recoger datos del sistema de forma continua para saber si funcion
 - **Trazas**: recorrido de una petición por varios servicios, con el tiempo en cada uno. Para sistemas distribuidos donde una petición toca cinco microservicios y hay que saber cuál añadió los 800 ms.
 
 Cómo se combinan: una alerta de métricas dice que el p95 de latencia ha subido de 200 ms a 2 s desde las 10:14; las trazas dicen que el tiempo se va en la base de datos; los logs de PostgreSQL enseñan la consulta que se quedó sin índice tras el último despliegue. En esta UT nos centramos en el primer pilar, el más barato y el que sostiene las alertas. Logs en el 5169; trazas (OpenTelemetry, Tempo, Jaeger) solo como mención.
+
+```mermaid
+flowchart LR
+    M["<b>Métricas</b><br><small>cuánto y cuándo · baratas · se agregan</small>"]:::dato
+    T["<b>Trazas</b><br><small>por dónde se fue el tiempo</small>"]:::dato
+    L["<b>Logs</b><br><small>qué pasó en esa petición concreta</small>"]:::dato
+    P1["<b>El p95 sube a 2 s<br>desde las 10:14</b>"]:::riesgo
+    P2["<b>El tiempo se va<br>en la base de datos</b>"]:::pieza
+    P3(["<b>La consulta se quedó sin índice<br>tras el último despliegue</b>"]):::ok
+    M --> P1 --> T
+    T --> P2 --> L
+    L --> P3
+    classDef act fill:#ea580c22,stroke:#ea580c,stroke-width:1.5px
+    classDef pieza fill:#64748b22,stroke:#64748b,stroke-width:1.5px
+    classDef dato fill:#2563eb22,stroke:#2563eb,stroke-width:1.5px
+    classDef infra fill:#a1a1aa14,stroke:#a1a1aa,stroke-width:1.5px
+    classDef ok fill:#16a34a22,stroke:#16a34a,stroke-width:1.5px
+    classDef riesgo fill:#dc262622,stroke:#dc2626,stroke-width:1.5px
+```
+
+<p class="pie" markdown>Cada pilar responde a una pregunta distinta y ninguno sirve solo. La alerta avisa, la traza localiza y el log explica.</p>
+
 
 | Término | Qué es |
 |----|----|
@@ -182,26 +204,36 @@ Con `scrape_interval: 15s` y un entorno de cuatro hosts (unas 1 000 series por n
 
 ```mermaid
 flowchart LR
-  subgraph gestion["Subred de gestión 10.10.0.0/24"]
-    P[Prometheus :9090]
-    AM[Alertmanager :9093]
-    G[Grafana :3000]
-    MP[Mailpit :1025/:8025]
-  end
-  subgraph servicios["Subred de servicios 10.10.10.0/24"]
-    A["app01<br/>node_exporter :9100<br/>cAdvisor :8080"]
-    D["db01<br/>node_exporter :9100<br/>postgres_exporter :9187"]
-    J["jenkins01<br/>node_exporter :9100<br/>Jenkins /prometheus :8080"]
-  end
-  P -- scrape --> A
-  P -- scrape --> D
-  P -- scrape --> J
-  P -- alertas --> AM
-  AM --> MP
-  AM --> TG[Telegram]
-  G -- PromQL --> P
-  OPS[Operador] -- HTTPS --> G
+    subgraph gestion["Subred de gestión 10.10.0.0/24"]
+        P["<b>Prometheus</b><br><small>:9090</small>"]:::act
+        AM["<b>Alertmanager</b><br><small>:9093</small>"]:::act
+        G["<b>Grafana</b><br><small>:3000</small>"]:::pieza
+        MP["<b>Mailpit</b><br><small>:1025 · :8025</small>"]:::pieza
+    end
+    subgraph servicios["Subred de servicios 10.10.10.0/24"]
+        A["<b>app01</b><br><small>node_exporter :9100 · cAdvisor :8080</small>"]:::dato
+        D["<b>db01</b><br><small>node_exporter :9100 · postgres_exporter :9187</small>"]:::dato
+        J["<b>jenkins01</b><br><small>node_exporter :9100 · /prometheus :8080</small>"]:::dato
+    end
+    OPS["<b>Operador</b>"]:::act
+    TG["<b>Telegram</b>"]:::infra
+    P -- scrape --> A
+    P -- scrape --> D
+    P -- scrape --> J
+    P -- alertas --> AM
+    AM --> MP
+    AM --> TG
+    G -- PromQL --> P
+    OPS -- HTTPS --> G
+    classDef act fill:#ea580c22,stroke:#ea580c,stroke-width:1.5px
+    classDef pieza fill:#64748b22,stroke:#64748b,stroke-width:1.5px
+    classDef dato fill:#2563eb22,stroke:#2563eb,stroke-width:1.5px
+    classDef infra fill:#a1a1aa14,stroke:#a1a1aa,stroke-width:1.5px
+    classDef ok fill:#16a34a22,stroke:#16a34a,stroke-width:1.5px
+    classDef riesgo fill:#dc262622,stroke:#dc2626,stroke-width:1.5px
 ```
+
+<p class="pie" markdown>Prometheus va a buscar (*pull*): las flechas de scrape salen de la gestión hacia los servicios, nunca al revés. Eso decide las reglas del cortafuegos.</p>
 
 #### Descubrimiento de targets
 
@@ -231,7 +263,8 @@ Fijaos en que aquí añadimos etiquetas propias (`env`, `rol`) a todas las serie
 
 ### El formato de exposición
 
-*Material de consulta: no se explica en clase; lo necesitas para la hoja de práctica de esta sesión.*
+!!! consulta "Material de consulta"
+    Esto no se explica en clase: lo necesitas para la hoja de práctica de esta sesión.
 
 Para entender lo que Prometheus guarda hay que ver primero lo que lee: cada exporter publica una página de texto que podéis abrir con el navegador, y conviene saber leerla porque es lo primero que se mira cuando un panel sale vacío.
 
@@ -272,7 +305,8 @@ Prometheus 3 acepta también OpenMetrics (una versión estandarizada de este mis
 
 ### Modelo de datos y cardinalidad
 
-*Material de consulta: no se explica en clase; lo necesitas para la hoja de práctica de esta sesión.*
+!!! consulta "Material de consulta"
+    Esto no se explica en clase: lo necesitas para la hoja de práctica de esta sesión.
 
 Este apartado explica de qué depende que Prometheus vaya ligero o se muera por falta de memoria, y la respuesta no es "cuántos datos guarda" sino "cuántas series distintas". Entender la diferencia evita el error más caro de esta tecnología.
 
@@ -282,7 +316,8 @@ El coste de Prometheus está en el número de series, no en el de muestras: cada
 
 ### Exporters que os vais a encontrar
 
-*Material de consulta: no se explica en clase; lo necesitas para la hoja de práctica de esta sesión.*
+!!! consulta "Material de consulta"
+    Esto no se explica en clase: lo necesitas para la hoja de práctica de esta sesión.
 
 En el laboratorio instaláis tres exporters, pero en la empresa cada servicio tiene el suyo y la pregunta es siempre la misma: qué puerto abre, qué mide y qué necesita. Esta tabla es la chuleta de los más habituales; el párrafo de después explica el único que mide desde fuera.
 
@@ -297,18 +332,18 @@ En el laboratorio instaláis tres exporters, pero en la empresa cada servicio ti
 
 Blackbox cambia el punto de vista: los demás miden desde dentro ("el proceso usa 300 MB"); blackbox mide desde fuera ("la URL responde 200 en 120 ms y el certificado caduca en 41 días"), que es lo que le importa al que paga. Un job de blackbox contra la aplicación es el SLI de disponibilidad más honesto que podéis tener, y `probe_ssl_earliest_cert_expiry - time() < 14*86400` es una alerta que ha salvado más de un fin de semana.
 
-### A7.1 Ingesta (sesión 38)
+### A7.1 Ingesta (sesión 42)
 
-**Objetivo.** Al terminar, Prometheus corre en `mon01`, lee de sí mismo, de node_exporter en las cuatro máquinas, de cAdvisor en `app01` y de Jenkins, todos los targets están en UP y las nueve consultas de la tabla devuelven datos.
+<span class="et et-obj">Objetivo</span> Al terminar, Prometheus corre en `mon01`, lee de sí mismo, de node_exporter en las cuatro máquinas, de cAdvisor en `app01` y de Jenkins, todos los targets están en UP y las nueve consultas de la tabla devuelven datos.
 
-**Antes de empezar.**
+<span class="et et-pre">Antes de empezar</span>
 
 - Las VM `mon01` (`10.10.0.20`), `app01`, `db01` y `jenkins01` de la UT6 encendidas, con Docker en `mon01` y en `app01`, y Jenkins arrancado en `jenkins01`.
 - Resolución de nombres entre ellas (`/etc/hosts` o el DNS del laboratorio): desde `mon01`, `ping -c1 app01` responde.
-- Un repositorio nuevo `monitoring` en tu cuenta de GitHub, clonado en `mon01` en `~/monitoring`; en la sesión 40 se entrega.
+- Un repositorio nuevo `monitoring` en tu cuenta de GitHub, clonado en `mon01` en `~/monitoring`; en la sesión 44 se entrega.
 - Explicado en clase: [Elegir el gestor de ingesta](#elegir-el-gestor-de-ingesta), el modelo pull y los exporters de [Pila de monitorización](#pila-de-monitorizacion). Para consultar durante la práctica: [El formato de exposición](#el-formato-de-exposicion) y [Descubrimiento de targets](#descubrimiento-de-targets).
 
-**Pasos.**
+<span class="et et-pas">Pasos</span>
 
 1. En `~/monitoring` de `mon01`, crea `compose.yml` y `prometheus.yml` copiando los del apartado [Pila de monitorización](#pila-de-monitorizacion) tal cual. Crea también los ficheros que el compose monta, aunque de momento estén vacíos, porque si no Docker crea directorios con ese nombre:
 
@@ -352,7 +387,7 @@ Blackbox cambia el punto de vista: los demás miden desde dentro ("el proceso us
     curl -s http://10.10.0.11:8080/metrics | grep -c '^container_cpu_usage_seconds_total'
     ```
 
-5. En Jenkins, comprueba que el plugin Prometheus metrics de la UT6 responde: `curl -s http://jenkins01:8080/prometheus | grep '^default_jenkins_builds' | head`. Si Jenkins pide autenticación en esa ruta, en Manage Jenkins → System → Prometheus desactiva "Use authenticated endpoint" (en la sesión 40 lo volveremos a cerrar) y anota el prefijo: el laboratorio asume `default_`.
+5. En Jenkins, comprueba que el plugin Prometheus metrics de la UT6 responde: `curl -s http://jenkins01:8080/prometheus | grep '^default_jenkins_builds' | head`. Si Jenkins pide autenticación en esa ruta, en Manage Jenkins → System → Prometheus desactiva "Use authenticated endpoint" (en la sesión 44 lo volveremos a cerrar) y anota el prefijo: el laboratorio asume `default_`.
 6. Pasa el job `node` de `static_configs` a `file_sd_configs`. En `prometheus.yml` sustituye el bloque del job `node` por el de [Descubrimiento de targets](#descubrimiento-de-targets) y crea el fichero de targets con las etiquetas `env` y `rol`:
 
     ```yaml
@@ -374,18 +409,18 @@ Blackbox cambia el punto de vista: los demás miden desde dentro ("el proceso us
 
 7. En `http://mon01:9090/targets` espera un minuto (el `refresh_interval` de `file_sd`) y confirma que todos los endpoints están en UP. Si alguno está en DOWN, el mensaje de error de esa fila y la lista de [Errores frecuentes](#errores-frecuentes-en-el-laboratorio) te dicen dónde mirar; lo habitual en esta sesión es un exporter escuchando en otra interfaz.
 8. En la pestaña Graph (`http://mon01:9090/graph`) ejecuta una a una las nueve consultas de [Consultas del laboratorio](#consultas-del-laboratorio) y apunta en una tabla el valor de cada una para un host. Las de cAdvisor (`{name="app"}`) necesitan que el contenedor de tu aplicación se llame así; si no, cambia el valor de `name` por el tuyo (`docker ps --format '{{.Names}}'` en `app01`). La de Jenkins dará 0 si no hay builds fallidas en la última hora; lanza un job que falle a propósito para verla subir.
-9. Añade una consulta propia con `topk` o `predict_linear`. Ejemplos de partida: `topk(3, instance:node_cpu_utilisation:ratio)` no funciona todavía (la regla de grabación llega en la sesión 39), así que usa `topk(2, 1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])))` o el `predict_linear` del disco con una ventana de `[1h]`.
+9. Añade una consulta propia con `topk` o `predict_linear`. Ejemplos de partida: `topk(3, instance:node_cpu_utilisation:ratio)` no funciona todavía (la regla de grabación llega en la sesión 43), así que usa `topk(2, 1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])))` o el `predict_linear` del disco con una ventana de `[1h]`.
 10. Haz commit de `compose.yml`, `prometheus.yml`, `alerts.yml`, `alertmanager.yml` y `targets/` en el repositorio `monitoring` (sin `.env`).
 
-**Comprobación.** En `http://mon01:9090/targets` los cuatro jobs (`prometheus`, `node`, `cadvisor`, `jenkins`) sin ninguna fila en DOWN, y las series del job `node` llevan las etiquetas `env` y `rol` (en Graph, `up{rol="ci"}` devuelve una serie). `prometheus_tsdb_head_series` está entre 3 000 y 10 000.
+<span class="et et-com">Comprobación</span> En `http://mon01:9090/targets` los cuatro jobs (`prometheus`, `node`, `cadvisor`, `jenkins`) sin ninguna fila en DOWN, y las series del job `node` llevan las etiquetas `env` y `rol` (en Graph, `up{rol="ci"}` devuelve una serie). `prometheus_tsdb_head_series` está entre 3 000 y 10 000.
 
-**Entrega.** En una carpeta `A7.1` de Aules: captura de la página Targets con todo en UP, el fichero `targets/node_lab.yml` y una tabla (Markdown o captura) con las diez consultas y su resultado. El repositorio `monitoring` con el primer commit.
+<span class="et et-ent">Entrega</span> En una carpeta `A7.1` de Aules: captura de la página Targets con todo en UP, el fichero `targets/node_lab.yml` y una tabla (Markdown o captura) con las diez consultas y su resultado. El repositorio `monitoring` con el primer commit.
 
-**Si te sobra tiempo.** Abre Status → TSDB Status y anota qué métrica tiene más series y por qué. Instala `postgres_exporter` en `db01` (puerto 9187, usuario de solo lectura con `pg_monitor`) y añádelo a un job `postgres`.
+<span class="et et-ext">Si te sobra tiempo</span> Abre Status → TSDB Status y anota qué métrica tiene más series y por qué. Instala `postgres_exporter` en `db01` (puerto 9187, usuario de solo lectura con `pg_monitor`) y añádelo a un job `postgres`.
 
-## Sesión 39 · Visualización y alertas
+## Sesión 43 · Visualización y alertas
 
-<p class="ut-meta" markdown>12 de marzo · Teoría y práctica · <span class="dur" title="Explicación unos 20 min, práctica unos 100 min">:material-school:<i class="dur-barra" style="--teoria:17%"></i>:material-flask:</span></p>
+<p class="ut-meta" markdown>9 de abril · Teoría y práctica · <span class="dur" tabindex="0" aria-label="PromQL a fondo · 5 min&#10;Reglas: grabación y alerta · 5 min&#10;Alertmanager: agrupar, enrutar, silenciar · 5 min&#10;Grafana · 5 min&#10;KPI, SLI y SLO · 5 min&#10;A7.2 Paneles y alertas · 85 min" data-dur="PromQL a fondo · 5 min&#10;Reglas: grabación y alerta · 5 min&#10;Alertmanager: agrupar, enrutar, silenciar · 5 min&#10;Grafana · 5 min&#10;KPI, SLI y SLO · 5 min&#10;A7.2 Paneles y alertas · 85 min">:material-school:<i class="dur-barra" style="--teoria:23%"></i>:material-flask:</span></p>
 
 Con los datos ya guardados, esta sesión los convierte en paneles y avisos: un dashboard propio con los cinco KPI cargado por provisioning, el 1860 importado y la alerta `HostDown` llegando a Mailpit en FIRING y en RESOLVED. En clase se explica PromQL básico, las reglas de grabación y alerta y las rutas de Alertmanager, en el orden en que un dato recorre el sistema. Grafana (paneles, variables, provisioning) y el vocabulario de KPI, SLI y SLO son material de consulta para la hoja A7.2.
 
@@ -400,6 +435,28 @@ PromQL es el lenguaje de consulta de Prometheus, y es lo que escribiréis en los
 #### rate, irate, increase
 
 Un contador solo tiene sentido derivado. `rate(x[5m])` calcula el incremento por segundo promediado en la ventana, y sabe tratar los reinicios (si el contador vuelve a cero, no os devuelve un negativo). `increase(x[1h])` es lo mismo multiplicado por la ventana: cuántas unidades subió en la última hora, útil para "builds fallidas en la última hora". `irate(x[5m])` usa solo las dos últimas muestras de la ventana: reacciona al instante y es adecuado para mirar picos en una gráfica de segundos, pero es ruidoso y no vale para alertas, donde queréis la tendencia y no el último parpadeo. Regla práctica: la ventana de `rate` debe contener al menos cuatro muestras (con 15 s de scrape, 1 m como mínimo; 5 m es lo habitual).
+
+```mermaid
+flowchart TB
+    C["<b>Un contador</b><br><small>solo tiene sentido derivado</small>"]:::dato
+    R["<b>rate(x[5m])</b><br><small>incremento por segundo, promediado<br>trata bien los reinicios</small>"]:::ok
+    I["<b>increase(x[1h])</b><br><small>lo mismo × la ventana<br>«builds fallidas en la última hora»</small>"]:::ok
+    IR["<b>irate(x[5m])</b><br><small>solo las dos últimas muestras<br>reacciona al instante</small>"]:::pieza
+    AL(["<b>Alertas</b><br><small>quieres la tendencia</small>"]):::ok
+    GR(["<b>Gráficas de segundos</b><br><small>ruidoso: nunca para alertar</small>"]):::riesgo
+    C --> R --> AL
+    C --> I --> AL
+    C --> IR --> GR
+    classDef act fill:#ea580c22,stroke:#ea580c,stroke-width:1.5px
+    classDef pieza fill:#64748b22,stroke:#64748b,stroke-width:1.5px
+    classDef dato fill:#2563eb22,stroke:#2563eb,stroke-width:1.5px
+    classDef infra fill:#a1a1aa14,stroke:#a1a1aa,stroke-width:1.5px
+    classDef ok fill:#16a34a22,stroke:#16a34a,stroke-width:1.5px
+    classDef riesgo fill:#dc262622,stroke:#dc2626,stroke-width:1.5px
+```
+
+<p class="pie" markdown>`irate` es el que más tienta y el que peor alerta: mira el último parpadeo en lugar de la tendencia.</p>
+
 
 #### Agregaciones
 
@@ -559,7 +616,8 @@ sequenceDiagram
 
 ### Grafana
 
-*Material de consulta: no se explica en clase; lo necesitas para la hoja de práctica de esta sesión.*
+!!! consulta "Material de consulta"
+    Esto no se explica en clase: lo necesitas para la hoja de práctica de esta sesión.
 
 Prometheus tiene una interfaz suficiente para depurar, no para que operaciones la mire a las 9 de la mañana. Grafana es la capa de visualización: se conecta a Prometheus (y a Loki, PostgreSQL, CloudWatch, Elasticsearch o casi cualquier cosa) y monta paneles a partir de consultas.
 
@@ -610,7 +668,8 @@ Grafana 12 tiene su propio motor de alertas, equivalente a Alertmanager (lleva u
 
 ### KPI, SLI y SLO
 
-*Material de consulta: no se explica en clase; lo necesitas para la hoja de práctica de esta sesión.*
+!!! consulta "Material de consulta"
+    Esto no se explica en clase: lo necesitas para la hoja de práctica de esta sesión.
 
 Hasta aquí, CPU, memoria y disco, que le importan al técnico. Este apartado da el vocabulario para traducirlo a lo que le importa a quien paga el servicio ("¿funciona?", "¿cuánto puede fallar al mes?") y es la base de los KPI de negocio de la empresa.
 
@@ -628,17 +687,17 @@ avg_over_time(probe_success{job="blackbox-app"}[30d])
 
 Las alertas basadas en el presupuesto (burn rate en varias ventanas) son las que usaréis en la empresa en lugar de "CPU > 85 %": avisan cuando el ritmo de gasto del error budget lo agotaría antes de fin de mes. El SRE Workbook, enlazado en [Para ampliar](../ampliacion.md#ut7-monitorizacion-del-entorno), explica el método.
 
-### A7.2 Paneles y alertas (sesión 39)
+### A7.2 Paneles y alertas (sesión 43)
 
-**Objetivo.** Un dashboard propio con los cinco KPI cargado por provisioning, el 1860 importado, y la alerta `HostDown` que llega a Mailpit en FIRING y en RESOLVED al apagar y encender `db01`.
+<span class="et et-obj">Objetivo</span> Un dashboard propio con los cinco KPI cargado por provisioning, el 1860 importado, y la alerta `HostDown` que llega a Mailpit en FIRING y en RESOLVED al apagar y encender `db01`.
 
-**Antes de empezar.**
+<span class="et et-pre">Antes de empezar</span>
 
 - La pila de la A7.1 levantada en `mon01` con todos los targets en UP.
 - Permiso para apagar `db01` unos minutos (avisa si compartes la VM con otro grupo).
 - Explicado en clase: [PromQL a fondo](#promql-a-fondo), [Reglas: grabación y alerta](#reglas-grabacion-y-alerta) y [Alertmanager](#alertmanager-agrupar-enrutar-silenciar). Para consultar durante la práctica: [Grafana](#grafana) y [Provisioning](#provisioning-dashboards-en-git).
 
-**Pasos.**
+<span class="et et-pas">Pasos</span>
 
 1. Fuente de datos por provisioning: crea `grafana/provisioning/datasources/prometheus.yml` y `grafana/provisioning/dashboards/lab.yml` con el contenido del apartado [Provisioning](#provisioning-dashboards-en-git). Reinicia Grafana (`docker compose restart grafana`) y entra en `http://mon01:3000` con `admin` y la contraseña del `.env`. En Connections → Data sources tiene que aparecer Prometheus marcado como default y no editable.
 2. Importa el dashboard 1860: Dashboards → New → Import, id `1860`, fuente Prometheus. Ábrelo, elige un host en el desplegable y localiza el panel de CPU: Edit te enseña la consulta que usa. Quédate con la idea, no con los 40 paneles.
@@ -677,15 +736,15 @@ Las alertas basadas en el presupuesto (burn rate en varias ventanas) son las que
 10. Silencio: en `http://mon01:9093` → Silences → New, matcher `instance=db01:9100`, duración 30 min, comentario `mantenimiento A7.2`. Apaga `db01` otra vez y comprueba que la alerta pasa a firing en Prometheus pero Alertmanager la marca como silenciada y no llega correo. Enciende `db01` y expira el silencio.
 11. Commit en `monitoring` de `alerts.yml`, `alertmanager.yml` (revisa que no lleve token: `grep -i token alertmanager.yml` solo debe mostrar `bot_token_file`), `grafana/provisioning/` y `grafana/dashboards/`.
 
-**Comprobación.** El dashboard `KPI operaciones` se carga desde fichero y muestra datos en los cinco paneles con unidades y colores; `http://mon01:9090/alerts` lista las cuatro reglas; en Mailpit hay al menos un FIRING y un RESOLVED de `HostDown`; `amtool silence query` en el contenedor muestra el silencio expirado.
+<span class="et et-com">Comprobación</span> El dashboard `KPI operaciones` se carga desde fichero y muestra datos en los cinco paneles con unidades y colores; `http://mon01:9090/alerts` lista las cuatro reglas; en Mailpit hay al menos un FIRING y un RESOLVED de `HostDown`; `amtool silence query` en el contenedor muestra el silencio expirado.
 
-**Entrega.** En Aules, carpeta `A7.2`: `kpi-operaciones.json`, `alerts.yml`, `alertmanager.yml` sin secretos y las capturas de los correos FIRING y RESOLVED. El commit correspondiente en `monitoring`.
+<span class="et et-ent">Entrega</span> En Aules, carpeta `A7.2`: `kpi-operaciones.json`, `alerts.yml`, `alertmanager.yml` sin secretos y las capturas de los correos FIRING y RESOLVED. El commit correspondiente en `monitoring`.
 
-**Si te sobra tiempo.** Añade la alerta `DiskFillingIn4h` con el `predict_linear` de la tabla y llena el disco de `db01` con `fallocate -l 2G /tmp/relleno` para verla en pending. Con Telegram, comprueba que una alerta critical llega a los dos sitios (correo y chat) gracias a `continue: true`.
+<span class="et et-ext">Si te sobra tiempo</span> Añade la alerta `DiskFillingIn4h` con el `predict_linear` de la tabla y llena el disco de `db01` con `fallocate -l 2G /tmp/relleno` para verla en pending. Con Telegram, comprueba que una alerta critical llega a los dos sitios (correo y chat) gracias a `continue: true`.
 
-## Sesión 40 · Práctica evaluable
+## Sesión 44 · Práctica evaluable
 
-<p class="ut-meta" markdown>17 de marzo · Práctica evaluable · <span class="dur" title="Explicación unos 10 min, práctica unos 110 min">:material-school:<i class="dur-barra" style="--teoria:8%"></i>:material-flask:</span></p>
+<p class="ut-meta" markdown>14 de abril · Práctica evaluable · <span class="dur" tabindex="0" aria-label="Seguridad de la monitorización · 10 min&#10;Trabajo en la práctica · 100 min" data-dur="Seguridad de la monitorización · 10 min&#10;Trabajo en la práctica · 100 min">:material-school:<i class="dur-barra" style="--teoria:9%"></i>:material-flask:</span></p>
 
 La pila funciona; ahora hay que dejarla como se dejaría en una empresa: exporters solo alcanzables desde `mon01`, Prometheus con autenticación, Grafana tras nginx con TLS y usuarios por rol, y ningún secreto en el repositorio. Los diez minutos de explicación son la aclaración del enunciado sobre el apartado de seguridad que sigue; el resto de la sesión es la práctica evaluable y su entrega.
 

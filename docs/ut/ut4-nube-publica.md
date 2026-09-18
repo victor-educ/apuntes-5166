@@ -1,6 +1,6 @@
 # UT4 · Nube pública: consola, CLI y SDK
 
-<p class="ut-meta">12 h · Formación en empresa (29 mar a 9 jun 2027) · RA2 CE a, b, c, d, e</p>
+<p class="ut-meta">12 h · Formación en empresa (19 abr a 9 jun 2027) · RA2 CE a, b, c, d, e</p>
 
 Esta unidad no se cursa en el centro. Se hace en la empresa, durante el periodo de formación, y la plataforma la decide el tutor de empresa: puede ser AWS, Azure, Google Cloud o alguna alternativa europea (OVHcloud, Hetzner, Scaleway). Lo que sigue es la guía de referencia que tienes que llevar leída el primer día y la lista de evidencias que debes traer de vuelta. Hasta aquí, en las UT1 a UT3, has montado todo a mano sobre Proxmox: hipervisor, VPC con subredes, OPNsense, DMZ, proxy inverso. La nube pública es ese mismo diseño alquilado por horas y expuesto por API (una interfaz a la que un programa le pide por HTTP que cree o liste recursos). Cuando vuelvas, en la UT5 (OpenTofu) y la UT6 (Jenkins) automatizarás sobre esa API lo que aquí vas a hacer con la consola, la CLI (la herramienta de línea de comandos del proveedor) y el SDK (la librería para hacer lo mismo desde código), así que conviene que salgas de la empresa con perfiles de CLI funcionando y credenciales bien gestionadas.
 
@@ -38,8 +38,8 @@ El primer día en la empresa el tutor te da un usuario de la consola de AWS y te
 
 Cómo está organizada la unidad: no hay sesiones en el centro, así que la unidad sigue los cinco bloques de trabajo en el orden de los criterios de evaluación, y cada bloque trae primero la teoría que necesita y después su hoja de actividad. En el bloque 1 entras en la consola con MFA y pones nombre a lo que ves: regiones, cuenta o proyecto, identidad y etiquetas. En el bloque 2 dejas la consola configurada y una alerta de presupuesto, y descubres el shell integrado. En los bloques 3 y 4 instalas la CLI, te autenticas sin claves permanentes y montas dos perfiles entre los que saltas con el mecanismo nativo y con variables de entorno. En el bloque 5 el script con el SDK reutiliza esas credenciales sin llevar ninguna dentro, y la actividad de cierre lo recoge todo en un documento que compara la nube de la empresa con la VPC del centro.
 
-!!! info "Dónde se usa esto en la otra asignatura"
-    En estas mismas semanas (29 de marzo a 9 de junio) haces en la empresa las dos unidades de 5169 que también se cursan allí:
+!!! otra "Dónde se usa esto en la otra asignatura"
+    En estas mismas semanas (19 de abril a 9 de junio) haces en la empresa las dos unidades de 5169 que también se cursan allí:
     la UT5, Explotación de logs, accesos y rendimiento ([https://victor-educ.github.io/apuntes-5169/ut/ut5-logs-accesos-rendimiento/](https://victor-educ.github.io/apuntes-5169/ut/ut5-logs-accesos-rendimiento/)),
     y la UT6, Copias de seguridad y restauración ([https://victor-educ.github.io/apuntes-5169/ut/ut6-copias-seguridad/](https://victor-educ.github.io/apuntes-5169/ut/ut6-copias-seguridad/)).
     La nube de la empresa que aquí recorres con la consola, la CLI y el SDK es donde en 5169 revisas los logs y los accesos
@@ -91,17 +91,30 @@ Dos consecuencias prácticas. La primera: casi todos los recursos son regionales
 
 ```mermaid
 flowchart TD
-    R["Región eu-west-1 (Irlanda)"]
-    R --> AZA["AZ eu-west-1a"]
-    R --> AZB["AZ eu-west-1b"]
-    R --> AZC["AZ eu-west-1c"]
-    R --> VPC["VPC 10.20.0.0/16 (regional)"]
-    VPC --> S1["Subred pública 10.20.1.0/24 (en 1a)"]
-    VPC --> S2["Subred privada 10.20.11.0/24 (en 1a)"]
-    VPC --> S3["Subred privada 10.20.12.0/24 (en 1b)"]
-    S1 --> IGW["Internet Gateway"]
-    S2 --> NAT["NAT Gateway (de pago por hora y por GB)"]
+    R["<b>Región eu-west-1</b><br><small>Irlanda</small>"]:::infra
+    AZA["<b>AZ eu-west-1a</b>"]:::infra
+    AZB["<b>AZ eu-west-1b</b>"]:::infra
+    AZC["<b>AZ eu-west-1c</b>"]:::infra
+    VPC["<b>VPC 10.20.0.0/16</b><br><small>es regional: cruza las tres AZ</small>"]:::pieza
+    S1["<b>Subred pública</b><br><small>10.20.1.0/24 · en 1a</small>"]:::pieza
+    S2["<b>Subred privada</b><br><small>10.20.11.0/24 · en 1a</small>"]:::pieza
+    S3["<b>Subred privada</b><br><small>10.20.12.0/24 · en 1b</small>"]:::pieza
+    IGW["<b>Internet Gateway</b><br><small>sin coste por hora</small>"]:::ok
+    NAT["<b>NAT Gateway</b><br><small>se paga por hora y por GB</small>"]:::riesgo
+    R --> AZA & AZB & AZC
+    R --> VPC
+    VPC --> S1 & S2 & S3
+    S1 --> IGW
+    S2 --> NAT
+    classDef act fill:#ea580c22,stroke:#ea580c,stroke-width:1.5px
+    classDef pieza fill:#64748b22,stroke:#64748b,stroke-width:1.5px
+    classDef dato fill:#2563eb22,stroke:#2563eb,stroke-width:1.5px
+    classDef infra fill:#a1a1aa14,stroke:#a1a1aa,stroke-width:1.5px
+    classDef ok fill:#16a34a22,stroke:#16a34a,stroke-width:1.5px
+    classDef riesgo fill:#dc262622,stroke:#dc2626,stroke-width:1.5px
 ```
+
+<p class="pie" markdown>La subred vive en una zona; la VPC, en la región entera. En rojo lo que sigue cobrando aunque no pase tráfico.</p>
 
 La traducción a lo que hiciste en la UT2 es directa: la VPC es tu bridge con su rango, la subred pública es la DMZ, las subredes privadas son las redes internas, el Internet Gateway es la interfaz WAN de OPNsense y el NAT Gateway es la regla de NAT de salida. La diferencia es que en la nube cada una de esas piezas tiene precio, y el NAT Gateway en particular tiene un precio que sorprende.
 
@@ -145,6 +158,29 @@ Toda cuenta de nube nace con una identidad todopoderosa: el usuario raíz en AWS
 
 IAM (Identity and Access Management) es el servicio de AWS que decide quién puede hacer qué, y en él hay tres piezas. Los *users* son identidades con credenciales de larga duración (contraseña de consola y, opcionalmente, un par de claves de acceso `AKIA...` / secreto). Los *roles* son identidades sin credenciales permanentes que se *asumen* durante un rato: una instancia EC2 asume un rol para leer de S3, tú asumes un rol de administrador en otra cuenta, Jenkins asume un rol para desplegar. Al asumir un rol recibes credenciales temporales (clave, secreto y token de sesión) con una vida de entre 15 minutos y 12 horas. Las *policies* son documentos JSON que dicen quién puede hacer qué sobre qué recurso, y se adjuntan a users, a grupos o a roles.
 
+```mermaid
+flowchart LR
+    U["<b>User</b><br><small>credenciales de larga duración<br>AKIA… y su secreto</small>"]:::riesgo
+    R["<b>Role</b><br><small>sin credenciales permanentes<br>se asume durante un rato</small>"]:::ok
+    TMP["<b>Credenciales temporales</b><br><small>clave + secreto + token de sesión<br>de 15 min a 12 h</small>"]:::ok
+    POL["<b>Policy</b><br><small>JSON: quién, qué acción, sobre qué recurso</small>"]:::dato
+    QUIEN["<b>Se adjunta a</b><br><small>users, grupos o roles</small>"]:::pieza
+    U -. "puede asumir" .-> R
+    R --> TMP
+    POL --> QUIEN
+    QUIEN -.-> U
+    QUIEN -.-> R
+    classDef act fill:#ea580c22,stroke:#ea580c,stroke-width:1.5px
+    classDef pieza fill:#64748b22,stroke:#64748b,stroke-width:1.5px
+    classDef dato fill:#2563eb22,stroke:#2563eb,stroke-width:1.5px
+    classDef infra fill:#a1a1aa14,stroke:#a1a1aa,stroke-width:1.5px
+    classDef ok fill:#16a34a22,stroke:#16a34a,stroke-width:1.5px
+    classDef riesgo fill:#dc262622,stroke:#dc2626,stroke-width:1.5px
+```
+
+<p class="pie" markdown>La diferencia que importa: el *user* lleva una llave que caduca cuando alguien se acuerda; el *role* entrega llaves que caducan solas.</p>
+
+
 Una política mínima para alguien que solo necesita mirar la red y las instancias en Irlanda tiene esta pinta:
 
 ```json
@@ -186,6 +222,25 @@ En GCP el IAM funciona por *bindings* entre un *principal* (usuario de Google Wo
 
 Los tres proveedores empujan hacia el mismo esquema: la persona se autentica con MFA (una app de códigos TOTP como Google Authenticator, una llave física FIDO2 o una passkey del móvil) a través del proveedor de identidad de la empresa, y de ahí salen credenciales temporales para la consola y para la CLI. En tu máquina eso se traduce en tres comandos que no piden ninguna clave permanente:
 
+```mermaid
+flowchart LR
+    P["<b>Persona</b>"]:::act
+    MFA["<b>MFA</b><br><small>TOTP, llave FIDO2 o passkey</small>"]:::pieza
+    IDP["<b>Proveedor de identidad</b><br><small>el de la empresa</small>"]:::pieza
+    TMP["<b>Credenciales temporales</b><br><small>para la consola y para la CLI</small>"]:::ok
+    NADA(["<b>Ninguna clave permanente<br>en tu portátil</b>"]):::ok
+    P --> MFA --> IDP --> TMP --> NADA
+    classDef act fill:#ea580c22,stroke:#ea580c,stroke-width:1.5px
+    classDef pieza fill:#64748b22,stroke:#64748b,stroke-width:1.5px
+    classDef dato fill:#2563eb22,stroke:#2563eb,stroke-width:1.5px
+    classDef infra fill:#a1a1aa14,stroke:#a1a1aa,stroke-width:1.5px
+    classDef ok fill:#16a34a22,stroke:#16a34a,stroke-width:1.5px
+    classDef riesgo fill:#dc262622,stroke:#dc2626,stroke-width:1.5px
+```
+
+<p class="pie" markdown>Es el esquema al que empujan los tres proveedores. Si en la empresa te dan un `AKIA…` por correo, algo va mal.</p>
+
+
 ```bash
 # AWS con IAM Identity Center: abre el navegador, te autenticas y guarda un token de sesión
 aws configure sso          # solo la primera vez, crea el perfil
@@ -202,7 +257,7 @@ gcloud auth application-default login   # identidad que usan las librerías (ADC
 
 La distinción de GCP entre `gcloud auth login` y `gcloud auth application-default login` confunde a todo el mundo la primera vez: la primera guarda una credencial que usa `gcloud`, la segunda guarda un fichero en `~/.config/gcloud/application_default_credentials.json` que es lo que buscan las librerías cliente (las ADC, *Application Default Credentials*). Si tu script de Python falla con "could not automatically determine credentials" es porque hiciste el primero y no el segundo.
 
-!!! warning "Claves de acceso de larga duración"
+!!! ojo "Claves de acceso de larga duración"
     Un par de claves de AWS (`AKIA...`) o una clave JSON de service account de GCP no caduca y no pide MFA. Si acaba en un repositorio público, en menos de una hora habrá alguien minando criptomoneda a cargo de la empresa (hay bots escaneando GitHub para eso). Si el tutor te da una, pregunta si de verdad no hay alternativa con SSO o roles, guárdala fuera del proyecto y bórrala al terminar. Nunca en un fichero del repositorio, nunca en una variable de entorno de un `Dockerfile`.
 
 #### Cómo se organizan las cuentas
@@ -211,29 +266,47 @@ Ninguna empresa mediana trabaja con una sola cuenta. La unidad de aislamiento (f
 
 ```mermaid
 flowchart TD
-    subgraph AWS
-        ORG["Organization (management account)"] --> OU1["OU Producción"]
-        ORG --> OU2["OU Desarrollo"]
-        OU1 --> C1["Cuenta prod-web"]
-        OU1 --> C2["Cuenta prod-datos"]
-        OU2 --> C3["Cuenta dev"]
-        OU2 --> C4["Cuenta sandbox-alumnos"]
+    subgraph AWS["AWS"]
+        ORG["<b>Organization</b><br><small>management account</small>"]:::act
+        OU1["<b>OU Producción</b>"]:::pieza
+        OU2["<b>OU Desarrollo</b>"]:::pieza
+        C1["<b>Cuenta prod-web</b>"]:::dato
+        C2["<b>Cuenta prod-datos</b>"]:::dato
+        C3["<b>Cuenta dev</b>"]:::dato
+        C4["<b>Cuenta sandbox-alumnos</b>"]:::dato
+        ORG --> OU1 & OU2
+        OU1 --> C1 & C2
+        OU2 --> C3 & C4
     end
-    subgraph Azure
-        TEN["Tenant Entra ID"] --> MG["Management group Raíz"]
-        MG --> MG1["MG Producción"]
-        MG --> MG2["MG Desarrollo"]
-        MG2 --> SUB["Suscripción dev"]
-        SUB --> RG1["Resource group rg-web-dev"]
-        SUB --> RG2["Resource group rg-red-dev"]
+    subgraph AZ["Azure"]
+        TEN["<b>Tenant Entra ID</b>"]:::act
+        MG["<b>Management group raíz</b>"]:::pieza
+        MG1["<b>MG Producción</b>"]:::pieza
+        MG2["<b>MG Desarrollo</b>"]:::pieza
+        SUB["<b>Suscripción dev</b>"]:::dato
+        RG1["<b>rg-web-dev</b>"]:::dato
+        RG2["<b>rg-red-dev</b>"]:::dato
+        TEN --> MG --> MG1 & MG2
+        MG2 --> SUB --> RG1 & RG2
     end
-    subgraph GCP
-        GORG["Organization empresa.com"] --> F1["Folder Producción"]
-        GORG --> F2["Folder Desarrollo"]
-        F2 --> P1["Proyecto web-dev"]
-        F2 --> P2["Proyecto sandbox-alumnos"]
+    subgraph GCP["Google Cloud"]
+        GORG["<b>Organization</b><br><small>empresa.com</small>"]:::act
+        F1["<b>Folder Producción</b>"]:::pieza
+        F2["<b>Folder Desarrollo</b>"]:::pieza
+        P1["<b>Proyecto web-dev</b>"]:::dato
+        P2["<b>Proyecto sandbox-alumnos</b>"]:::dato
+        GORG --> F1 & F2
+        F2 --> P1 & P2
     end
+    classDef act fill:#ea580c22,stroke:#ea580c,stroke-width:1.5px
+    classDef pieza fill:#64748b22,stroke:#64748b,stroke-width:1.5px
+    classDef dato fill:#2563eb22,stroke:#2563eb,stroke-width:1.5px
+    classDef infra fill:#a1a1aa14,stroke:#a1a1aa,stroke-width:1.5px
+    classDef ok fill:#16a34a22,stroke:#16a34a,stroke-width:1.5px
+    classDef riesgo fill:#dc262622,stroke:#dc2626,stroke-width:1.5px
 ```
+
+<p class="pie" markdown>Los tres hacen lo mismo con nombres distintos: una raíz que factura, una capa de agrupación para aplicar políticas y una unidad aislada donde vive cada cosa.</p>
 
 En AWS, Organizations permite aplicar *service control policies* (SCP) a una OU entera (unidad organizativa, una carpeta de cuentas): por ejemplo, "en la OU de desarrollo nadie puede crear recursos fuera de `eu-west-1` ni instancias mayores de `t3.large`" (un tamaño de VM de 2 vCPU y 8 GB). En Azure el equivalente son Azure Policy y los bloqueos de recurso, aplicados a un management group; el resource group es una capa más que agrupa recursos con el mismo ciclo de vida (borras el grupo y se va todo lo que contiene, muy útil para limpiar prácticas). En GCP las políticas de organización se aplican a carpetas y proyectos. Lo más probable es que a ti te den acceso a una cuenta, suscripción o proyecto de desarrollo o sandbox, y lo primero que tienes que anotar es su identificador: el número de cuenta de 12 dígitos de AWS, el GUID de suscripción de Azure (un identificador de 32 caracteres hexadecimales separados por guiones) o el ID de proyecto de GCP. Todos los comandos y scripts de esta unidad giran alrededor de ese identificador.
 
@@ -243,15 +316,15 @@ Cada recurso que crees lleva etiquetas (tags en AWS y Azure, labels en GCP): par
 
 ### A4.1 Acceso a la plataforma (CE 2a)
 
-**Objetivo.** Entrar en la consola del proveedor con tu usuario y MFA activo, y saber decir en qué cuenta, suscripción o proyecto, en qué región y con qué política de etiquetas trabajas.
+<span class="et et-obj">Objetivo</span> Entrar en la consola del proveedor con tu usuario y MFA activo, y saber decir en qué cuenta, suscripción o proyecto, en qué región y con qué política de etiquetas trabajas.
 
-**Antes de empezar.**
+<span class="et et-pre">Antes de empezar</span>
 
 - Autorización del tutor para usar la cuenta de la empresa y el usuario que te haya creado (nunca el usuario raíz ni una cuenta compartida).
 - Un móvil o una llave física para el segundo factor (app TOTP o passkey; anota cuál admite la empresa).
 - Leído [Identidad y estructura de cuentas](#identidad-y-estructura-de-cuentas), en particular [MFA, SSO y credenciales temporales](#mfa-sso-y-credenciales-temporales) y [Cómo se organizan las cuentas](#como-se-organizan-las-cuentas), y el apartado [Etiquetado](#etiquetado).
 
-**Pasos.**
+<span class="et et-pas">Pasos</span>
 
 1. Recibe el usuario y entra por primera vez. Con SSO, la página de entrada es la del proveedor de identidad de la empresa, no la del proveedor de nube.
 2. Activa MFA antes de hacer nada más: en AWS, menú de la cuenta > Security credentials > Multi-factor authentication (o en el portal de Identity Center si entras por SSO); en Azure, `https://mysignins.microsoft.com/security-info`; en GCP, la seguridad de la cuenta de Google. Cierra sesión y vuelve a entrar para comprobar que te lo pide.
@@ -260,11 +333,11 @@ Cada recurso que crees lleva etiquetas (tags en AWS y Azure, labels en GCP): par
 5. Localiza dónde se ve la jerarquía (Organizations, management groups, carpetas) aunque no tengas permiso para tocarla; si te da acceso denegado, la captura del mensaje también sirve.
 6. Pregunta al tutor por la política de etiquetas (cuáles son obligatorias y con qué formato) y abre un recurso cualquiera para comprobar que las lleva.
 
-**Comprobación.** Al cerrar sesión y volver a entrar te pide el segundo factor, y eres capaz de decir de memoria cuenta, región y las etiquetas obligatorias.
+<span class="et et-com">Comprobación</span> Al cerrar sesión y volver a entrar te pide el segundo factor, y eres capaz de decir de memoria cuenta, región y las etiquetas obligatorias.
 
-**Entrega.** Captura de la consola con el usuario, la cuenta o proyecto y la región visibles, y un párrafo con el identificador (parcialmente tapado), la región y las etiquetas obligatorias. Todo va a la carpeta o el repositorio de evidencias, y la fila A4.1 de la [ficha de evidencias](#ficha-de-evidencias) la firma el tutor.
+<span class="et et-ent">Entrega</span> Captura de la consola con el usuario, la cuenta o proyecto y la región visibles, y un párrafo con el identificador (parcialmente tapado), la región y las etiquetas obligatorias. Todo va a la carpeta o el repositorio de evidencias, y la fila A4.1 de la [ficha de evidencias](#ficha-de-evidencias) la firma el tutor.
 
-**Si te sobra tiempo.** Busca en la consola qué políticas o roles tiene asignados tu usuario: te servirá para explicar los `AccessDenied` de las actividades siguientes.
+<span class="et et-ext">Si te sobra tiempo</span> Busca en la consola qué políticas o roles tiene asignados tu usuario: te servirá para explicar los `AccessDenied` de las actividades siguientes.
 
 ## Bloque 2 · Configuración de la interfaz (CE 2b)
 
@@ -307,20 +380,20 @@ Antes de crear nada, configura una alerta de presupuesto. En AWS es Billing > Bu
 | Instancias grandes "un momento" | Una máquina de 16 vCPU y 64 GB cuesta 20 o 30 veces más que una `t3.micro` y se olvida igual de fácil. | Crea siempre el tamaño mínimo que sirva y ponte una alarma en el móvil para apagarla. |
 | Balanceadores y bases de datos gestionadas | Se cobran por hora desde que se crean, con datos o sin ellos. | No los crees en esta unidad salvo que el tutor lo pida. |
 
-!!! tip "Regla de la empresa"
+!!! empresa "Regla de la empresa"
     Lo que creas para practicar lo destruyes el mismo día. Antes de cerrar sesión, lista instancias, discos, IP, NAT y snapshots con la CLI y compara con lo que había por la mañana. Anota el coste en la ficha de evidencias: es una evidencia tan válida como una captura.
 
 ### A4.2 Configuración de la interfaz (CE 2b)
 
-**Objetivo.** Dejar la consola configurada para trabajar (idioma, región, favoritos, moneda) y tener una alerta de presupuesto que avise antes que la factura.
+<span class="et et-obj">Objetivo</span> Dejar la consola configurada para trabajar (idioma, región, favoritos, moneda) y tener una alerta de presupuesto que avise antes que la factura.
 
-**Antes de empezar.**
+<span class="et et-pre">Antes de empezar</span>
 
 - A4.1 hecha: entras con MFA y sabes en qué cuenta o suscripción estás.
 - Autorización del tutor para crear un presupuesto sobre tu cuenta, suscripción o resource group; si no te lo puede dar, acordad la etiqueta de propietario por la que vas a filtrar los costes.
 - Leídos [Consola web y shells integrados](#consola-web-y-shells-integrados) y [Free tier, presupuestos y alertas](#free-tier-presupuestos-y-alertas).
 
-**Pasos.**
+<span class="et et-pas">Pasos</span>
 
 1. Ajusta el idioma (en inglés salvo que la empresa trabaje en otro): en AWS, Settings del menú de la cuenta; en Azure, el engranaje del portal; en GCP, las preferencias de la cuenta.
 2. Fija la región por defecto: en AWS, Settings > Default region; en Azure y GCP la región se elige por recurso, así que ponla como valor por defecto donde el portal lo permita.
@@ -329,11 +402,11 @@ Antes de crear nada, configura una alerta de presupuesto. En AWS es Billing > Bu
 5. Crea la alerta de presupuesto: AWS, Billing > Budgets > Create budget, presupuesto mensual (por ejemplo 20 €) con aviso al 80 % a tu correo; Azure, Cost Management > Budgets sobre la suscripción o tu resource group; GCP, Facturación > Presupuestos y alertas. Si no tienes permiso, abre la vista de costes del mes en curso (Cost Explorer, Cost analysis o Informes) y fíltrala por tu etiqueta de propietario.
 6. Anota el coste del mes hasta hoy: lo compararás al terminar cada actividad.
 
-**Comprobación.** Al entrar la consola abre en la región de la empresa, los favoritos aparecen en la barra y el presupuesto figura en la lista de presupuestos con el umbral del 80 % (o la consulta de costes filtrada por tu etiqueta devuelve resultados).
+<span class="et et-com">Comprobación</span> Al entrar la consola abre en la región de la empresa, los favoritos aparecen en la barra y el presupuesto figura en la lista de presupuestos con el umbral del 80 % (o la consulta de costes filtrada por tu etiqueta devuelve resultados).
 
-**Entrega.** Capturas de las preferencias y de la alerta de presupuesto (o de la consulta de costes), sin datos sensibles, en la carpeta de evidencias. Fila A4.2 de la ficha.
+<span class="et et-ent">Entrega</span> Capturas de las preferencias y de la alerta de presupuesto (o de la consulta de costes), sin datos sensibles, en la carpeta de evidencias. Fila A4.2 de la ficha.
 
-**Si te sobra tiempo.** Abre el shell integrado y lanza `aws sts get-caller-identity`, `az account show` o `gcloud auth list`: ya está autenticado con la identidad de la consola.
+<span class="et et-ext">Si te sobra tiempo</span> Abre el shell integrado y lanza `aws sts get-caller-identity`, `az account show` o `gcloud auth list`: ya está autenticado con la identidad de la consola.
 
 ## Bloque 3 · Instalación de la CLI (CE 2c)
 
@@ -440,15 +513,15 @@ El primer comando que se ejecuta después de autenticarse, y el que te pide la e
 
 ### A4.3 Instalación de la CLI (CE 2c)
 
-**Objetivo.** Tener la CLI del proveedor instalada donde diga la empresa, autenticada sin claves de larga duración y con la identidad comprobada.
+<span class="et et-obj">Objetivo</span> Tener la CLI del proveedor instalada donde diga la empresa, autenticada sin claves de larga duración y con la identidad comprobada.
 
-**Antes de empezar.**
+<span class="et et-pre">Antes de empezar</span>
 
 - Autorización del tutor sobre dónde instalarla (tu portátil, una VM de la empresa o el shell integrado) y sobre el mecanismo de autenticación que usa la empresa (SSO, `az login`, `gcloud auth login`). Si el tutor te ofrece un par de claves de acceso, pregunta antes si hay alternativa con SSO o roles.
 - Permisos de administrador en la máquina donde instales.
 - Leídos [Instalación](#instalacion) y [Autenticación y "quién soy"](#autenticacion-y-quien-soy).
 
-**Pasos.**
+<span class="et et-pas">Pasos</span>
 
 1. Instala la CLI con el instalador oficial (no `apt install awscli`, que instala la v1 sin soporte de SSO):
 
@@ -527,11 +600,11 @@ El primer comando que se ejecuta después de autenticarse, y el que te pide la e
 4. Escribe un comentario de una línea sobre qué tipo de credencial es: en AWS, un `Arn` con `assumed-role/AWSReservedSSO_...` es un rol asumido por SSO y uno con `user/` es un usuario con claves; en Azure, el `user.type` de `az account show`; en GCP, la cuenta con asterisco en `gcloud auth list`.
 5. Lanza un comando de lectura para ver que tienes permisos: `aws ec2 describe-vpcs`, `az network vnet list -o table` o `gcloud compute networks list`.
 
-**Comprobación.** El comando de versión devuelve una versión reciente (AWS 2.x), el de identidad devuelve tu usuario o rol en la cuenta de la empresa, y el listado de redes devuelve algo o un `AccessDenied` que sabes explicar.
+<span class="et et-com">Comprobación</span> El comando de versión devuelve una versión reciente (AWS 2.x), el de identidad devuelve tu usuario o rol en la cuenta de la empresa, y el listado de redes devuelve algo o un `AccessDenied` que sabes explicar.
 
-**Entrega.** Salida de `aws --version` y `aws sts get-caller-identity`, o `az version` y `az account show`, o `gcloud version` y `gcloud auth list`, en texto (no captura), con el comentario de una línea sobre el tipo de credencial. Fila A4.3 de la ficha.
+<span class="et et-ent">Entrega</span> Salida de `aws --version` y `aws sts get-caller-identity`, o `az version` y `az account show`, o `gcloud version` y `gcloud auth list`, en texto (no captura), con el comentario de una línea sobre el tipo de credencial. Fila A4.3 de la ficha.
 
-**Si te sobra tiempo.** Mira qué ha dejado la autenticación en `~/.aws`, `~/.azure` o `~/.config/gcloud` y comprueba que no hay ningún fichero con una clave permanente.
+<span class="et et-ext">Si te sobra tiempo</span> Mira qué ha dejado la autenticación en `~/.aws`, `~/.azure` o `~/.config/gcloud` y comprueba que no hay ningún fichero con una clave permanente.
 
 ## Bloque 4 · Gestión de perfiles (CE 2d)
 
@@ -697,15 +770,15 @@ El JSON completo de `describe-instances` de una cuenta con veinte máquinas ocup
 
 ### A4.4 Gestión de perfiles (CE 2d)
 
-**Objetivo.** Tener dos perfiles o configuraciones que apunten a entornos distintos, saltar entre ellos con el mecanismo nativo y con la variable de entorno, y saber qué ficheros hay debajo.
+<span class="et et-obj">Objetivo</span> Tener dos perfiles o configuraciones que apunten a entornos distintos, saltar entre ellos con el mecanismo nativo y con la variable de entorno, y saber qué ficheros hay debajo.
 
-**Antes de empezar.**
+<span class="et et-pre">Antes de empezar</span>
 
 - A4.3 hecha: la CLI autenticada y la identidad comprobada.
 - Autorización del tutor para acceder a un segundo entorno (dev y pre, dos regiones o dos suscripciones); si solo tienes uno, el segundo perfil puede ser la misma cuenta en otra región.
 - Leídos [Perfiles y ficheros de configuración](#perfiles-y-ficheros-de-configuracion) y [Formatos de salida y filtrado](#formatos-de-salida-y-filtrado).
 
-**Pasos.**
+<span class="et et-pas">Pasos</span>
 
 1. Crea el segundo perfil o configuración:
 
@@ -788,11 +861,11 @@ El JSON completo de `describe-instances` de una cuenta con veinte máquinas ocup
 5. Construye una tabla con una columna por perfil y una fila por red que ve cada uno, con su rango.
 6. Borra uno de los dos perfiles: en AWS, quita el bloque `[profile empresa-pre]` de `~/.aws/config`; en Azure, `rm -r ~/.azure-pre`; en GCP, `gcloud config configurations delete empresa-pre`. Vuelve a listar perfiles para comprobar que ha desaparecido.
 
-**Comprobación.** Los dos listados de redes son distintos, `aws configure list` o su equivalente muestra de dónde sale cada valor con la variable exportada, y tras borrar el perfil el listado solo muestra uno.
+<span class="et et-com">Comprobación</span> Los dos listados de redes son distintos, `aws configure list` o su equivalente muestra de dónde sale cada valor con la variable exportada, y tras borrar el perfil el listado solo muestra uno.
 
-**Entrega.** Los comandos y sus salidas en texto, el fichero `~/.aws/config` o la salida de `az config get` y `az account list`, o de `gcloud config configurations list`, y la tabla comparando qué redes ve cada perfil. Fila A4.4 de la ficha.
+<span class="et et-ent">Entrega</span> Los comandos y sus salidas en texto, el fichero `~/.aws/config` o la salida de `az config get` y `az account list`, o de `gcloud config configurations list`, y la tabla comparando qué redes ve cada perfil. Fila A4.4 de la ficha.
 
-**Si te sobra tiempo.** Exporta a la vez `AWS_PROFILE` y una `AWS_REGION` distinta de la del perfil y comprueba con `aws configure list` cuál gana.
+<span class="et et-ext">Si te sobra tiempo</span> Exporta a la vez `AWS_PROFILE` y una `AWS_REGION` distinta de la del perfil y comprueba con `aws configure list` cuál gana.
 
 ## Bloque 5 · SDK (CE 2e)
 
@@ -812,14 +885,28 @@ Los tres SDK buscan credenciales en un orden fijo y se quedan con la primera que
 
 ```mermaid
 flowchart TD
-    A["Script con el SDK"] --> B{"¿Variables de entorno?<br/>AWS_ACCESS_KEY_ID / AZURE_CLIENT_ID / GOOGLE_APPLICATION_CREDENTIALS"}
-    B -- sí --> Z["Usa esas credenciales"]
-    B -- no --> C{"¿Perfil o sesión de la CLI?<br/>~/.aws (SSO o credentials) / az login / ADC de gcloud"}
+    A["<b>Script con el SDK</b>"]:::act
+    B{"<b>¿Variables de entorno?</b><br><small>AWS_ACCESS_KEY_ID · AZURE_CLIENT_ID<br>GOOGLE_APPLICATION_CREDENTIALS</small>"}:::dato
+    C{"<b>¿Perfil o sesión de la CLI?</b><br><small>~/.aws · az login · ADC de gcloud</small>"}:::dato
+    D{"<b>¿Identidad de la máquina?</b><br><small>rol de instancia · managed identity<br>service account del metadata server</small>"}:::dato
+    Z(["<b>Usa esas credenciales</b>"]):::ok
+    E(["<b>no credentials found</b>"]):::riesgo
+    A --> B
+    B -- sí --> Z
+    B -- no --> C
     C -- sí --> Z
-    C -- no --> D{"¿Identidad de la máquina?<br/>Rol de instancia (IMDS) / Managed identity / Service account del metadata server"}
+    C -- no --> D
     D -- sí --> Z
-    D -- no --> E["Error: no credentials found"]
+    D -- no --> E
+    classDef act fill:#ea580c22,stroke:#ea580c,stroke-width:1.5px
+    classDef pieza fill:#64748b22,stroke:#64748b,stroke-width:1.5px
+    classDef dato fill:#2563eb22,stroke:#2563eb,stroke-width:1.5px
+    classDef infra fill:#a1a1aa14,stroke:#a1a1aa,stroke-width:1.5px
+    classDef ok fill:#16a34a22,stroke:#16a34a,stroke-width:1.5px
+    classDef riesgo fill:#dc262622,stroke:#dc2626,stroke-width:1.5px
 ```
+
+<p class="pie" markdown>El SDK prueba en este orden y se queda con el primero que encuentra. Por eso una variable de entorno olvidada manda sobre el perfil que creías estar usando.</p>
 
 En AWS la cadena de `boto3` es, resumida: parámetros explícitos en el código, variables de entorno, `~/.aws/credentials` y `~/.aws/config` (incluido SSO y `role_arn`), credenciales de contenedor (ECS) y por último el servicio de metadatos de la instancia (IMDS, en `169.254.169.254`). En Azure, `DefaultAzureCredential` prueba variables de entorno (service principal), workload identity (la identidad de un pod de Kubernetes), managed identity, y después las credenciales de las herramientas de desarrollo (`az login`, Azure Developer CLI, PowerShell). En GCP, las *Application Default Credentials* miran `GOOGLE_APPLICATION_CREDENTIALS` (ruta a un JSON), luego `~/.config/gcloud/application_default_credentials.json` y luego el servidor de metadatos.
 
@@ -978,16 +1065,16 @@ Si `gitleaks` encuentra algo que ya se subió, no basta con borrarlo en el sigui
 
 ### A4.5 SDK (CE 2e)
 
-**Objetivo.** Un script en el lenguaje del proyecto de la empresa que liste las VPC/VNets y las máquinas sin una sola credencial dentro, y que funcione con dos perfiles cambiando solo la variable de entorno.
+<span class="et et-obj">Objetivo</span> Un script en el lenguaje del proyecto de la empresa que liste las VPC/VNets y las máquinas sin una sola credencial dentro, y que funcione con dos perfiles cambiando solo la variable de entorno.
 
-**Antes de empezar.**
+<span class="et et-pre">Antes de empezar</span>
 
 - A4.4 hecha: dos perfiles funcionando (si borraste el segundo, vuelve a crearlo para esta actividad).
 - Autorización del tutor sobre el lenguaje (Python o Node; si el proyecto usa otro, el tutor decide) y sobre el repositorio privado donde vas a guardar el código.
 - Python 3 o Node en la misma máquina donde tienes la CLI, porque el SDK reutiliza sus credenciales.
 - Leídos [La cadena de credenciales por defecto](#la-cadena-de-credenciales-por-defecto), [Python](#python) o [Node.js](#nodejs), y la parte de `gitleaks` de [Buenas prácticas mínimas](#buenas-practicas-minimas).
 
-**Pasos.**
+<span class="et et-pas">Pasos</span>
 
 1. Crea el proyecto y el `.gitignore` antes del primer commit:
 
@@ -1056,25 +1143,25 @@ Si `gitleaks` encuentra algo que ya se subió, no basta con borrarlo en el sigui
 
     Si encuentra algo, no lo arregles solo borrándolo: la clave hay que revocarla en el proveedor y avisar al tutor.
 
-**Comprobación.** Las dos salidas del script coinciden con las de la CLI para cada perfil, `grep -iE "AKIA|secret|password" *.py *.mjs` no devuelve nada y `gitleaks` termina sin fugas (`no leaks found`).
+<span class="et et-com">Comprobación</span> Las dos salidas del script coinciden con las de la CLI para cada perfil, `grep -iE "AKIA|secret|password" *.py *.mjs` no devuelve nada y `gitleaks` termina sin fugas (`no leaks found`).
 
-**Entrega.** `requirements.txt` o `package.json` (con `package-lock.json`), el script, su salida con cada perfil y la salida de `gitleaks git` sobre el repositorio donde lo has guardado. Fila A4.5 de la ficha.
+<span class="et et-ent">Entrega</span> `requirements.txt` o `package.json` (con `package-lock.json`), el script, su salida con cada perfil y la salida de `gitleaks git` sobre el repositorio donde lo has guardado. Fila A4.5 de la ficha.
 
-**Si te sobra tiempo.** Añade el hook de pre-commit de [Buenas prácticas mínimas](#buenas-practicas-minimas), intenta hacer commit de un fichero con una clave falsa (`AKIA` y 16 caracteres) y guarda el rechazo.
+<span class="et et-ext">Si te sobra tiempo</span> Añade el hook de pre-commit de [Buenas prácticas mínimas](#buenas-practicas-minimas), intenta hacer commit de un fichero con una clave falsa (`AKIA` y 16 caracteres) y guarda el rechazo.
 
 ## Actividad de cierre
 
 <p class="ut-meta">En la empresa · con el tutor</p>
 
-**Objetivo.** Un documento de dos páginas que explique cómo está organizada la nube de la empresa y en qué se diferencia de la VPC de Proxmox del centro.
+<span class="et et-obj">Objetivo</span> Un documento de dos páginas que explique cómo está organizada la nube de la empresa y en qué se diferencia de la VPC de Proxmox del centro.
 
-**Antes de empezar.**
+<span class="et et-pre">Antes de empezar</span>
 
 - Las cinco actividades hechas, porque el documento se apoya en lo que anotaste en ellas.
 - Autorización del tutor sobre qué se puede contar por escrito: nombres de cuentas, rangos de red y nombres de máquinas pueden ser información interna.
 - Releída la tabla de [Correspondencia con lo que ya sabes](#correspondencia-con-lo-que-ya-sabes) y tus apuntes de la UT2.
 
-**Pasos.**
+<span class="et et-pas">Pasos</span>
 
 1. Describe la estructura: cuentas o suscripciones o proyectos y cómo se agrupan (OUs, management groups, carpetas), qué regiones usa la empresa y por qué.
 2. Describe la red: redes y subredes, qué es público y qué privado, cómo se sale a Internet y qué hace de cortafuegos, y compáralo pieza a pieza con la VPC del centro (bridge, DMZ, OPNsense, NAT).
@@ -1082,11 +1169,11 @@ Si `gitleaks` encuentra algo que ya se subió, no basta con borrarlo en el sigui
 4. Describe la política de etiquetas y de costes: etiquetas obligatorias, presupuestos, quién revisa la factura y qué te ha costado a ti la unidad (la vista de costes de la A4.2 antes y después).
 5. Cierra con las diferencias: interesa especialmente lo que no esperabas, qué hace la empresa que en el centro no hicimos y qué hicimos en el centro que en la nube ya viene dado.
 
-**Comprobación.** Cabe en dos páginas, cada apartado de los cuatro primeros pasos tiene al menos un dato concreto sacado de tus evidencias, y no contiene identificadores completos, claves ni IP públicas de producción.
+<span class="et et-com">Comprobación</span> Cabe en dos páginas, cada apartado de los cuatro primeros pasos tiene al menos un dato concreto sacado de tus evidencias, y no contiene identificadores completos, claves ni IP públicas de producción.
 
-**Entrega.** El documento (PDF) en la carpeta de evidencias, junto con la ficha firmada. Fila "Cierre" de la ficha.
+<span class="et et-ent">Entrega</span> El documento (PDF) en la carpeta de evidencias, junto con la ficha firmada. Fila "Cierre" de la ficha.
 
-**Si te sobra tiempo.** Añade un diagrama de la red de la empresa con la misma notación que el de regiones y zonas de esta unidad.
+<span class="et et-ext">Si te sobra tiempo</span> Añade un diagrama de la red de la empresa con la misma notación que el de regiones y zonas de esta unidad.
 
 ## Práctica evaluable
 

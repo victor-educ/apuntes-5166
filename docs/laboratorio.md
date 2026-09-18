@@ -6,32 +6,40 @@ Todo el módulo se hace sobre un laboratorio que construís vosotros durante las
 
 ```mermaid
 flowchart TB
-    subgraph host[Equipo del aula o portátil]
-        subgraph pve[Proxmox VE en VM anidada]
-            subgraph mgmt[Subred de gestión 10.10.0.0/24]
-                fw[OPNsense .1]
-                jenkins[jenkins01]
-                mon[mon01<br>Prometheus + Grafana]
-                git[gitea01 + registry]
+    subgraph host["Equipo del aula o portátil"]
+        subgraph pve["Proxmox VE en VM anidada"]
+            subgraph mgmt["Subred de gestión 10.10.0.0/24"]
+                fw["<b>OPNsense</b><br><small>.1 · el cortafuegos</small>"]:::act
+                jenkins["<b>jenkins01</b>"]:::dato
+                mon["<b>mon01</b><br><small>Prometheus + Grafana</small>"]:::dato
+                git["<b>gitea01 + registry</b>"]:::dato
             end
-            subgraph front[front / DMZ externa 10.10.1.0/24]
-                web[web01 nginx]
+            subgraph front["front · DMZ externa 10.10.1.0/24"]
+                web["<b>web01</b><br><small>nginx</small>"]:::pieza
             end
-            subgraph back[back / DMZ interna 10.10.2.0/24]
-                app[app01 API en Docker]
+            subgraph back["back · DMZ interna 10.10.2.0/24"]
+                app["<b>app01</b><br><small>API en Docker</small>"]:::pieza
             end
-            subgraph data[data / zona interna 10.10.3.0/24]
-                db[db01 PostgreSQL]
+            subgraph data["data · zona interna 10.10.3.0/24"]
+                db["<b>db01</b><br><small>PostgreSQL</small>"]:::pieza
             end
         end
     end
-    Internet((Aula / Internet)) -->|443| fw
+    Internet(("<b>Aula / Internet</b>")):::infra -->|443| fw
     fw --> web
     web -->|8080| app
     app -->|5432| db
     jenkins -.->|despliega| app
     mon -.->|scrape 9100/8080| web & app & db & jenkins
+    classDef act fill:#ea580c22,stroke:#ea580c,stroke-width:1.5px
+    classDef pieza fill:#64748b22,stroke:#64748b,stroke-width:1.5px
+    classDef dato fill:#2563eb22,stroke:#2563eb,stroke-width:1.5px
+    classDef infra fill:#a1a1aa14,stroke:#a1a1aa,stroke-width:1.5px
+    classDef ok fill:#16a34a22,stroke:#16a34a,stroke-width:1.5px
+    classDef riesgo fill:#dc262622,stroke:#dc2626,stroke-width:1.5px
 ```
+
+<p class="pie" markdown>El laboratorio completo al terminar el módulo. En naranja el único punto por el que entra el tráfico de fuera; en azul lo que vigila y despliega.</p>
 
 Ese es el entorno **dev**. En la UT2 se crean también **pre** y **pro** con la misma estructura y bloques 10.20.0.0/16 y 10.30.0.0/16, aunque después casi todo el trabajo se hace en dev y pre para no consumir recursos de más.
 
@@ -39,7 +47,7 @@ Ese es el entorno **dev**. En la UT2 se crean también **pre** y **pro** con la 
 
 La asignatura hermana, [Mantenimiento del sistema de contenedores](https://victor-educ.github.io/apuntes-5169/), vigila, prueba, actualiza y retira el mismo servicio, y empieza a hacerlo el 1 de octubre, cuando aquí todavía se está instalando Proxmox. Para que eso cuadre, en la sesión 3 (14 de octubre), nada más tener la plantilla cloud-init, se clonan dos VM que en principio no tocan a esta unidad: `app01`, con el servicio del curso en Docker Compose, y `mon01`, con Prometheus, Alertmanager y Grafana levantados con un compose que se entrega en la otra asignatura. Las dos van en vmbr0, la red del aula, sin subredes ni cortafuegos.
 
-Cuando aquí termine la UT2 (VPC, 13 de noviembre) y la UT3 (cortafuegos, 4 de diciembre), esas dos VM se mueven a su sitio definitivo: app01 a la subred back y mon01 a la de gestión con la IP 10.10.0.20. La otra asignatura hace esa migración en su UT3, que coincide en fechas con la nuestra. Y en marzo, cuando lleguemos a la UT7 de monitorización, la pila ya llevará medio curso funcionando: esa unidad se centra en lo que la otra asignatura no cubre.
+Cuando aquí termine la UT2 (VPC, 18 de noviembre) y la UT3 (cortafuegos, 9 de diciembre), esas dos VM se mueven a su sitio definitivo: app01 a la subred back y mon01 a la de gestión con la IP 10.10.0.20. La otra asignatura hace esa migración en su UT3, que coincide en fechas con la nuestra. Y en marzo, cuando lleguemos a la UT7 de monitorización, la pila ya llevará medio curso funcionando: esa unidad se centra en lo que la otra asignatura no cubre.
 
 ## Requisitos por puesto
 
