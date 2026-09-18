@@ -13,6 +13,10 @@ pct list                                # contenedores LXC
 pvesm status                            # almacenes
 
 # Plantilla cloud-init (UT1)
+# El agente va dentro de la imagen: las VM sin salida a Internet no pueden instalarlo al arrancar
+apt install -y libguestfs-tools
+export LIBGUESTFS_BACKEND=direct
+virt-customize -a /root/debian-13-genericcloud-amd64.qcow2 --install qemu-guest-agent
 qm create 9000 --name debian-tpl --memory 2048 --cores 2 \
   --net0 virtio,bridge=vmbr0 --scsihw virtio-scsi-pci
 qm set 9000 --scsi0 local-lvm:0,import-from=/root/debian-13-genericcloud-amd64.qcow2
@@ -21,23 +25,23 @@ qm set 9000 --ciuser ops --sshkeys ~/.ssh/id_ed25519.pub --ipconfig0 ip=dhcp
 qm template 9000
 
 # Clonar, arrancar, parar
-qm clone 9000 101 --name web01 --full
-qm set 101 --net0 virtio,bridge=vmbr1,tag=10 --ipconfig0 ip=10.10.1.10/24,gw=10.10.1.1
-qm start 101 && qm stop 101 && qm destroy 101 --purge
+qm clone 9000 110 --name web01 --full
+qm set 110 --net0 virtio,bridge=devfront --ipconfig0 ip=10.10.1.10/24,gw=10.10.1.1
+qm start 110 && qm stop 110 && qm destroy 110 --purge
 
 # Snapshots y backup
-qm snapshot 101 antes-nginx
-qm rollback 101 antes-nginx
-qm listsnapshot 101
-vzdump 101 --storage local --mode snapshot --compress zstd
+qm snapshot 110 antes-nginx
+qm rollback 110 antes-nginx
+qm listsnapshot 110
+vzdump 110 --storage local --mode snapshot --compress zstd
 
 # Agente QEMU (necesita qemu-guest-agent dentro de la VM)
-qm agent 101 network-get-interfaces
+qm agent 110 network-get-interfaces
 
 # LXC
-pct create 200 local:vztmpl/debian-12-standard_12.7-1_amd64.tar.zst \
+pct create 150 local:vztmpl/debian-12-standard_12.7-1_amd64.tar.zst \
   --hostname lxc01 --memory 512 --net0 name=eth0,bridge=vmbr1,ip=dhcp --unprivileged 1
-pct start 200 && pct enter 200
+pct start 150 && pct enter 150
 
 # Usuarios y tokens
 pveum user add terraform@pve
@@ -59,14 +63,14 @@ ip r                                    # tabla de rutas
 ss -tlnp                                # puertos TCP en escucha y proceso
 ping -c 3 10.10.2.10
 traceroute -n 10.10.3.10
-dig web01.dev.lab @10.10.0.2 +short
+dig web01.dev.lab @10.10.0.1 +short
 nc -zv db01 5432                        # ¿responde el puerto?
 nmap -sn 10.20.0.0/24                   # descubrimiento de hosts
 nmap -sS -p- -T4 10.10.2.10             # todos los puertos TCP (root)
 nmap -sT -Pn -p 22,80,443,8080 host     # sin ping previo
-tcpdump -i ens19 -n host 10.10.1.10 and port 5432
+tcpdump -i ens22 -n host 10.10.3.10 and port 5432
 tcpdump -i any -n -w captura.pcap port 8080
-curl -kv https://app.lab/health
+curl -kv https://api.dev.lab/health
 curl -sf -o /dev/null -w '%{http_code}\n' http://app01:8080/health
 
 # dnsmasq
@@ -92,7 +96,7 @@ tofu output -json
 tofu state list
 tofu state show 'proxmox_virtual_environment_vm.vm["web01"]'
 tofu state rm 'module.vm.proxmox_virtual_environment_vm.vm'
-tofu import 'proxmox_virtual_environment_vm.vm["db01"]' pve/103
+tofu import 'proxmox_virtual_environment_vm.vm["db01"]' pve/130
 tofu workspace list && tofu workspace select pre
 tofu plan -detailed-exitcode            # 0 sin cambios, 2 con cambios, 1 error
 export TF_VAR_pve_token="terraform@pve!tofu=xxxxxxxx-..."
@@ -123,7 +127,6 @@ checkov -d . --quiet
 checkov -d . --skip-check CKV_TF_1 --soft-fail
 trivy config .
 trivy fs --scanners secret,misconfig .
-tfsec .
 gitleaks detect --source . --verbose
 gitleaks protect --staged                # como hook de pre-commit
 sops --encrypt --age $(cat ~/.age/key.pub) secrets.yaml > secrets.enc.yaml
@@ -161,11 +164,8 @@ openssl req -new -newkey rsa:2048 -nodes -keyout jenkins.key \
   -subj "/CN=jenkins.lab" -addext "subjectAltName=DNS:jenkins.lab" -out jenkins.csr
 openssl x509 -req -in jenkins.csr -CA ca.crt -CAkey ca.key -CAcreateserial \
   -days 825 -sha256 -copy_extensions copy -out jenkins.crt
-# Keystore Java para Jenkins
-openssl pkcs12 -export -in jenkins.crt -inkey jenkins.key -certfile ca.crt -out jenkins.p12 -name jenkins
-keytool -importkeystore -srckeystore jenkins.p12 -srcstoretype PKCS12 -destkeystore jenkins.jks
 # Comprobar
-openssl s_client -connect jenkins.lab:8443 -servername jenkins.lab </dev/null | openssl x509 -noout -dates -subject
+openssl s_client -connect jenkins.lab:443 -servername jenkins.lab </dev/null | openssl x509 -noout -dates -subject
 ```
 
 ## Jenkins
@@ -173,11 +173,11 @@ openssl s_client -connect jenkins.lab:8443 -servername jenkins.lab </dev/null | 
 ```bash
 docker compose exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
 # CLI
-curl -sO https://jenkins.lab:8443/jnlpJars/jenkins-cli.jar
-java -jar jenkins-cli.jar -s https://jenkins.lab:8443 -auth admin:TOKEN list-jobs
-java -jar jenkins-cli.jar -s https://jenkins.lab:8443 -auth admin:TOKEN build servicio/main -p ENV=dev -p RUN_DEPLOY=true
+curl -sO https://jenkins.lab/jnlpJars/jenkins-cli.jar
+java -jar jenkins-cli.jar -s https://jenkins.lab -auth admin:TOKEN list-jobs
+java -jar jenkins-cli.jar -s https://jenkins.lab -auth admin:TOKEN build servicio/main -p ENV=dev -p RUN_DEPLOY=true
 # Validar un Jenkinsfile sin ejecutarlo
-curl -sk -u admin:TOKEN -X POST -F "jenkinsfile=<Jenkinsfile" https://jenkins.lab:8443/pipeline-model-converter/validate
+curl -sk -u admin:TOKEN -X POST -F "jenkinsfile=<Jenkinsfile" https://jenkins.lab/pipeline-model-converter/validate
 # Copia de seguridad
 docker run --rm -v jenkins_home:/data -v $PWD:/backup alpine tar czf /backup/jenkins_home-$(date +%F).tgz -C /data .
 ```

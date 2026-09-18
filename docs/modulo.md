@@ -1,16 +1,16 @@
 # Presentación y evaluación
 
-<p class="ut-meta">Módulo 5166 · Despliegue de plataformas de ejecución de contenedores · 120 h · Clases miércoles y viernes, 2 h por sesión</p>
+<p class="ut-meta">Módulo 5166 · Despliegue de plataformas de ejecución de contenedores · 120 h · Clases miércoles y viernes, 1 h 50 min por sesión</p>
 
 ## De qué va el módulo
 
-Un contenedor no corre en el aire. Debajo hay una máquina virtual, debajo de la máquina virtual hay un hipervisor, alrededor hay una red con sus subredes y sus cortafuegos, y por encima hay alguien (o algo) que decide cuándo se despliega una versión nueva y cómo se sabe si ha ido bien. Este módulo se ocupa de todo eso: de la plataforma sobre la que se ejecutan los contenedores, no de los contenedores en sí.
+La presentación del módulo, con los conceptos que vertebran el curso, está en la [página de inicio](index.md).
 
-El módulo compañero, 5169 (Mantenimiento del sistema de contenedores desplegado), se ocupa de lo que pasa después: logs, copias de seguridad, vulnerabilidades y retirada. Compartimos laboratorio y bastantes herramientas, así que lo que montéis aquí lo vais a seguir usando allí.
+El módulo compañero, 5169 (Mantenimiento del sistema de contenedores desplegado), se ocupa de lo que pasa después: logs, copias de seguridad, vulnerabilidades y retirada. Los dos módulos comparten laboratorio y bastantes herramientas, así que lo que se monta aquí se sigue usando allí.
 
 ## Resultados de aprendizaje
 
-El currículo define cuatro resultados de aprendizaje. Los resumo con mis palabras y digo en qué unidad se trabaja cada criterio; el texto oficial está en el real decreto del curso de especialización.
+El currículo define cuatro resultados de aprendizaje. Las tablas siguientes los recogen en lenguaje llano e indican en qué unidad se trabaja cada criterio; el texto oficial está en el real decreto del curso de especialización.
 
 **RA1. Despliega la infraestructura virtual sobre la que van a correr los contenedores.**
 
@@ -85,14 +85,14 @@ Cada práctica evaluable lleva su tabla de criterios y pesos al final de la unid
 | CI/CD | Jenkins LTS | GitLab CI, Gitea Actions, GitHub Actions |
 | Registry y Git | Gitea, registry:2 | GitLab |
 | Monitorización | Prometheus, Alertmanager, Grafana | Zabbix, Loki, servicios de nube |
-| Análisis de seguridad | checkov, trivy, gitleaks | tfsec, semgrep |
+| Análisis de seguridad | checkov, trivy, gitleaks | semgrep, Snyk |
 
 ## Sobre el material
 
-Estos apuntes los he escrito yo apoyándome en Claude, el asistente de IA de Anthropic: partí de mis apuntes en Word y de la planificación de sesiones, y usé la herramienta para redactar, ampliar y revisar cada unidad. Lo digo porque no quiero que haya dudas sobre cómo se ha hecho. La revisión final y los errores que queden son míos, y los iré corrigiendo durante el curso.
+Este material lo ha escrito Víctor Sellés para la asignatura, con el apoyo de Claude (el asistente de IA de Anthropic) en la redacción, ampliación y revisión, a partir de apuntes propios y de la planificación del curso. La revisión final es del autor, igual que los errores que queden, que se corrigen durante el curso.
 
 ## Metodología
 
-Cada sesión de dos horas tiene una parte corta de explicación (entre 10 y 30 minutos, según la sesión) y una parte larga de laboratorio. El [calendario](calendario.md) y el plan de sesiones de cada unidad dicen, sesión a sesión, qué se explica y qué se practica, y de qué tipo es cada sesión: teoría y práctica, solo práctica, práctica evaluable o examen. Cada unidad está ordenada por sesiones: primero una introducción con los conceptos y herramientas de la unidad y el plan de sesiones, y después, sesión a sesión, los apartados de teoría que explico ese día seguidos de la hoja de práctica, con objetivo, requisitos previos, pasos, comprobación y entrega, pensada para seguirla de arriba abajo en el laboratorio. Lo que va más allá de lo que se hace en clase está en la página [Para ampliar](ampliacion.md). Los apuntes cubren la explicación con más profundidad de la que da tiempo en clase, así que conviene leerlos antes de la sesión. En el laboratorio se trabaja por parejas sobre un hipervisor por persona; las prácticas evaluables son individuales salvo que se indique lo contrario.
+Cada sesión de 110 minutos tiene una parte corta de explicación (entre 10 y 30 minutos, según la sesión) y una parte larga de laboratorio. El [calendario](calendario.md) y el plan de sesiones de cada unidad dicen, sesión a sesión, qué se explica y qué se practica, y de qué tipo es cada sesión: teoría y práctica, solo práctica, práctica evaluable o examen. Cada unidad está ordenada por sesiones: primero una introducción con los conceptos y herramientas de la unidad y el plan de sesiones, y después, sesión a sesión, los apartados de teoría que se explican ese día seguidos de la hoja de práctica, con objetivo, requisitos previos, pasos, comprobación y entrega, pensada para seguirla de arriba abajo en el laboratorio. Lo que va más allá de lo que se hace en clase está en la página [Para ampliar](ampliacion.md). Los apuntes cubren la explicación con más profundidad de la que da tiempo en clase, así que conviene leerlos antes de la sesión. En el laboratorio se trabaja por parejas sobre un hipervisor por persona; las prácticas evaluables son individuales salvo que se indique lo contrario.
 
 Todo lo que se hace se documenta en el momento: una captura con la fecha, la salida de un comando, el fichero de configuración. Al final de cada unidad esa documentación es la práctica evaluable, así que el que lo va apuntando sobre la marcha tiene el trabajo casi hecho.

@@ -4,7 +4,7 @@ Los enlaces concretos de cada unidad están en la página [Para ampliar](ampliac
 
 ## Documentación oficial
 
-La primera fuente siempre. Cuando un comando de los apuntes no funcione en tu versión, la respuesta está aquí.
+La primera fuente siempre. Cuando un comando de los apuntes no funcione en una versión concreta, la respuesta está aquí.
 
 | Herramienta | Enlace | Qué mirar |
 |-------------|--------|-----------|
@@ -29,20 +29,20 @@ La primera fuente siempre. Cuando un comando de los apuntes no funcione en tu ve
 
 ## Libros
 
-- Sobre Proxmox no hay libro que supere al manual oficial; no perdáis dinero ahí.
+- Sobre Proxmox no hay libro que supere al manual oficial; no merece la pena gastar dinero ahí.
 - Kief Morris, *Infrastructure as Code* (O'Reilly, 2ª ed.). El libro que explica por qué se hace IaC y cómo organizar el código. No es un manual de Terraform, es mejor que eso.
 - Yevgeniy Brikman, *Terraform: Up & Running* (O'Reilly, 3ª ed.). Práctico y con opiniones. Todo aplica a OpenTofu.
 - Jeff Geerling, *Ansible for DevOps*. Se compra en Leanpub a precio libre. Ejemplos reales y bien explicados.
 - Betsy Beyer y otros, *Site Reliability Engineering* (Google). Gratis en [sre.google/books](https://sre.google/books/). Los capítulos de monitorización y alertas son la base de la UT7.
-- Brendan Burns y otros, *Kubernetes: Up & Running*. No lo tocamos en este módulo, pero es lo siguiente que os vais a encontrar.
+- Brendan Burns y otros, *Kubernetes: Up & Running*. No se trata en este módulo, pero es el paso siguiente en el mundo laboral.
 
 ## Para practicar fuera del aula
 
 - [KillerCoda](https://killercoda.com/) tiene escenarios interactivos de Linux, Docker y CI en el navegador.
 - [Play with Docker](https://labs.play-with-docker.com/) para probar cosas rápidas sin instalar nada.
-- [OverTheWire: Bandit](https://overthewire.org/wargames/bandit/) si la terminal de Linux no la tienes fina.
+- [OverTheWire: Bandit](https://overthewire.org/wargames/bandit/) si la terminal de Linux no está fina.
 - [Subnetting practice](https://subnettingpractice.com/) para calcular subredes hasta hacerlo de cabeza.
-- [Awesome Selfhosted](https://github.com/awesome-selfhosted/awesome-selfhosted) para elegir servicios que desplegar en vuestro laboratorio como proyecto.
+- [Awesome Selfhosted](https://github.com/awesome-selfhosted/awesome-selfhosted) para elegir servicios que desplegar en el laboratorio propio como proyecto.
 
 ## Comunidades y noticias
 
@@ -50,11 +50,11 @@ La primera fuente siempre. Cuando un comando de los apuntes no funcione en tu ve
 - [r/homelab](https://www.reddit.com/r/homelab/) y [r/selfhosted](https://www.reddit.com/r/selfhosted/) para ver montajes reales y sus problemas.
 - [Blog de Jeff Geerling](https://www.jeffgeerling.com/) sobre Ansible, hardware y homelab.
 - [Blog de Grafana Labs](https://grafana.com/blog/) y [blog de Prometheus](https://prometheus.io/blog/) para las novedades de cada versión.
-- [CNCF Landscape](https://landscape.cncf.io/) para situar cualquier herramienta que os suene en su categoría.
+- [CNCF Landscape](https://landscape.cncf.io/) para situar en su categoría cualquier herramienta que suene.
 
 ## Normativa
 
-- Real decreto del curso de especialización que define los resultados de aprendizaje: búscalo en el [BOE](https://www.boe.es/) por el nombre del curso. El resumen de RA y CE con mis palabras está en la [página del módulo](modulo.md).
+- Real decreto del curso de especialización que define los resultados de aprendizaje: se busca en el [BOE](https://www.boe.es/) por el nombre del curso. El resumen de RA y CE en lenguaje llano está en la [página del módulo](modulo.md).
 - Calendario escolar de la Comunitat Valenciana: [ceice.gva.es](https://ceice.gva.es/).
 
 ## Créditos de las imágenes
