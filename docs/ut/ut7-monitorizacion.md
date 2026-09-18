@@ -265,7 +265,7 @@ flowchart LR
 ```
 
 ```yaml
-# targets/node_lab.yml (generado por Ansible)
+# targets/node_lab.yml (aquí se escribe a mano; en producción lo genera Ansible)
 - targets: ["app01.dev.lab:9100", "db01.dev.lab:9100"]
   labels: { env: dev, rol: servicio }
 - targets: ["jenkins01.lab:9100"]

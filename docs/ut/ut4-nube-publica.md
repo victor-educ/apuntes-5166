@@ -67,7 +67,7 @@ Las actividades no tienen sesión asignada: se hacen en la empresa durante la fo
 
 Al acabar este bloque se entra en la consola de la empresa con un usuario propio y el segundo factor activo, y se sabe decir en qué cuenta, suscripción o proyecto se trabaja, en qué región y qué etiquetas son obligatorias. La hoja A4.1 se apoya en el mapa de la nube pública (regiones y correspondencia con Proxmox, que vuelve a usarse en la actividad de cierre), la identidad y la estructura de cuentas, y el apartado de etiquetado.
 
-### Qué es una nube pública y qué te alquila
+### Qué es una nube pública y qué se alquila
 
 Este apartado pone nombre a lo que hay en la empresa y lo relaciona con lo ya construido en Proxmox, porque cada proveedor llama distinto a las mismas piezas y sin ese mapa la consola parece un catálogo sin orden.
 
@@ -150,7 +150,7 @@ La fila de contenedores gestionados es solo un mapa: en este módulo no se despl
 
 Este apartado explica con qué identidad se entra en la nube de la empresa, qué permisos tiene y dentro de qué cuenta, suscripción o proyecto vive. Casi todos los errores de los apartados siguientes ("no veo nada", "acceso denegado", "soy otra persona") se explican por uno de esos tres conceptos, y la A4.1 pide identificarlos por escrito.
 
-#### El usuario raíz y por qué no lo vas a ver
+#### El usuario raíz y por qué no se usa a diario
 
 Toda cuenta de nube nace con una identidad todopoderosa: el usuario raíz en AWS (el correo con el que se creó la cuenta), el administrador global del tenant en Entra ID (el directorio de identidades de la empresa en Azure), el propietario de la organización en GCP. Esa identidad puede cerrar la cuenta, cambiar la tarjeta de pago y borrar cualquier cosa sin que ninguna política se lo impida. Ninguna empresa seria la usa a diario: tiene MFA (autenticación multifactor, un segundo paso además de la contraseña) con llave física, la contraseña está en una caja fuerte y se registra cada uso. Lo habitual es recibir un usuario o una identidad federada con permisos limitados.
 
