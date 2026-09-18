@@ -56,7 +56,7 @@ Cada sesión de dos horas empieza con una explicación corta y sigue con laborat
 
 ## Sesión 7 · Diseño de la VPC y SDN
 
-<p class="ut-meta">28 de octubre · Teoría y práctica · Explicación unos 30 min · Práctica unos 90 min</p>
+<p class="ut-meta" markdown>28 de octubre · Teoría y práctica · <span class="dur" title="Explicación unos 30 min, práctica unos 90 min">:material-school:<i class="dur-barra" style="--teoria:25%"></i>:material-flask:</span></p>
 
 Al acabar esta sesión tienes el plano de los tres entornos en papel, con una tabla de direccionamiento propia, y la primera VNet (`vdev`) creada en el SDN con dos VM que reciben IP de su rango. Para la hoja hacen falta los tres apartados que siguen: qué es una VPC y qué piezas tiene, cómo se calcula y se elige el direccionamiento, y qué son zona, VNet y subnet en el SDN de Proxmox.
 
@@ -312,7 +312,7 @@ Lo que existía antes del SDN sigue funcionando y es lo mismo hecho a mano: en `
 
 ## Sesión 8 · DHCP y DNS propios
 
-<p class="ut-meta">30 de octubre · Teoría y práctica · Explicación unos 20 min · Práctica unos 100 min</p>
+<p class="ut-meta" markdown>30 de octubre · Teoría y práctica · <span class="dur" title="Explicación unos 20 min, práctica unos 100 min">:material-school:<i class="dur-barra" style="--teoria:17%"></i>:material-flask:</span></p>
 
 Al acabar esta sesión la VM `router-dev` reparte IP, gateway y DNS a las máquinas de dev con dnsmasq, con reservas por MAC y nombres propios, y el DHCP del SDN queda apagado. La teoría de hoy es el router de entorno (por qué una VM con una pata en cada subred y el reenvío IP) y el fichero de dnsmasq línea a línea. El NAT de salida lo dejas configurado hoy siguiendo la hoja, aunque se explica en la sesión 9.
 
@@ -555,7 +555,7 @@ Del lado de las VM, la plantilla 9000 de la UT1 lleva cloud-init, así que `qm s
 
 ## Sesión 9 · Comunicación entre zonas
 
-<p class="ut-meta">4 de noviembre · Teoría y práctica · Explicación unos 15 min · Práctica unos 105 min</p>
+<p class="ut-meta" markdown>4 de noviembre · Teoría y práctica · <span class="dur" title="Explicación unos 15 min, práctica unos 105 min">:material-school:<i class="dur-barra" style="--teoria:12%"></i>:material-flask:</span></p>
 
 Al acabar esta sesión has demostrado con `ping`, `traceroute`, `nc` y una captura de `tcpdump` que `web01` llega a `db01` a través del router con las IP reales a ambos lados, y sabes qué pasa cuando el router deja de reenviar. Se explica la diferencia entre enrutar y hacer NAT; el apartado de cómo se prueba una red no se explica, pero lo necesitas para leer las salidas y rellenar la plantilla de pruebas.
 
@@ -700,7 +700,7 @@ Evidencia: captura dig-db01.png
 
 ## Sesión 10 · Segundo y tercer entorno; aislamiento
 
-<p class="ut-meta">6 de noviembre · Práctica · Explicación unos 5 min · Práctica unos 110 min</p>
+<p class="ut-meta" markdown>6 de noviembre · Práctica · <span class="dur" title="Explicación unos 5 min, práctica unos 110 min">:material-school:<i class="dur-barra" style="--teoria:4%"></i>:material-flask:</span></p>
 
 Sesión de práctica: al acabar tienes pre y pro montados como dev y cinco minutos de repaso sobre cómo se prueba el aislamiento. El apartado de aislamiento explica por qué dev no llega a pre sin que nadie lo prohíba; la plantilla y la lectura de `nmap -sn` están en el apartado de cómo se prueba una red, en la sesión 9.
 
@@ -780,7 +780,7 @@ Dentro de un entorno, las capas están en subredes distintas precisamente para p
 
 ## Sesión 11 · Automatizar con la CLI de Proxmox
 
-<p class="ut-meta">11 de noviembre · Teoría y práctica · Explicación unos 20 min · Práctica unos 100 min</p>
+<p class="ut-meta" markdown>11 de noviembre · Teoría y práctica · <span class="dur" title="Explicación unos 20 min, práctica unos 100 min">:material-school:<i class="dur-barra" style="--teoria:17%"></i>:material-flask:</span></p>
 
 Al acabar esta sesión tienes dos scripts que crean y destruyen un entorno completo sin fallar aunque los ejecutes dos veces, y un token de API con el que reproduces una llamada desde tu portátil. La teoría de hoy son `qm`, `pct` y `pvesh`, y la API REST con token, que es exactamente lo que el provider de OpenTofu hará por ti en la UT5.
 
@@ -986,7 +986,7 @@ flowchart TD
 
 ## Sesión 12 · Práctica evaluable
 
-<p class="ut-meta">13 de noviembre · Práctica evaluable · Explicación unos 10 min · Práctica unos 110 min</p>
+<p class="ut-meta" markdown>13 de noviembre · Práctica evaluable · <span class="dur" title="Explicación unos 10 min, práctica unos 110 min">:material-school:<i class="dur-barra" style="--teoria:8%"></i>:material-flask:</span></p>
 
 Sesión dedicada a cerrar la memoria de la práctica evaluable: esquema, direccionamiento, configuración, scripts y las cinco pruebas documentadas. Los diez primeros minutos son para aclarar dudas del enunciado.
 

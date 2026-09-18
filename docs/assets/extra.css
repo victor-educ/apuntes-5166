@@ -103,3 +103,8 @@ h3 .num-apartado { min-width: 2.2em; }
 .print-cover-version, .print-cover-lic { font-size: .7rem; color: var(--md-default-fg-color--light); }
 .print-site-banner { border-left: 3px solid var(--md-accent-fg-color); padding: .4em .9em; margin: 0 0 1.5em; font-size: .8rem; background: var(--md-code-bg-color); }
 @media print { .print-site-banner { display: none; } .md-tabs, .md-header, .md-sidebar, .md-footer { display: none !important; } }
+
+/* Indicador de reparto explicación/práctica en la cabecera de cada sesión */
+.ut-meta .dur { display: inline-flex; align-items: center; gap: .3em; vertical-align: middle; cursor: help; }
+.ut-meta .dur .twemoji { color: var(--md-default-fg-color--light); }
+.ut-meta .dur-barra { display: inline-block; width: 5.5em; height: .5em; border-radius: .3em; background: linear-gradient(to right, var(--md-accent-fg-color) var(--teoria), var(--md-default-fg-color--lightest) var(--teoria)); }

@@ -60,7 +60,7 @@ Cada sesión de dos horas empieza con una explicación corta y sigue con laborat
 
 ## Sesión 13 · Modelo de seguridad por capas
 
-<p class="ut-meta">18 de noviembre · Teoría y práctica · Explicación unos 30 min · Práctica unos 90 min</p>
+<p class="ut-meta" markdown>18 de noviembre · Teoría y práctica · <span class="dur" title="Explicación unos 30 min, práctica unos 90 min">:material-school:<i class="dur-barra" style="--teoria:25%"></i>:material-flask:</span></p>
 
 Al acabar la sesión tendréis un OPNsense con una pata en cada una de las cinco zonas, con la IP .1 en cada red y la consola web accesible solo desde gestión. Para la hoja hace falta entender el modelo de zonas y el mapa sobre la VPC de la UT2 (qué zona es cada subred que ya tenéis), por qué basta un cortafuegos con estado y una regla por conexión, y la tabla de interfaces de la instalación de OPNsense. La alternativa con nftables es material de consulta para quien prefiera un router Debian: la hoja la enlaza en su último paso.
 
@@ -327,7 +327,7 @@ Para probarlo sin cargarlo, `nft -c -f /etc/nftables.conf` valida la sintaxis. S
 
 ## Sesión 14 · Reglas por zona y publicación de un servicio
 
-<p class="ut-meta">20 de noviembre · Teoría y práctica · Explicación unos 20 min · Práctica unos 100 min</p>
+<p class="ut-meta" markdown>20 de noviembre · Teoría y práctica · <span class="dur" title="Explicación unos 20 min, práctica unos 100 min">:material-school:<i class="dur-barra" style="--teoria:17%"></i>:material-flask:</span></p>
 
 Hoy el firewall empieza a hacer su trabajo: comprobaréis que sin reglas nada pasa, crearéis los aliases, publicaréis nginx en web01 con un port forward en la WAN y lo probaréis con curl y nmap desde el aula. Los apartados que siguen son la parte de OPNsense que se explica en clase: aliases, orden de evaluación de las reglas, NAT y logs. El apartado de certificados no se explica, pero lo necesitáis para crear la CA y el certificado del proxy en el paso 3 de la hoja.
 
@@ -470,7 +470,7 @@ Después se instala `ca.crt` en los clientes (`/usr/local/share/ca-certificates/
 
 ## Sesión 15 · DMZ interna y zona interna
 
-<p class="ut-meta">25 de noviembre · Teoría y práctica · Explicación unos 20 min · Práctica unos 100 min</p>
+<p class="ut-meta" markdown>25 de noviembre · Teoría y práctica · <span class="dur" title="Explicación unos 20 min, práctica unos 100 min">:material-school:<i class="dur-barra" style="--teoria:17%"></i>:material-flask:</span></p>
 
 Al terminar, la cadena Internet, proxy, aplicación y base de datos funciona con solo dos reglas entre capas, y un intento del proxy contra la base de datos muere en el firewall y queda en el log. En clase se explica el patrón de publicación y el proxy inverso con sus cabeceras; la matriz de reglas de la documentación operativa es consulta, pero hoy empezáis a rellenarla en el paso 8 de la hoja.
 
@@ -672,7 +672,7 @@ Lo que no puede pasar es que alguien entre un viernes a las 18:00, abra "cualqui
 
 ## Sesión 16 · Separación de clientes
 
-<p class="ut-meta">27 de noviembre · Teoría y práctica · Explicación unos 15 min · Práctica unos 105 min</p>
+<p class="ut-meta" markdown>27 de noviembre · Teoría y práctica · <span class="dur" title="Explicación unos 15 min, práctica unos 105 min">:material-school:<i class="dur-barra" style="--teoria:12%"></i>:material-flask:</span></p>
 
 Dos clientes en VLAN distintas llegan los dos al proxy por 443 y no se alcanzan entre sí ni llegan a ninguna otra zona. La explicación de hoy repasa las opciones de aislamiento multi-tenant y por qué elegimos una VLAN por cliente; el apartado sobre VLAN en Proxmox y en OPNsense es lo que necesitáis para los pasos 1 y 2 de la hoja.
 
@@ -758,7 +758,7 @@ La regla explícita de Block al final de cada pestaña es redundante con la dene
 
 ## Sesión 17 · Pruebas de seguridad
 
-<p class="ut-meta">2 de diciembre · Práctica · Explicación unos 10 min · Práctica unos 110 min</p>
+<p class="ut-meta" markdown>2 de diciembre · Práctica · <span class="dur" title="Explicación unos 10 min, práctica unos 110 min">:material-school:<i class="dur-barra" style="--teoria:8%"></i>:material-flask:</span></p>
 
 Sesión casi entera de laboratorio: la matriz de pruebas completa ejecutada desde cada zona, con evidencias fechadas, y dos denegaciones demostradas con tcpdump en las dos interfaces del firewall. Lo único que se explica es cómo leer open, closed y filtered en nmap; nc, curl, tcpdump y la matriz de pruebas son consulta para la hoja.
 
@@ -872,7 +872,7 @@ Una fila por par origen/destino relevante, con puerto, resultado esperado (permi
 
 ## Sesión 18 · Práctica evaluable
 
-<p class="ut-meta">4 de diciembre · Práctica evaluable · Explicación unos 10 min · Práctica unos 110 min</p>
+<p class="ut-meta" markdown>4 de diciembre · Práctica evaluable · <span class="dur" title="Explicación unos 10 min, práctica unos 110 min">:material-school:<i class="dur-barra" style="--teoria:8%"></i>:material-flask:</span></p>
 
 La sesión empieza con diez minutos de aclaración del enunciado y el resto es para cerrar el informe con el material de las sesiones 13 a 17: el diagrama de zonas, la matriz de reglas justificada, la matriz de pruebas con evidencias, un hallazgo corregido y el procedimiento de cambios.
 

@@ -58,7 +58,7 @@ Cada sesión de dos horas empieza con una explicación corta y sigue con laborat
 
 ## Sesión 19 · IaC: conceptos y primer despliegue
 
-<p class="ut-meta">9 de diciembre · Teoría y práctica · Explicación unos 30 min · Práctica unos 90 min</p>
+<p class="ut-meta" markdown>9 de diciembre · Teoría y práctica · <span class="dur" title="Explicación unos 30 min, práctica unos 90 min">:material-school:<i class="dur-barra" style="--teoria:25%"></i>:material-flask:</span></p>
 
 Al acabar esta sesión tendrás OpenTofu instalado, un token de la API de Proxmox con los permisos justos y un proyecto mínimo que crea una VM desde la plantilla, comprueba que un segundo `plan` no cambia nada y la destruye. Antes de tocar la terminal vemos qué es la infraestructura como código y por qué exigimos idempotencia, y después el ciclo `init`, `plan`, `apply` y cómo se lee un plan, que es lo que la hoja A5.1 te pide leer antes de decir que sí. El ejemplo completo del provider está en la sesión 21; en A5.1 solo lo recortas a una VM.
 
@@ -196,7 +196,7 @@ La línea `# forces replacement` junto a un atributo es la que más disgustos da
 
 ## Sesión 20 · Requisitos y variables
 
-<p class="ut-meta">11 de diciembre · Teoría y práctica · Explicación unos 20 min · Práctica unos 100 min</p>
+<p class="ut-meta" markdown>11 de diciembre · Teoría y práctica · <span class="dur" title="Explicación unos 20 min, práctica unos 100 min">:material-school:<i class="dur-barra" style="--teoria:17%"></i>:material-flask:</span></p>
 
 Esta sesión no crea máquinas: escribe el `variables.tf` que las describirá. Partimos de la tabla de requisitos del servicio, con el origen de cada dato, y convertimos cada fila en una variable con tipo, descripción y validación, de modo que un tfvars mal escrito falle en `plan` con un mensaje tuyo. La sintaxis de `validation` y `sensitive`, que forma parte del lenguaje HCL que vemos entero en la sesión 21, se adelanta aquí porque la hoja A5.2 la necesita.
 
@@ -269,7 +269,7 @@ Las validaciones se evalúan en `plan`, así que un tfvars mal escrito falla en 
 
 ## Sesión 21 · VM con OpenTofu
 
-<p class="ut-meta">16 de diciembre · Teoría y práctica · Explicación unos 20 min · Práctica unos 100 min</p>
+<p class="ut-meta" markdown>16 de diciembre · Teoría y práctica · <span class="dur" title="Explicación unos 20 min, práctica unos 100 min">:material-school:<i class="dur-barra" style="--teoria:17%"></i>:material-flask:</span></p>
 
 Al acabar tendrás `web01`, `app01` y `db01` corriendo en la VPC dev, creadas por un solo bloque `resource` con `for_each` y configuradas por cloud-init, y habrás visto un plan que cambia la memoria de una sola VM sin recrearla. Primero repasamos el lenguaje HCL (tipos de bloque, tipos de dato, `for_each` y las funciones de red) y después el proyecto completo con el provider `bpg/proxmox`, que es el que copias en A5.3. Para leer el plan del paso 6 vuelve a la tabla de símbolos de la sesión 19.
 
@@ -452,7 +452,7 @@ El token va en la variable de entorno `TF_VAR_pve_token`, no en ningún fichero.
 
 ## Sesión 22 · Módulos y estado
 
-<p class="ut-meta">18 de diciembre · Teoría y práctica · Explicación unos 20 min · Práctica unos 100 min</p>
+<p class="ut-meta" markdown>18 de diciembre · Teoría y práctica · <span class="dur" title="Explicación unos 20 min, práctica unos 100 min">:material-school:<i class="dur-barra" style="--teoria:17%"></i>:material-flask:</span></p>
 
 Con las tres VM vivas, en esta sesión el repositorio adopta la forma que tendrá hasta marzo: un módulo `vm`, un directorio por entorno (`envs/dev`, `envs/pre`) y el estado en MinIO con bloqueo. Empezamos por los módulos y la estructura por entornos, y seguimos con el estado: qué contiene, cómo se guarda en un backend remoto y cómo se mueve un recurso al módulo con `moved` o `state mv` sin que el plan quiera destruirlo. La hoja A5.4 recorre exactamente ese camino.
 
@@ -576,7 +576,7 @@ tofu import 'proxmox_virtual_environment_vm.legacy' pve/105  # adopta una VM que
 
 ## Sesión 23 · Ansible
 
-<p class="ut-meta">8 de enero · Teoría y práctica · Explicación unos 25 min · Práctica unos 95 min</p>
+<p class="ut-meta" markdown>8 de enero · Teoría y práctica · <span class="dur" title="Explicación unos 25 min, práctica unos 95 min">:material-school:<i class="dur-barra" style="--teoria:21%"></i>:material-flask:</span></p>
 
 Al acabar, el servicio del curso corre en `app01` desplegado por un playbook cuyo inventario sale de `tofu output`, y la segunda pasada termina con `changed=0`. Vemos el inventario (a mano y generado con `jq`), los comandos ad hoc, el playbook con handlers, por qué los módulos son idempotentes y cómo se organiza en roles cuando crece; Vault y ansible-lint cierran el apartado y los usa la hoja A5.5 en su último paso y en la ampliación.
 
@@ -758,7 +758,7 @@ El fichero cifrado sí se sube a Git (empieza por `$ANSIBLE_VAULT;1.1;AES256` y 
 
 ## Sesión 24 · Pruebas del despliegue
 
-<p class="ut-meta">13 de enero · Teoría y práctica · Explicación unos 15 min · Práctica unos 105 min</p>
+<p class="ut-meta" markdown>13 de enero · Teoría y práctica · <span class="dur" title="Explicación unos 15 min, práctica unos 105 min">:material-school:<i class="dur-barra" style="--teoria:12%"></i>:material-flask:</span></p>
 
 Esta sesión convierte el despliegue en algo que se puede afirmar o negar con un código de salida: un `test.sh` que aplica, configura, lanza smoke tests, compara la máquina con los requisitos y comprueba la idempotencia. Primero los niveles de prueba del IaC, del más barato al más caro, y después el script que copias en A5.6 y rompes a propósito para ver que falla donde debe.
 
@@ -868,7 +868,7 @@ Con `command = plan` no crea nada y sirve para probar módulos en CI sin Proxmox
 
 ## Sesión 25 · Escaneo y corrección de hallazgos
 
-<p class="ut-meta">15 de enero · Teoría y práctica · Explicación unos 20 min · Práctica unos 100 min</p>
+<p class="ut-meta" markdown>15 de enero · Teoría y práctica · <span class="dur" title="Explicación unos 20 min, práctica unos 100 min">:material-school:<i class="dur-barra" style="--teoria:17%"></i>:material-flask:</span></p>
 
 Al acabar, el repositorio pasa checkov, trivy y gitleaks sin hallazgos altos ni críticos sin justificar, el token de Proxmox no está en ningún fichero ni en el historial y pre-commit bloquea un commit que lo contenga. Vemos los errores típicos del IaC, los cuatro escáneres, cómo se lee y se suprime un hallazgo con su justificación, las opciones para guardar secretos y el `.gitignore` y `pre-commit` que la hoja A5.7 instala.
 
@@ -994,7 +994,7 @@ repos:
 
 ## Sesión 26 · Práctica evaluable
 
-<p class="ut-meta">20 de enero · Práctica evaluable · Explicación unos 10 min · Práctica unos 110 min</p>
+<p class="ut-meta" markdown>20 de enero · Práctica evaluable · <span class="dur" title="Explicación unos 10 min, práctica unos 110 min">:material-school:<i class="dur-barra" style="--teoria:8%"></i>:material-flask:</span></p>
 
 La sesión empieza con diez minutos de aclaración del enunciado y el resto es trabajo sobre vuestro repositorio. Todo lo que se pide se ha construido en las hojas A5.1 a A5.7; aquí se cierra, se documenta en el README y se entrega. Ten a mano la lista de errores frecuentes del final de la página.
 

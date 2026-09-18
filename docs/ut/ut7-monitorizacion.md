@@ -50,7 +50,7 @@ Cada sesión de dos horas empieza con una explicación corta y sigue con laborat
 
 ## Sesión 38 · Ingesta de métricas
 
-<p class="ut-meta">10 de marzo · Teoría y práctica · Explicación unos 30 min · Práctica unos 90 min</p>
+<p class="ut-meta" markdown>10 de marzo · Teoría y práctica · <span class="dur" title="Explicación unos 30 min, práctica unos 90 min">:material-school:<i class="dur-barra" style="--teoria:25%"></i>:material-flask:</span></p>
 
 Al terminar la sesión, Prometheus corre en `mon01` y lee de node_exporter en las cuatro máquinas, de cAdvisor en `app01` y del plugin de Jenkins, con todos los targets en UP y las consultas de la tabla devolviendo datos. En clase se explican los tres apartados siguientes: qué son métricas, logs y trazas, por qué elegimos Prometheus frente a las otras opciones (esa justificación se pide en la práctica) y cómo se despliega la pila con sus exporters. El formato de exposición, el modelo de datos y la chuleta de exporters son material de consulta para la hoja A7.1.
 
@@ -385,7 +385,7 @@ Blackbox cambia el punto de vista: los demás miden desde dentro ("el proceso us
 
 ## Sesión 39 · Visualización y alertas
 
-<p class="ut-meta">12 de marzo · Teoría y práctica · Explicación unos 20 min · Práctica unos 100 min</p>
+<p class="ut-meta" markdown>12 de marzo · Teoría y práctica · <span class="dur" title="Explicación unos 20 min, práctica unos 100 min">:material-school:<i class="dur-barra" style="--teoria:17%"></i>:material-flask:</span></p>
 
 Con los datos ya guardados, esta sesión los convierte en paneles y avisos: un dashboard propio con los cinco KPI cargado por provisioning, el 1860 importado y la alerta `HostDown` llegando a Mailpit en FIRING y en RESOLVED. En clase se explica PromQL básico, las reglas de grabación y alerta y las rutas de Alertmanager, en el orden en que un dato recorre el sistema. Grafana (paneles, variables, provisioning) y el vocabulario de KPI, SLI y SLO son material de consulta para la hoja A7.2.
 
@@ -685,7 +685,7 @@ Las alertas basadas en el presupuesto (burn rate en varias ventanas) son las que
 
 ## Sesión 40 · Práctica evaluable
 
-<p class="ut-meta">17 de marzo · Práctica evaluable · Explicación unos 10 min · Práctica unos 110 min</p>
+<p class="ut-meta" markdown>17 de marzo · Práctica evaluable · <span class="dur" title="Explicación unos 10 min, práctica unos 110 min">:material-school:<i class="dur-barra" style="--teoria:8%"></i>:material-flask:</span></p>
 
 La pila funciona; ahora hay que dejarla como se dejaría en una empresa: exporters solo alcanzables desde `mon01`, Prometheus con autenticación, Grafana tras nginx con TLS y usuarios por rol, y ningún secreto en el repositorio. Los diez minutos de explicación son la aclaración del enunciado sobre el apartado de seguridad que sigue; el resto de la sesión es la práctica evaluable y su entrega.
 

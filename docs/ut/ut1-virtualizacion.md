@@ -62,7 +62,7 @@ Cada sesión de dos horas empieza con una explicación corta y sigue con laborat
 
 ## Sesión 1 · Presentación e instalación del hipervisor
 
-<p class="ut-meta">2 de octubre · Teoría y práctica · Explicación unos 45 min · Práctica unos 75 min</p>
+<p class="ut-meta" markdown>2 de octubre · Teoría y práctica · <span class="dur" title="Explicación unos 45 min, práctica unos 75 min">:material-school:<i class="dur-barra" style="--teoria:38%"></i>:material-flask:</span></p>
 
 Al acabar la sesión tenéis un Proxmox VE instalado dentro de una VM de vuestro portátil y su consola web abierta en el puerto 8006. Los primeros 20 minutos son la presentación del módulo, la evaluación y el laboratorio; después explico qué es virtualizar, qué tipos de hipervisor hay y por qué usamos Proxmox, que son los dos apartados que siguen. Los requisitos hardware no se explican en clase, pero la hoja de práctica os manda leerlos antes de crear la VM exterior: el punto de la virtualización anidada es el que más disgustos da.
 
@@ -162,7 +162,7 @@ Antes de instalar nada, esta lista dice qué tiene que tener el equipo y qué ha
 
 ## Sesión 2 · Configuración inicial de Proxmox
 
-<p class="ut-meta">7 de octubre · Teoría y práctica · Explicación unos 25 min · Práctica unos 95 min</p>
+<p class="ut-meta" markdown>7 de octubre · Teoría y práctica · <span class="dur" title="Explicación unos 25 min, práctica unos 95 min">:material-school:<i class="dur-barra" style="--teoria:21%"></i>:material-flask:</span></p>
 
 Al acabar la sesión el Proxmox está actualizado, con un usuario administrador que no es root, un segundo bridge interno y las herramientas de medida instaladas. La explicación recorre las cuatro piezas de Proxmox que toca la hoja: cómo está construido, dónde guarda los discos, cómo conecta las VM a la red y quién puede hacer qué. Las modalidades de red más allá del bridge simple (VLAN, NAT, bond) se dejan para la sesión 5.
 
@@ -317,7 +317,7 @@ pveum acl list
 
 ## Sesión 3 · Primera VM y plantilla
 
-<p class="ut-meta">14 de octubre · Teoría y práctica · Explicación unos 20 min · Práctica unos 100 min</p>
+<p class="ut-meta" markdown>14 de octubre · Teoría y práctica · <span class="dur" title="Explicación unos 20 min, práctica unos 100 min">:material-school:<i class="dur-barra" style="--teoria:17%"></i>:material-flask:</span></p>
 
 Al acabar la sesión tenéis una plantilla cloud-init (VM 9000) de la que salen `web01`, `app01` y `mon01`, las tres con IP y acceso SSH con vuestra clave; las dos últimas las usa Mantenimiento al día siguiente. Explico cloud-init, las plantillas y la diferencia entre clon completo y enlazado. Los parámetros de `qm create` y los tipos de CPU están aquí para que entendáis cada opción de la hoja; snapshots y backups, que cierran el ciclo de vida de una VM, se ven en la sesión 4.
 
@@ -505,7 +505,7 @@ Así, crear una VM nueva pasa de 20 minutos de instalación a 20 segundos. Un li
 
 ## Sesión 4 · VM vs LXC, snapshots y límites
 
-<p class="ut-meta">16 de octubre · Teoría y práctica · Explicación unos 25 min · Práctica unos 95 min</p>
+<p class="ut-meta" markdown>16 de octubre · Teoría y práctica · <span class="dur" title="Explicación unos 25 min, práctica unos 95 min">:material-school:<i class="dur-barra" style="--teoria:21%"></i>:material-flask:</span></p>
 
 Al acabar la sesión tenéis una tabla con vuestras medidas de VM frente a LXC, un snapshot de `web01` al que habéis vuelto y un backup restaurado como VM 111. La explicación va en tres partes: qué hacen KVM y QEMU por debajo y por qué virtio es más rápido que el hardware emulado; qué es un contenedor LXC y en qué se diferencia de una VM, con números; y qué es un snapshot en LVM-thin y qué no es. El apartado de backups con vzdump no se explica, pero el último paso de la hoja lo usa.
 
@@ -689,7 +689,7 @@ El problema de vzdump a ficheros es que cada backup es completo: 20 VM de 20 GB 
 
 ## Sesión 5 · Redes en el hipervisor
 
-<p class="ut-meta">21 de octubre · Teoría y práctica · Explicación unos 20 min · Práctica unos 100 min</p>
+<p class="ut-meta" markdown>21 de octubre · Teoría y práctica · <span class="dur" title="Explicación unos 20 min, práctica unos 100 min">:material-school:<i class="dur-barra" style="--teoria:17%"></i>:material-flask:</span></p>
 
 Al acabar la sesión tenéis tres VM en `vmbr1` repartidas en dos VLAN que solo se ven dentro de su VLAN, y las primeras medidas de CPU, disco y red de vuestro laboratorio. Explico las modalidades de red del hipervisor (bridge simple, bridge sin interfaz física, NAT, VLAN-aware y bond) y qué resuelve cada una; el bridge básico y el fichero `/etc/network/interfaces` están en el apartado [Red](#red) de la sesión 2. Las herramientas de medida no se explican en clase: leed el apartado de capacidades y limitaciones antes del paso 5 de la hoja, porque esa tabla es el borrador de la práctica evaluable.
 
@@ -828,7 +828,7 @@ Anotad no solo el resultado sino la condición: "fio 4k aleatorio 70/30 en web01
 
 ## Sesión 6 · Práctica evaluable
 
-<p class="ut-meta">23 de octubre · Práctica evaluable · Explicación unos 10 min · Práctica unos 110 min</p>
+<p class="ut-meta" markdown>23 de octubre · Práctica evaluable · <span class="dur" title="Explicación unos 10 min, práctica unos 110 min">:material-school:<i class="dur-barra" style="--teoria:8%"></i>:material-flask:</span></p>
 
 Se realiza sobre el Proxmox que habéis montado en las sesiones anteriores. Los primeros 10 minutos son para aclarar el enunciado; el resto es vuestro. Para la tabla de capacidades y limitaciones usad las herramientas del apartado [capacidades y limitaciones](#capacidades-y-limitaciones-y-como-medirlas) de la sesión 5 y anotad la condición en que tomáis cada medida.
 

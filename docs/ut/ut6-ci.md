@@ -70,7 +70,7 @@ Cada sesión de dos horas empieza con una explicación corta y sigue con laborat
 
 ## Sesión 28 · CI y elección del orquestador
 
-<p class="ut-meta">27 de enero · Teoría y práctica · Explicación unos 30 min · Práctica unos 90 min</p>
+<p class="ut-meta" markdown>27 de enero · Teoría y práctica · <span class="dur" title="Explicación unos 30 min, práctica unos 90 min">:material-school:<i class="dur-barra" style="--teoria:25%"></i>:material-flask:</span></p>
 
 Al acabar tendréis el mismo hola mundo ejecutado en Jenkins y en Gitea Actions y una justificación escrita de cuál usar para el servicio del curso. Para la hoja hacen falta los dos apartados de abajo: el vocabulario (integración, entrega y despliegue continuos, y qué aporta un pipeline frente a un script) y la comparativa de orquestadores con los criterios del módulo.
 
@@ -186,7 +186,7 @@ En el módulo usamos **Jenkins** por su flexibilidad y porque obliga a entender 
 
 ## Sesión 29 · Instalación segura y plugins
 
-<p class="ut-meta">29 de enero · Teoría y práctica · Explicación unos 25 min · Práctica unos 95 min</p>
+<p class="ut-meta" markdown>29 de enero · Teoría y práctica · <span class="dur" title="Explicación unos 25 min, práctica unos 95 min">:material-school:<i class="dur-barra" style="--teoria:21%"></i>:material-flask:</span></p>
 
 Al acabar tendréis Jenkins en `https://jenkins.lab` con certificado de la CA del aula, tres roles, ejecutores del controlador a 0, los plugins de la unidad y toda la configuración en el repositorio `jenkins-config`. La hoja sigue el orden de los dos apartados: primero instalar y asegurar (contenedor, certificados, usuarios, hardening y JCasC) y después los plugins que hacen falta, y solo esos.
 
@@ -463,7 +463,7 @@ Instalación y plugins van en la misma sesión: la primera parte deja Jenkins se
 
 ## Sesión 30 · Agentes
 
-<p class="ut-meta">3 de febrero · Teoría y práctica · Explicación unos 15 min · Práctica unos 105 min</p>
+<p class="ut-meta" markdown>3 de febrero · Teoría y práctica · <span class="dur" title="Explicación unos 15 min, práctica unos 105 min">:material-school:<i class="dur-barra" style="--teoria:12%"></i>:material-flask:</span></p>
 
 Al acabar tendréis un agente permanente `agent01` por SSH y una cloud Docker de agentes efímeros, con un job ejecutado en cada uno. El apartado de abajo explica por qué el controlador no ejecuta nada, qué tipos de agente hay y cómo las etiquetas dirigen cada etapa al sitio adecuado; es lo que necesitáis para la hoja.
 
@@ -502,7 +502,7 @@ En el `Jenkinsfile` se elige con `agent { label 'docker' }` o `agent { docker { 
 
 ## Sesión 31 · Proyecto y credenciales
 
-<p class="ut-meta">5 de febrero · Teoría y práctica · Explicación unos 15 min · Práctica unos 105 min</p>
+<p class="ut-meta" markdown>5 de febrero · Teoría y práctica · <span class="dur" title="Explicación unos 15 min, práctica unos 105 min">:material-school:<i class="dur-barra" style="--teoria:12%"></i>:material-flask:</span></p>
 
 Al acabar tendréis un proyecto Multibranch conectado al repositorio del servicio con una credencial de solo lectura y un webhook que lo dispara con cada push. El apartado de abajo cubre las tres piezas que usa la hoja: el proyecto, las credenciales (con el aviso sobre las comillas en el `sh`) y el webhook con su firma.
 
@@ -605,7 +605,7 @@ Queda el caso en que Jenkins no es accesible desde el servidor Git. Pasa cuando 
 
 ## Sesión 32 · Pipeline I: build y test
 
-<p class="ut-meta">10 de febrero · Teoría y práctica · Explicación unos 20 min · Práctica unos 100 min</p>
+<p class="ut-meta" markdown>10 de febrero · Teoría y práctica · <span class="dur" title="Explicación unos 20 min, práctica unos 100 min">:material-school:<i class="dur-barra" style="--teoria:17%"></i>:material-flask:</span></p>
 
 Al acabar tendréis un `Jenkinsfile` con `Checkout` y `Build & Test` que publica el informe JUnit y marca UNSTABLE cuando una prueba falla. El apartado de abajo presenta el pipeline completo del servicio y lo explica sección a sección; para la hoja de hoy bastan `agent`, `options`, `stages`, `steps` y `post`, y a las demás directivas volvemos en la sesión 34.
 
@@ -771,7 +771,7 @@ flowchart TD
 
 ## Sesión 33 · Pipeline II: package
 
-<p class="ut-meta">12 de febrero · Teoría y práctica · Explicación unos 15 min · Práctica unos 105 min</p>
+<p class="ut-meta" markdown>12 de febrero · Teoría y práctica · <span class="dur" title="Explicación unos 15 min, práctica unos 105 min">:material-school:<i class="dur-barra" style="--teoria:12%"></i>:material-flask:</span></p>
 
 Al acabar tendréis un registry local con TLS y autenticación, y una etapa `Package` que sube la imagen del servicio etiquetada con el commit. El apartado de abajo explica el compose del registry, el fichero `htpasswd` y las dos formas de que Docker confíe en la CA del aula; la etapa `Package` en sí está en el pipeline de la sesión 32.
 
@@ -839,7 +839,7 @@ Comprobación: `curl --cacert ca.crt -u jenkins https://registry.lab:5000/v2/_ca
 
 ## Sesión 34 · Tareas, condiciones y gestión de errores
 
-<p class="ut-meta">17 de febrero · Teoría y práctica · Explicación unos 25 min · Práctica unos 95 min</p>
+<p class="ut-meta" markdown>17 de febrero · Teoría y práctica · <span class="dur" title="Explicación unos 25 min, práctica unos 95 min">:material-school:<i class="dur-barra" style="--teoria:21%"></i>:material-flask:</span></p>
 
 Al acabar tendréis un pipeline parametrizado, con `Lint` en paralelo y `Package` solo en `main`, que ha pasado los cinco casos del plan de pruebas de fallos. Hacen falta los dos apartados de abajo: las directivas del declarativo que quedaron pendientes en la sesión 32 (`when`, `parallel`, `matrix`, `input`) y la gestión de errores, con los estados de un pipeline, `timeout`, `retry`, `catchError` y el plan de pruebas.
 
@@ -1015,7 +1015,7 @@ Esta sesión también junta dos frentes: primero se afinan los parámetros y las
 
 ## Sesión 35 · Mínimo privilegio
 
-<p class="ut-meta">19 de febrero · Teoría y práctica · Explicación unos 15 min · Práctica unos 105 min</p>
+<p class="ut-meta" markdown>19 de febrero · Teoría y práctica · <span class="dur" title="Explicación unos 15 min, práctica unos 105 min">:material-school:<i class="dur-barra" style="--teoria:12%"></i>:material-flask:</span></p>
 
 Al acabar tendréis un usuario `jenkins@pve` con tokens limitados por entorno, las credenciales repartidas en carpetas `dev/` y `pre/`, y el inventario de todas las credenciales del Jenkins. El apartado de abajo da los criterios (usuarios de servicio, tokens con alcance, credenciales por carpeta) y la tabla que sirve de plantilla del inventario.
 
@@ -1065,7 +1065,7 @@ Este inventario es un entregable de la práctica. Con los pools de Proxmox (`/po
 
 ## Sesión 36 · Pipeline que despliega
 
-<p class="ut-meta">24 de febrero · Práctica · Explicación unos 5 min · Práctica unos 110 min</p>
+<p class="ut-meta" markdown>24 de febrero · Práctica · <span class="dur" title="Explicación unos 5 min, práctica unos 110 min">:material-school:<i class="dur-barra" style="--teoria:4%"></i>:material-flask:</span></p>
 
 Sesión de práctica: no hay teoría nueva, solo un repaso de cinco minutos de los tres caminos que hay que recorrer (despliegue correcto, fallo en `apply` y fallo en el smoke test). Al acabar tendréis la etapa `Deploy` en el `Jenkinsfile` y el informe de esos tres caminos. El material de consulta es la etapa `Deploy` del [pipeline declarativo](#pipeline-declarativo) de la sesión 32 y su versión con [gestión de errores](#gestion-de-errores) de la sesión 34.
 
@@ -1091,7 +1091,7 @@ Sesión de práctica: no hay teoría nueva, solo un repaso de cinco minutos de l
 
 ## Sesión 37 · Práctica evaluable
 
-<p class="ut-meta">26 de febrero · Práctica evaluable · Explicación unos 10 min · Práctica unos 110 min</p>
+<p class="ut-meta" markdown>26 de febrero · Práctica evaluable · <span class="dur" title="Explicación unos 10 min, práctica unos 110 min">:material-school:<i class="dur-barra" style="--teoria:8%"></i>:material-flask:</span></p>
 
 Sesión de práctica evaluable: diez minutos para aclarar el enunciado y el resto para cerrar y entregar. Todo lo que se pide se ha construido en las sesiones anteriores; aquí se completa y se comprueba con la lista de abajo.
 
