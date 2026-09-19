@@ -211,7 +211,7 @@ La línea `# forces replacement` junto a un atributo es la que más disgustos da
 
 <p class="ut-meta" markdown>16 de diciembre · Teoría y práctica · <span class="dur" tabindex="0" aria-label="De los requisitos al código · 10 min&#10;validation y sensitive · 10 min&#10;A5.2 Requisitos y variables · 90 min" data-dur="De los requisitos al código · 10 min&#10;validation y sensitive · 10 min&#10;A5.2 Requisitos y variables · 90 min">:material-school:<i class="dur-barra" style="--teoria:18%"></i>:material-flask:</span></p>
 
-Esta sesión no crea máquinas: escribe el `variables.tf` que las describirá. Se parte de la tabla de requisitos del servicio, con el origen de cada dato, y cada fila se convierte en una variable con tipo, descripción y validación, de modo que un tfvars mal escrito falle en `plan` con un mensaje propio. La sintaxis de `validation` y `sensitive`, que forma parte del lenguaje HCL que se ve entero en la sesión 22, se adelanta aquí porque la hoja A5.2 la necesita.
+Esta sesión no crea máquinas: escribe el `variables.tf` que las describirá, y deja montado de paso el almacén S3 del laboratorio, que es donde el estado vivirá a partir de la sesión 23. Se parte de la tabla de requisitos del servicio, con el origen de cada dato, y cada fila se convierte en una variable con tipo, descripción y validación, de modo que un tfvars mal escrito falle en `plan` con un mensaje propio. La sintaxis de `validation` y `sensitive`, que forma parte del lenguaje HCL que se ve entero en la sesión 22, se adelanta aquí porque la hoja A5.2 la necesita.
 
 ### De los requisitos al código
 
@@ -261,22 +261,93 @@ Las validaciones se evalúan en `plan`, así que un tfvars mal escrito falla en 
 
 ### A5.2 Requisitos y variables (sesión 21)
 
-<span class="et et-obj">Objetivo</span> Un `variables.tf` con tipos, descripciones y validaciones que rechaza con tu propio mensaje un tfvars mal escrito.
+<span class="et et-obj">Objetivo</span> Un `variables.tf` con tipos, descripciones y validaciones que rechaza con tu propio mensaje un tfvars mal escrito, y MinIO en marcha en la `10.10.0.30` con sus dos buckets, listo para la A5.4.
 
-<span class="et et-pre">Antes de empezar</span> El proyecto `iac-lab` de A5.1 (sin VM creadas). Se ha explicado [cómo pasar de los requisitos a variables](#de-los-requisitos-al-codigo); la sintaxis está en [validation y sensitive](#validation-y-sensitive).
+<span class="et et-pre">Antes de empezar</span> El proyecto `iac-lab` de A5.1 (sin VM creadas). Para el paso 1, acceso por SSH a `mon01` (10.10.0.20) con el usuario `ops` y su Docker en marcha, y al puesto de administración (10.10.0.50). Se ha explicado [cómo pasar de los requisitos a variables](#de-los-requisitos-al-codigo); la sintaxis está en [validation y sensitive](#validation-y-sensitive).
 
 <span class="et et-pas">Pasos</span>
 
-1. Copia la tabla de requisitos del apartado "De los requisitos al código" a un `README.md` en la raíz de `iac-lab` y rellénala para el servicio del curso (web + API + PostgreSQL). Cada fila lleva su origen del dato; si no lo sabes, escribe de dónde lo sacarías.
-2. Convierte cada fila en una variable. Escribe `variables.tf` con `pve_endpoint`, `pve_token` (sensible) y un `vms` de tipo `map(object({ cores, memory, disk, bridge, ip }))` como el del apartado de validación. Cada variable con `description`.
-3. Añade como mínimo tres validaciones: memoria mínima 1024 en todas las VM, `ip` con prefijo (`can(cidrhost(v.ip, 0))`) y una tercera sobre disco (por ejemplo `disk >= 10`) o sobre `bridge` (que esté en `["devfront", "devback", "devdata", "prefront", "preback", "predata"]` con `contains`).
-4. Escribe `terraform.tfvars` con las tres VM del servicio en el entorno `pre` (puentes `prefront`, `preback` y `predata`, bloque `10.20.0.0/16`) y los valores de tu tabla. Sin recursos aún, `main.tf` puede quedar vacío.
-5. `tofu fmt`, `tofu validate`, `tofu plan`. Guarda la salida.
-6. Copia el tfvars a `malo.tfvars`, pon `memory = 512` en `db01` y ejecuta `tofu plan -var-file=malo.tfvars`. Guarda la salida.
+1. **Preparación: el almacén S3 del laboratorio.** Monta MinIO en `mon01`. Hoy no se usa: es donde la [A5.4](#a54-modulos-y-estado-sesion-23) guardará el estado remoto de los dos entornos y donde la asignatura de Mantenimiento dejará sus copias desde febrero, y se monta ahora porque esas dos sesiones van justas de tiempo. Va como un contenedor más de la pila de `mon01` y no como VM propia: la máquina ya tiene Docker, está encendida desde octubre y así el presupuesto de memoria del nodo no sube. La dirección es la de la tabla del laboratorio, `10.10.0.30`, que se añade a `mon01` como segunda dirección de su tarjeta de gestión.
 
-<span class="et et-com">Comprobación</span> `tofu validate` sale con `Success!`, el `plan` correcto no da errores y el `plan` con `malo.tfvars` falla en segundos mostrando tu `error_message`, no un error genérico del provider.
+    !!! ojo "Si el profesor monta MinIO para toda el aula"
+        Sáltate este paso entero. Apunta el endpoint que te dé (normalmente `http://10.10.0.30:9000`), tu
+        clave de acceso y tu secreto, comprueba con el `mc ls` de la letra c que ves los buckets `tfstate`
+        y `backups`, y sigue en el paso 2. El resto de la hoja no cambia.
 
-<span class="et et-ent">Entrega</span> `README.md` con la tabla, `variables.tf`, los dos tfvars y las dos salidas de `plan`, en la carpeta `A5.2` del repositorio.
+    **a.** En `mon01`, añade la segunda dirección y déjala puesta para los siguientes arranques. Comprueba antes el nombre de la tarjeta con `ip -br a`; en las VM del curso es `ens18`:
+
+    ```bash
+    sudo tee /etc/network/interfaces.d/60-minio > /dev/null <<'EOF'
+    auto ens18:1
+    iface ens18:1 inet static
+        address 10.10.0.30
+        netmask 255.255.255.0
+    EOF
+    sudo ifup ens18:1
+    ip -br a show ens18      # tienen que salir la 10.10.0.20 y la 10.10.0.30
+    ```
+
+    El orden importa: si el contenedor arranca antes de que exista la 10.10.0.30, Docker falla con `cannot assign requested address`.
+
+    **b.** Añade el servicio al `compose.yml` de la pila de `mon01` y declara `minio_data:` en `volumes:`. El puerto se publica solo en la dirección nueva, para que la pila de monitorización siga escuchando en la 10.10.0.20 y no se mezclen:
+
+    ```yaml
+      minio:
+        image: quay.io/minio/minio:latest
+        command: server /almacen --console-address ":9001"
+        restart: unless-stopped
+        environment:
+          MINIO_ROOT_USER: admin
+          MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?ponla en el .env}
+        ports:
+          - "10.10.0.30:9000:9000"
+          - "10.10.0.30:9001:9001"
+        volumes:
+          - minio_data:/almacen
+    ```
+
+    `MINIO_ROOT_PASSWORD` va en el `.env` de la pila, que ya está en `.gitignore`. La ruta interna es `/almacen` a propósito, para no confundirla con el `/data` de `db01`, que es otra cosa.
+
+    **c.** Levanta el servicio y crea los dos buckets y las dos credenciales de trabajo. `mc` es el cliente de línea de comandos de MinIO y se usa como contenedor de un solo uso, sin instalar nada:
+
+    ```bash
+    docker compose up -d minio
+    set -a; . ./.env; set +a               # trae MINIO_ROOT_PASSWORD a esta terminal
+    M="docker run --rm --network host -e MC_HOST_lab=http://admin:$MINIO_ROOT_PASSWORD@10.10.0.30:9000 quay.io/minio/mc"
+    $M mb lab/tfstate                      # el estado de OpenTofu
+    $M mb lab/backups                      # las copias restic, que empiezan en la UT7 de Mantenimiento
+    $M admin user add lab tofu   'CambiaEsteSecreto1'
+    $M admin user add lab restic 'CambiaEsteSecreto2'
+    $M admin policy attach lab readwrite --user tofu
+    $M admin policy attach lab readwrite --user restic
+    $M ls lab                              # tfstate y backups
+    ```
+
+    Apunta los dos secretos en el gestor de contraseñas del puesto de administración. Ninguno de los dos se usa hoy: el de `tofu` lo pide la A5.4 el 8 de enero y el de `restic`, la [A7.4 de Mantenimiento](https://victor-educ.github.io/apuntes-5169/ut/ut7-actualizacion-vulnerabilidades/) el 16 de febrero; volver a MinIO a crearlos entonces cuesta más que crearlos ahora.
+
+    **d.** Desde el puesto de administración (10.10.0.50), que es desde donde la A5.4 ejecutará `tofu`, comprueba que el servicio responde:
+
+    ```bash
+    curl -s -o /dev/null -w '%{http_code}\n' http://10.10.0.30:9000/minio/health/live   # 200
+    ```
+
+    !!! empresa "Dónde vive esto en producción"
+        Juntar el almacén de copias con la máquina que vigila no se hace fuera de un laboratorio: si se
+        pierde `mon01` se pierden a la vez la monitorización y las copias. Aquí se acepta porque el nodo
+        tiene 16 GB en el pico de febrero y una VM más no cabe. En una empresa el almacén de objetos es un
+        servicio aparte, en otra máquina y a poder ser en otro edificio, y además con versionado y Object
+        Lock, que es lo que se comprueba en la UT6 de Mantenimiento.
+
+2. Copia la tabla de requisitos del apartado "De los requisitos al código" a un `README.md` en la raíz de `iac-lab` y rellénala para el servicio del curso (web + API + PostgreSQL). Cada fila lleva su origen del dato; si no lo sabes, escribe de dónde lo sacarías.
+3. Convierte cada fila en una variable. Escribe `variables.tf` con `pve_endpoint`, `pve_token` (sensible) y un `vms` de tipo `map(object({ cores, memory, disk, bridge, ip }))` como el del apartado de validación. Cada variable con `description`.
+4. Añade como mínimo tres validaciones: memoria mínima 1024 en todas las VM, `ip` con prefijo (`can(cidrhost(v.ip, 0))`) y una tercera sobre disco (por ejemplo `disk >= 10`) o sobre `bridge` (que esté en `["devfront", "devback", "devdata", "prefront", "preback", "predata"]` con `contains`).
+5. Escribe `terraform.tfvars` con las tres VM del servicio en el entorno `pre` (puentes `prefront`, `preback` y `predata`, bloque `10.20.0.0/16`) y los valores de tu tabla. Sin recursos aún, `main.tf` puede quedar vacío.
+6. `tofu fmt`, `tofu validate`, `tofu plan`. Guarda la salida.
+7. Copia el tfvars a `malo.tfvars`, pon `memory = 512` en `db01` y ejecuta `tofu plan -var-file=malo.tfvars`. Guarda la salida.
+
+<span class="et et-com">Comprobación</span> `tofu validate` sale con `Success!`, el `plan` correcto no da errores y el `plan` con `malo.tfvars` falla en segundos mostrando tu `error_message`, no un error genérico del provider. El `$M ls lab` del paso 1 lista `tfstate` y `backups`, y el `curl` de salud responde `200`.
+
+<span class="et et-ent">Entrega</span> `README.md` con la tabla, `variables.tf`, los dos tfvars, las dos salidas de `plan` y la salida del `$M ls lab` del paso 1, en la carpeta `A5.2` del repositorio.
 
 <span class="et et-ext">Si te sobra tiempo</span> Abre `tofu console` y prueba `cidrhost(var.vms["db01"].ip, 1)` y `{ for k, v in var.vms : k => v.memory }` contra tus variables.
 
@@ -526,7 +597,7 @@ Los puentes son las VNets del SDN, y su nombre no es libre: **el identificador d
 
 <p class="ut-meta" markdown>8 de enero · Teoría y práctica · <span class="dur" tabindex="0" aria-label="Módulos, entornos y estructura del repositorio · 5 min&#10;El estado a fondo · 15 min&#10;A5.4 Módulos y estado · 90 min" data-dur="Módulos, entornos y estructura del repositorio · 5 min&#10;El estado a fondo · 15 min&#10;A5.4 Módulos y estado · 90 min">:material-school:<i class="dur-barra" style="--teoria:18%"></i>:material-flask:</span></p>
 
-Con las tres VM vivas, en esta sesión el repositorio adopta la forma que tendrá hasta marzo: un módulo `vm`, un directorio por entorno (`envs/dev`, `envs/pre`) y el estado en MinIO con bloqueo. Empieza por los módulos y la estructura por entornos, y sigue con el estado: qué contiene, cómo se guarda en un backend remoto y cómo se mueve un recurso al módulo con `moved` o `state mv` sin que el plan quiera destruirlo. La hoja A5.4 recorre exactamente ese camino.
+Con las tres VM vivas, en esta sesión el repositorio adopta la forma que tendrá hasta marzo: un módulo `vm`, un directorio por entorno (`envs/dev`, `envs/pre`) y el estado en MinIO con bloqueo. Empieza por los módulos y la estructura por entornos, y sigue con el estado: qué contiene, cómo se guarda en un backend remoto y cómo se mueve un recurso al módulo con `moved` o `state mv` sin que el plan quiera destruirlo. La hoja A5.4 recorre exactamente ese camino sobre el MinIO que quedó montado en la A5.2: es la pieza de la que dependen el estado de los dos entornos y, desde febrero, las copias de la asignatura de Mantenimiento.
 
 ### Módulos, entornos y estructura del repositorio
 
@@ -603,7 +674,7 @@ Reglas:
 
 #### Backend remoto: s3 contra MinIO
 
-En el laboratorio se usa MinIO (un servidor S3 libre) en una VM de la subred de gestión. La configuración del backend usa el mismo protocolo que AWS S3 y solo hay que desactivar las comprobaciones que son de AWS:
+En el laboratorio se usa MinIO (un servidor S3 libre) en la subred de gestión, en la `10.10.0.30`, como un contenedor más de la pila de `mon01`; lo monta el primer paso de la hoja [A5.2](#a52-requisitos-y-variables-sesion-21), tres semanas antes de que haga falta, y de él cuelgan después el estado de los dos entornos del repositorio y las copias de la asignatura de Mantenimiento. La configuración del backend usa el mismo protocolo que AWS S3 y solo hay que desactivar las comprobaciones que son de AWS:
 
 ```hcl
 terraform {
@@ -622,7 +693,7 @@ terraform {
 }
 ```
 
-Las credenciales van en `AWS_ACCESS_KEY_ID` y `AWS_SECRET_ACCESS_KEY` (o en `-backend-config=` en `init`), nunca en el bloque. `use_lockfile = true` implementa el bloqueo con un fichero `.tflock` junto al estado mediante escrituras condicionales de S3, sin necesidad de DynamoDB (la tabla de AWS que Terraform usaba para el bloqueo); requiere una versión reciente de MinIO. El bloqueo hace que un segundo `apply` simultáneo falle con `Error acquiring the state lock` en lugar de pisar el estado. Si alguien pierde la conexión con el bloqueo tomado, `tofu force-unlock ID` lo libera, solo después de comprobar que nadie está aplicando de verdad. Como alternativa en clase puede usarse el backend `http` que ofrece Gitea en su registro de paquetes, que también bloquea.
+Las credenciales van en `AWS_ACCESS_KEY_ID` y `AWS_SECRET_ACCESS_KEY` (o en `-backend-config=` en `init`), nunca en el bloque. `use_lockfile = true` implementa el bloqueo con un fichero `.tflock` junto al estado mediante escrituras condicionales de S3, sin necesidad de DynamoDB (la tabla de AWS que Terraform usaba para el bloqueo); requiere una versión reciente de MinIO. El bloqueo hace que un segundo `apply` simultáneo falle con `Error acquiring the state lock` en lugar de pisar el estado. Si alguien pierde la conexión con el bloqueo tomado, `tofu force-unlock ID` lo libera, solo después de comprobar que nadie está aplicando de verdad. Gitea ofrece además un backend `http` con bloqueo en su registro de paquetes: es la salida cuando no hay almacén S3 a mano, pero el laboratorio del curso usa el backend `s3` contra MinIO, que es el que se encuentra en producción.
 
 OpenTofu añade algo que Terraform no tiene: cifrado del estado en cliente, con un bloque `encryption` dentro de `terraform {}` y una clave derivada de una passphrase o de un servicio de gestión de claves. Con eso, lo que llega a MinIO ya va cifrado. Documentado en https://opentofu.org/docs/language/state/encryption/.
 
@@ -642,7 +713,7 @@ tofu import 'proxmox_virtual_environment_vm.legacy' pve/105  # adopta una VM que
 
 <span class="et et-obj">Objetivo</span> El repositorio queda con `modules/vm`, `envs/pre` y `envs/dev`, el estado en MinIO con bloqueo, y las tres VM de A5.3 siguen vivas sin haberse recreado.
 
-<span class="et et-pre">Antes de empezar</span> Las VM de A5.3 desplegadas y su `terraform.tfstate` local. Acceso a MinIO en `http://10.10.0.30:9000` (lo monta el profesor en la subred de gestión; alternativa, el backend `http` de Gitea) con una clave de acceso por grupo. Se han explicado [módulos y entornos](#modulos-entornos-y-estructura-del-repositorio), el [backend remoto](#backend-remoto-s3-contra-minio) y [cómo mover recursos en el estado](#manipular-el-estado).
+<span class="et et-pre">Antes de empezar</span> Las VM de A5.3 desplegadas y su `terraform.tfstate` local. MinIO en marcha en la `10.10.0.30`, con los buckets `tfstate` y `backups` y el secreto de la credencial `tofu` a mano: se montó en el paso 1 de la [A5.2](#a52-requisitos-y-variables-sesion-21), y si no está, móntalo con ese paso antes de la sesión. A partir de hoy `tofu` se ejecuta desde el puesto de administración (10.10.0.50), que está dentro de la subred de gestión y por tanto es la única máquina que alcanza el 9000 de MinIO; instala ahí OpenTofu con las mismas órdenes de la A5.1, clona el repositorio y comprueba con `curl -s -o /dev/null -w '%{http_code}\n' http://10.10.0.30:9000/minio/health/live` que MinIO responde `200`. Se han explicado [módulos y entornos](#modulos-entornos-y-estructura-del-repositorio), el [backend remoto](#backend-remoto-s3-contra-minio) y [cómo mover recursos en el estado](#manipular-el-estado).
 
 <span class="et et-pas">Pasos</span>
 
@@ -673,7 +744,7 @@ tofu import 'proxmox_virtual_environment_vm.legacy' pve/105  # adopta una VM que
     ```
 
 4. `tofu plan`: debe decir `No changes` (o solo el aviso de movimientos). Si quiere destruir y crear, no apliques: falta un `moved`.
-5. Añade `envs/pre/backend.tf` con el bloque `backend "s3"` del apartado del estado (`key = "envs/pre/terraform.tfstate"`), exporta `AWS_ACCESS_KEY_ID` y `AWS_SECRET_ACCESS_KEY` y ejecuta `tofu init -migrate-state`. Responde `yes` a copiar el estado.
+5. Añade `envs/pre/backend.tf` con el bloque `backend "s3"` del apartado del estado (`key = "envs/pre/terraform.tfstate"`), exporta `AWS_ACCESS_KEY_ID=tofu` y `AWS_SECRET_ACCESS_KEY` con el secreto de la credencial `tofu` que creaste en la A5.2, y ejecuta `tofu init -migrate-state`. Responde `yes` a copiar el estado.
 6. `tofu state list` debe listar las tres VM; borra el `terraform.tfstate` local (queda `terraform.tfstate.backup`, bórralo también) y repite `tofu state list`.
 7. Desde dos terminales, lanza `tofu apply` a la vez y captura el `Error acquiring the state lock` de la segunda. Responde `no` en la primera.
 8. Crea `envs/dev/` copiando `pre`: cambia `key` a `envs/dev/terraform.tfstate` en `backend.tf` y en el tfvars pon los puentes `devfront`, `devback` y `devdata` con las IP `10.10.1.10/24`, `10.10.2.10/24` y `10.10.3.10/24`. `tofu init` y `tofu plan`, **sin aplicar**: esas VM ya existen creadas a mano desde UT2 y un `apply` las duplicaría. Queda el código escrito; adoptarlas es trabajo de `tofu import`.
@@ -908,7 +979,7 @@ Probar infraestructura es probar por niveles, del más barato al más caro. Cada
 | Estático | Sintaxis, formato, buenas prácticas | `tofu fmt -check`, `tofu validate`, `ansible-lint`, `checkov` | En cada commit, en segundos, sin credenciales |
 | Plan | Que el plan sea el esperado y nada se destruya por sorpresa | Leer `tofu plan`; `tofu plan -detailed-exitcode` en CI (0 sin cambios, 2 con cambios, 1 error) | Antes de cada apply |
 | Unitario | Que un módulo produce los recursos que debe con unas entradas dadas | `tofu test` con ficheros `.tftest.hcl`; Molecule (el marco de pruebas de roles de Ansible) para roles | Al cambiar el módulo o el rol |
-| Servicio | Que lo desplegado funciona de verdad | Smoke test: `curl -f https://api.pre.lab/health`, `nc -zv 10.20.3.10 5432` | Después de cada apply |
+| Servicio | Que lo desplegado funciona de verdad | Smoke test: `curl -f http://10.20.2.10:8080/health` contra lo que el playbook ha desplegado, `nc -zv` a los puertos que deben escuchar | Después de cada apply |
 | Configuración | Que la máquina es como se pidió | `ansible -m setup` y comparar `ansible_processor_vcpus`, `ansible_memtotal_mb`, tamaño de disco con los requisitos | Después de cada apply |
 | Idempotencia | Segunda ejecución sin cambios | `tofu plan` = "No changes"; `ansible-playbook` con `changed=0` | Después de cada apply |
 
@@ -930,8 +1001,10 @@ echo "== Despliegue"
 ansible-playbook -i ansible/inventory.ini ansible/site.yml
 
 echo "== Smoke tests"
-curl -fsS --max-time 5 http://10.20.1.10/health >/dev/null || fail "la web no responde en /health"
-nc -zv -w 3 10.20.3.10 5432 || fail "PostgreSQL no escucha en 5432"
+for h in 10.20.1.10 10.20.2.10 10.20.3.10; do
+  nc -zv -w 3 "$h" 22 || fail "la VM $h no responde por SSH"
+done
+curl -fsS --max-time 5 http://10.20.2.10:8080/health >/dev/null || fail "el servicio no responde en /health"
 
 echo "== Configuración contra requisitos"
 vcpus=$(ansible -i ansible/inventory.ini db01 -m setup -a 'filter=ansible_processor_vcpus' \
@@ -948,6 +1021,8 @@ grep -q 'changed=0' /tmp/second.log || fail "la segunda pasada de Ansible ha cam
 
 echo "OK: despliegue $ENV válido"
 ```
+
+Los smoke tests prueban lo que de verdad hay en `pre`, ni más ni menos: el playbook de A5.5 configura el grupo `app`, así que el único servicio desplegado es el del curso en `app01`. De `web01` y `db01`, que son clones limpios de la plantilla, se comprueba lo que `tofu apply` promete: que la máquina existe, ha arrancado y admite SSH. El día que el playbook configure también el nginx de `web01` o PostgreSQL en `db01`, su comprobación se añade aquí, y no al revés: un smoke test contra algo que nadie despliega falla siempre y acaba enseñando a ignorar los fallos.
 
 El umbral de memoria es 1900 y no 2048 porque el kernel reserva parte y `ansible_memtotal_mb` devuelve lo que ve el SO. Conviene probarlo rompiendo algo a propósito: bajar `memory` de `db01` en tfvars, aplicar y comprobar que el script sale con código 1 y el mensaje correcto. Un script de pruebas que nunca se ha visto fallar no prueba nada.
 
@@ -972,20 +1047,20 @@ Con `command = plan` no crea nada y sirve para probar módulos en CI sin Proxmox
 
 <span class="et et-obj">Objetivo</span> Un `test.sh` que despliega, configura y comprueba el entorno `pre`, y que devuelve 0 cuando todo está bien y distinto de 0 cuando algo falla, demostrado con las dos salidas.
 
-<span class="et et-pre">Antes de empezar</span> El repositorio tal como quedó en A5.5 (envs, playbook, `gen-inventory.sh`), `TF_VAR_pve_token` y las credenciales de MinIO exportadas, `curl` y `nc` instalados. Se han explicado [los niveles de prueba](#pruebas-del-despliegue) y el [script test.sh](#testsh).
+<span class="et et-pre">Antes de empezar</span> El repositorio tal como quedó en A5.5 (envs, playbook, `gen-inventory.sh`), `TF_VAR_pve_token` y las credenciales de la cuenta `tofu` de MinIO exportadas, `curl` y `nc` instalados. Se han explicado [los niveles de prueba](#pruebas-del-despliegue) y el [script test.sh](#testsh).
 
 <span class="et et-pas">Pasos</span>
 
-1. Copia el `test.sh` del apartado a la raíz del repositorio y `chmod +x test.sh`. Ajusta las URL de los smoke tests a tu servicio: la ruta `/health` de la web y el puerto de PostgreSQL. Si la web todavía no sirve `/health`, usa la ruta que responda 200.
+1. Copia el `test.sh` del apartado a la raíz del repositorio y `chmod +x test.sh`. Ajusta el smoke test del servicio a tu compose: el puerto que publica `app01` y la ruta que responde (si el tuyo no sirve `/health`, usa la que devuelva 200). Los tres `nc` al puerto 22 no se tocan: comprueban que las tres VM del entorno están levantadas.
 2. Ajusta los umbrales de la sección "Configuración contra requisitos" a tu tabla de A5.2 (vCPU y MB de `db01`). Si tu `db01` no es 2048 MB, cambia el 1900 en proporción.
 3. `./test.sh pre` con todo en orden. Guarda la salida completa y el código de salida: `echo $?` justo después debe dar `0`.
 4. Rompe la configuración: baja `memory` de `db01` a 1024 en `envs/pre/terraform.tfvars` y ejecuta `./test.sh pre` otra vez. Guarda salida y `echo $?`.
-5. Restaura la memoria, aplica, y rompe ahora el servicio: `ssh ops@10.20.1.10 sudo docker stop <contenedor web>`. Ejecuta el script y guarda salida y código de salida.
+5. Restaura la memoria, aplica, y rompe ahora el servicio: `ssh ops@10.20.2.10 sudo docker stop <contenedor del servicio>`. Ejecuta el script y guarda salida y código de salida.
 6. Restaura el contenedor (o deja que el playbook lo levante) y pasa `./test.sh pre` una última vez para dejarlo en verde.
 
-<span class="et et-com">Comprobación</span> La ejecución del paso 3 termina con `OK: despliegue pre válido` y `$?` igual a 0. Las de los pasos 4 y 5 terminan con una línea `FALLO: ...` que nombra la causa correcta (memoria de db01, web sin responder) y `$?` distinto de 0. Ninguna ejecución se queda colgada: si `curl` o `nc` tardan, revisa los `--max-time` y `-w`.
+<span class="et et-com">Comprobación</span> La ejecución del paso 3 termina con `OK: despliegue pre válido` y `$?` igual a 0. Las de los pasos 4 y 5 terminan con una línea `FALLO: ...` que nombra la causa correcta (memoria de db01, servicio sin responder) y `$?` distinto de 0. Ninguna ejecución se queda colgada: si `curl` o `nc` tardan, revisa los `--max-time` y `-w`.
 
-<span class="et et-ent">Entrega</span> `test.sh` y las tres salidas (correcta, memoria baja, web parada) con su código de salida, en `A5.6`.
+<span class="et et-ent">Entrega</span> `test.sh` y las tres salidas (correcta, memoria baja, servicio parado) con su código de salida, en `A5.6`.
 
 <span class="et et-ext">Si te sobra tiempo</span> Añade una comprobación de disco (`ansible_devices` en `-m setup`) o escribe un `tests/vm.tftest.hcl` para `modules/vm` con `command = plan`, como el del apartado de tofu test.
 

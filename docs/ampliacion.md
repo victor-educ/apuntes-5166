@@ -121,7 +121,7 @@ La tabla de estados tiene tamaño finito. En Debian `sysctl net.netfilter.nf_con
 
 ### nftables: el fichero de reglas completo
 
-El curso monta el cortafuegos con OPNsense; esto es la alternativa entera con un router Debian, para quien la prefiera o quiera entender el motor que hay debajo del firewall de Proxmox y de Docker. La unidad la presenta y dice cuándo se elige en [Alternativa: nftables en una VM Linux](ut/ut3-seguridad-por-capas.md#alternativa-nftables-en-una-vm-linux), y el paso 9 de la A3.1 enlaza aquí.
+El curso monta el cortafuegos con OPNsense; esto es la alternativa entera con un router Debian, para quien la prefiera o quiera entender el motor que hay debajo del firewall de Proxmox y de Docker. La unidad la presenta y dice cuándo se elige en [Alternativa: nftables en una VM Linux](ut/ut3-seguridad-por-capas.md#alternativa-nftables-en-una-vm-linux), y el paso 6 de la A3.1 enlaza aquí.
 
 #### Tablas, cadenas, hooks y prioridades
 

@@ -547,17 +547,65 @@ En el `Jenkinsfile` se elige con `agent { label 'docker' }` o `agent { docker { 
 
 <span class="et et-obj">Objetivo</span> Un agente permanente `agent01` por SSH y una cloud Docker de agentes efímeros, ambos conectados y con un job ejecutado en cada uno.
 
-<span class="et et-pre">Antes de empezar</span> El Jenkins de la sesión 31 funcionando y su repositorio `jenkins-config`. Acceso a Proxmox para crear una VM, o el `tofu` de la UT5 para hacerlo desde código. Se han explicado los [tipos de agente y las etiquetas](#agentes).
+<span class="et et-pre">Antes de empezar</span> El Jenkins de la sesión 31 funcionando y su repositorio `jenkins-config`. Acceso a Proxmox para crear una VM, o el `tofu` de la UT5 para hacerlo desde código, y a mano la CA del aula que firmó el certificado de Jenkins en la sesión 31 (`ca.crt` y `ca.key`), que es la que firma los certificados del paso 4. Se han explicado los [tipos de agente y las etiquetas](#agentes).
 
 <span class="et et-pas">Pasos</span>
 
 1. Crea una VM `agent01` (2 vCPU, 2 GB, subred de gestión `devmgmt`, la 10.10.0.12, nombre `agent01.lab`). Instala Java 21 (`apt install openjdk-21-jre-headless`) y Docker, crea el usuario `jenkins` con `/home/jenkins` y mételo en el grupo `docker`.
 2. Genera en el controlador un par de claves (`ssh-keygen -t ed25519 -f agent01 -C agent01`) y copia la pública a `/home/jenkins/.ssh/authorized_keys` de `agent01`. Anota la huella del host con `ssh-keyscan 10.10.0.12`.
 3. Añade al `jenkins.yaml` el bloque `nodes` y la credencial `agent-ssh` del apartado de [hardening](#hardening-del-controlador), con la huella del paso anterior en `manuallyProvidedKeyVerificationStrategy` y la clave privada en la variable `AGENT_SSH_KEY`. Etiquetas `docker terraform`, dos ejecutores. Relanza Jenkins y comprueba en Manage Jenkins → Nodes que `agent01` aparece conectado.
-4. Cloud Docker: en Manage Jenkins → Clouds crea una cloud de tipo Docker apuntando al demonio de `agent01` (o de una VM dedicada), con una plantilla de imagen `jenkins/agent` y etiqueta `efimero`. Exporta y pásalo también al YAML.
-5. Crea un job Pipeline con dos etapas, una con `agent { label 'docker' }` y otra con `agent { label 'efimero' }`, y en cada una `sh 'hostname; cat /etc/os-release'`.
+4. Abre el demonio de Docker de `agent01` para que Jenkins pueda crear contenedores en él. Sin esto la cloud del paso 5 no tiene con quién hablar: el controlador no ejecuta nada y el demonio de `agent01` solo escucha en su socket local, al que Jenkins no llega desde otra máquina. Se publica en el 2376 con TLS y verificación de cliente, firmado por la CA del aula. El 2375 sin cifrar no se usa nunca: quien alcanza ese puerto es root en la máquina, sin contraseña y sin rastro.
 
-<span class="et et-com">Comprobación</span> En el log, la primera etapa muestra el hostname de `agent01` y la segunda uno aleatorio de contenedor; `docker ps` en `agent01` durante la ejecución muestra el agente efímero y, al terminar, ya no está. Nada se ejecutó en el controlador.
+    **a.** Emite un certificado de servidor para `agent01` y uno de cliente para Jenkins, con la CA del aula y desde donde tengas la `ca.key`:
+
+    ```bash
+    openssl req -newkey rsa:2048 -nodes -keyout agent01-key.pem -subj "/CN=agent01" -out agent01.csr
+    printf 'subjectAltName=IP:10.10.0.12,DNS:agent01.lab\nextendedKeyUsage=serverAuth\n' > srv.ext
+    openssl x509 -req -in agent01.csr -CA ca.crt -CAkey ca.key -CAcreateserial -days 825 -extfile srv.ext -out agent01-cert.pem
+
+    openssl req -newkey rsa:2048 -nodes -keyout jenkins-key.pem -subj "/CN=jenkins" -out jenkins.csr
+    printf 'extendedKeyUsage=clientAuth\n' > cli.ext
+    openssl x509 -req -in jenkins.csr -CA ca.crt -CAkey ca.key -CAcreateserial -days 825 -extfile cli.ext -out jenkins-cert.pem
+    ```
+
+    **b.** Copia `ca.crt`, `agent01-cert.pem` y `agent01-key.pem` a `/etc/docker/certs/` de `agent01` (propietario `root`, la clave con `chmod 600`) y escribe `/etc/docker/daemon.json`:
+
+    ```json
+    {
+      "hosts": ["unix:///var/run/docker.sock", "tcp://10.10.0.12:2376"],
+      "tlsverify": true,
+      "tlscacert": "/etc/docker/certs/ca.crt",
+      "tlscert": "/etc/docker/certs/agent01-cert.pem",
+      "tlskey": "/etc/docker/certs/agent01-key.pem"
+    }
+    ```
+
+    !!! ojo "`hosts` en daemon.json choca con la unidad de systemd"
+        La unidad que trae el paquete arranca el demonio con `-H fd://`, y decir lo mismo dos veces lo deja
+        muerto con `the following directives are specified both as a flag and in the configuration file:
+        hosts`. Se quita el flag con un override y se reinicia:
+
+        ```bash
+        sudo systemctl edit docker     # dentro del fichero que abre:
+        # [Service]
+        # ExecStart=
+        # ExecStart=/usr/bin/dockerd
+        sudo systemctl restart docker
+        sudo systemctl status docker   # active (running)
+        ```
+
+    **c.** Comprueba desde `jenkins01`, que es la máquina desde la que el controlador va a hablar con ese demonio, que responde con certificado y no sin él:
+
+    ```bash
+    docker --tlsverify --tlscacert=ca.crt --tlscert=jenkins-cert.pem --tlskey=jenkins-key.pem \
+      -H tcp://10.10.0.12:2376 version        # sale la versión del Server
+    docker -H tcp://10.10.0.12:2376 version   # error de TLS: así tiene que ser
+    ```
+
+5. Cloud Docker: en Manage Jenkins → Clouds crea una cloud de tipo Docker con la URI `tcp://10.10.0.12:2376` y, como credencial, una de tipo **X.509 Client Certificate** con el contenido de `jenkins-key.pem`, `jenkins-cert.pem` y `ca.crt` en sus tres campos. Pulsa *Test Connection*: tiene que devolver la versión del demonio. Añade una plantilla con la imagen `jenkins/agent` y la etiqueta `efimero`. Exporta y pásalo también al YAML.
+6. Crea un job Pipeline con dos etapas, una con `agent { label 'docker' }` y otra con `agent { label 'efimero' }`, y en cada una `sh 'hostname; cat /etc/os-release'`.
+
+<span class="et et-com">Comprobación</span> En el log, la primera etapa muestra el hostname de `agent01` y la segunda uno aleatorio de contenedor; el *Test Connection* de la cloud devuelve la versión del demonio de `agent01` y sin certificado ese puerto no contesta; `docker ps` en `agent01` durante la ejecución muestra el agente efímero y, al terminar, ya no está. Nada se ejecutó en el controlador.
 
 <span class="et et-ent">Entrega</span> El `jenkins.yaml` actualizado en `jenkins-config` y una captura del log del job con los dos hostnames.
 
@@ -567,7 +615,7 @@ En el `Jenkinsfile` se elige con `agent { label 'docker' }` o `agent { docker { 
 
 <p class="ut-meta" markdown>17 de febrero · Teoría y práctica · <span class="dur" tabindex="0" aria-label="Proyectos, credenciales y webhooks · 15 min&#10;A6.5 Proyecto y credenciales · 95 min" data-dur="Proyectos, credenciales y webhooks · 15 min&#10;A6.5 Proyecto y credenciales · 95 min">:material-school:<i class="dur-barra" style="--teoria:14%"></i>:material-flask:</span></p>
 
-Al acabar hay un proyecto Multibranch conectado al repositorio del servicio con una credencial de solo lectura y un webhook que lo dispara con cada push. El apartado de abajo cubre las tres piezas que usa la hoja: el proyecto, las credenciales (con el aviso sobre las comillas en el `sh`) y el webhook con su firma.
+Al acabar hay un proyecto Multibranch conectado al repositorio del servicio con una credencial de solo lectura y un webhook que lo dispara con cada push. La hoja empieza mudando Gitea a su máquina de la tabla del laboratorio, `gitea01`, que es también donde la sesión 36 levantará el registry. El apartado de abajo cubre las tres piezas que usa la hoja: el proyecto, las credenciales (con el aviso sobre las comillas en el `sh`) y el webhook con su firma.
 
 ### Proyectos, credenciales y webhooks
 
@@ -651,16 +699,77 @@ Queda el caso en que Jenkins no es accesible desde el servidor Git. Pasa cuando 
 
 <span class="et et-obj">Objetivo</span> Un proyecto Multibranch conectado al repositorio del servicio con una credencial de solo lectura, que se dispara solo con cada push.
 
-<span class="et et-pre">Antes de empezar</span> Jenkins con `agent01` conectado, el repositorio del servicio del curso en Gitea, y Gitea confiando en la CA del aula (si no, rechazará el POST del webhook). Se han explicado [proyectos, credenciales y webhooks](#proyectos-credenciales-y-webhooks).
+<span class="et et-pre">Antes de empezar</span> Jenkins con `agent01` conectado, la plantilla 9000 y la CA del aula de la sesión 31 (`ca.crt` y `ca.key`) a mano, y Gitea confiando en esa CA (si no, rechazará el POST del webhook). El repositorio del servicio del curso lo tienes en el Gitea que levantaste en `mon01` en noviembre: hoy se muda con su máquina. Se han explicado [proyectos, credenciales y webhooks](#proyectos-credenciales-y-webhooks).
 
 <span class="et et-pas">Pasos</span>
 
-1. En Gitea, con la cuenta de administrador, crea el usuario de servicio `jenkins` y dale acceso de lectura al repositorio del servicio. Entra con él y genera un token con alcance `read:repository` únicamente.
-2. En Jenkins crea la carpeta `servicio/` y, dentro, la credencial `git-ro` (tipo Username with password: usuario `jenkins`, contraseña el token). Compruébala desde `agent01` con `git ls-remote https://jenkins:<token>@gitea.lab/...` antes de seguir.
-3. Sube a la raíz del repositorio del servicio un `Jenkinsfile` mínimo (una etapa con `agent { label 'docker' }` y `checkout scm`) para que Multibranch tenga algo que descubrir.
-4. Crea en `servicio/` un proyecto Multibranch Pipeline con el origen Gitea, la credencial `git-ro` y descubrimiento de ramas. Activa "Discard old items" y guarda: el primer escaneo debe crear el subjob `main`.
-5. Webhook: en Gitea, Settings → Webhooks del repositorio, URL `https://jenkins.lab/gitea-webhook/post`, tipo Gitea, con un secreto largo. Pon el mismo secreto en la configuración del origen Gitea en Jenkins (o en el plugin, según versión).
-6. Haz un commit trivial y push. Mira la entrega en la pestaña del webhook de Gitea (código 200) y en Jenkins el log de "Scan Multibranch Pipeline" y la nueva ejecución.
+1. Monta `gitea01`, la máquina de plataforma que aloja Gitea y, desde la sesión 36, el registry de imágenes. Hasta hoy Gitea ha corrido como contenedor en `mon01`, prestado desde noviembre por la asignatura de Mantenimiento; hoy se muda a su sitio de la tabla del laboratorio: VM 102, `devmgmt`, 10.10.0.11, 1 GB.
+
+    !!! ojo "Si el profesor tiene un Gitea de aula"
+        Sigue haciendo falta el tuyo, porque la sesión 36 monta el registry en esta misma máquina y hoy se
+        configura un webhook que sale de tu Gitea hacia tu Jenkins. Lo que sí puedes saltarte es la letra c:
+        si trabajas con el Gitea del aula desde noviembre no hay volumen que migrar, solo clonar tus
+        repositorios en el `gitea01` nuevo y cambiarles el `origin`.
+
+    **a.** Clona la VM desde la plantilla y ponla en gestión. Desde el nodo:
+
+    ```bash
+    qm clone 9000 102 --name gitea01 --full
+    qm set 102 --memory 1024 --cores 1 \
+      --net0 virtio,bridge=devmgmt \
+      --ipconfig0 ip=10.10.0.11/24,gw=10.10.0.1 \
+      --nameserver 10.10.0.1 --searchdomain lab
+    qm start 102
+    ssh ops@10.10.0.11 'sudo hostnamectl set-hostname gitea01'
+    ```
+
+    **b.** Instala Docker. Es la misma receta que el playbook de la [A5.5 de la UT5](ut5-iac.md#a55-ansible-sesion-24) aplica en `app01`, y aquí va a mano porque `gitea01` es una máquina de plataforma y no sale del inventario que `gen-inventory.sh` genera desde los outputs de `envs/pre`:
+
+    ```bash
+    ssh ops@10.10.0.11 'sudo apt-get update && sudo apt-get install -y docker.io docker-compose-v2'
+    ssh ops@10.10.0.11 'sudo usermod -aG docker ops && docker compose version'
+    ```
+
+    **c.** Lleva la Gitea de `mon01` a su máquina. El volumen se copia tal cual, con la base SQLite dentro, y así no se pierden ni las issues ni los runbooks de Mantenimiento:
+
+    ```bash
+    # en mon01
+    docker compose stop gitea
+    docker run --rm -v gitea_data:/d -v $PWD:/b alpine tar czf /b/gitea.tgz -C /d .
+    scp gitea.tgz ops@10.10.0.11:/tmp/
+    # en gitea01
+    sudo install -d /opt/gitea && cd /opt/gitea
+    docker volume create gitea_data
+    docker run --rm -v gitea_data:/d -v /tmp:/b alpine tar xzf /b/gitea.tgz -C /d
+    ```
+
+    El `compose.yml` de `gitea01` es el de la A2.6 de Mantenimiento con dos cambios: `GITEA__server__ROOT_URL: https://gitea.lab/` y el puerto publicado en `"3000:3000"`, porque aquí el 3000 está libre. Delante va el mismo nginx con certificado de la CA del aula de la sesión 31, con `server_name gitea.lab;` y `proxy_pass http://127.0.0.1:3000;`.
+
+    **d.** Cambia el nombre de sitio y comprueba la cadena entera. Aprovecha y deja creado también el `registry.lab` que necesita la sesión 36, que es la misma máquina:
+
+    ```bash
+    # en OPNsense: Services, Dnsmasq DHCP & DNS, Hosts
+    #   gitea.lab pasa de 10.10.0.20 a 10.10.0.11
+    #   registry.lab se crea apuntando a 10.10.0.11
+    dig gitea.lab +short                                             # 10.10.0.11
+    dig registry.lab +short                                          # 10.10.0.11
+    curl -s --cacert ca.crt -o /dev/null -w '%{http_code}\n' https://gitea.lab/   # 200
+    ```
+
+    En `mon01`, quita el servicio `gitea` del `compose.yml` de la pila y deja el volumen `gitea_data` una semana antes de borrarlo, por si algo no se ha copiado bien. En el receptor de incidencias, cambia `GITEA_URL` a `https://gitea.lab` y vuelve a generar el token: es el cambio que la A2.6 de Mantenimiento ya anunciaba.
+
+    !!! otra "Lo que esto desbloquea en Mantenimiento"
+        A partir de hoy `gitea.lab` es `gitea01`, y `registry.lab` apunta ya a la misma máquina para cuando
+        la sesión 36 levante el registry. Las anotaciones `runbook` de la A4.3, el Renovate de la A7.1 y las
+        llamadas a `https://gitea.lab/api/v1` de la UT8 siguen funcionando sin tocar nada más que el
+        override de esta letra d.
+
+2. En Gitea, con la cuenta de administrador, crea el usuario de servicio `jenkins` y dale acceso de lectura al repositorio del servicio. Entra con él y genera un token con alcance `read:repository` únicamente.
+3. En Jenkins crea la carpeta `servicio/` y, dentro, la credencial `git-ro` (tipo Username with password: usuario `jenkins`, contraseña el token). Compruébala desde `agent01` con `git ls-remote https://jenkins:<token>@gitea.lab/...` antes de seguir.
+4. Sube a la raíz del repositorio del servicio un `Jenkinsfile` mínimo (una etapa con `agent { label 'docker' }` y `checkout scm`) para que Multibranch tenga algo que descubrir.
+5. Crea en `servicio/` un proyecto Multibranch Pipeline con el origen Gitea, la credencial `git-ro` y descubrimiento de ramas. Activa "Discard old items" y guarda: el primer escaneo debe crear el subjob `main`.
+6. Webhook: en Gitea, Settings → Webhooks del repositorio, URL `https://jenkins.lab/gitea-webhook/post`, tipo Gitea, con un secreto largo. Pon el mismo secreto en la configuración del origen Gitea en Jenkins (o en el plugin, según versión).
+7. Haz un commit trivial y push. Mira la entrega en la pestaña del webhook de Gitea (código 200) y en Jenkins el log de "Scan Multibranch Pipeline" y la nueva ejecución.
 
 <span class="et et-com">Comprobación</span> La ejecución arranca en menos de un minuto tras el push sin pulsar nada; el log muestra el `checkout scm` en `agent01` y en ningún sitio aparece el token.
 

@@ -68,7 +68,7 @@ Proxmox va dentro de una máquina virtual de VirtualBox o VMware Workstation en 
 | web01 | 1 GB |
 | app01 | 2 GB |
 | db01 | 2 GB |
-| mon01 | 3 GB |
+| mon01, con MinIO en su pila | 3 GB |
 | jenkins01, el controlador | 2 GB |
 | agent01, el agente de Jenkins | 2 GB |
 | gitea01 con el registry | 1 GB |
@@ -76,16 +76,18 @@ Proxmox va dentro de una máquina virtual de VirtualBox o VMware Workstation en 
 | El propio Proxmox (ZFS o LVM, servicios y consola) | 2 GB |
 | **La VM de Proxmox en el pico** | **16 GB** |
 
-Esa es la cifra de referencia para las dos asignaturas: **16 GB para la VM de Proxmox en el peor momento**. Con menos se trabaja igual, apagando lo que no se esté usando. Por orden de lo que menos duele:
+Esa es la cifra de referencia para las dos asignaturas: **16 GB para la VM de Proxmox en el peor momento**. El puesto de administración (1 GB) no aparece en la tabla porque no es un servicio: se enciende cuando hay que administrar el cortafuegos, firmar un certificado o lanzar `tofu`, y en las sesiones de integración continua de febrero y marzo está apagado. Con menos memoria se trabaja igual, apagando lo que no se esté usando. Por orden de lo que menos duele:
 
 1. `jenkins01` y `agent01` (4 GB) fuera de las sesiones de integración continua.
 2. `gitea01` (1 GB): solo hace falta al clonar y al empujar; se enciende un rato o se usa GitHub.
 3. `web01` (1 GB): solo hace falta cuando se prueba el camino completo desde fuera.
 4. `db01` (2 GB) en las sesiones que son solo de pipeline, sin desplegar.
 
-Con 12 GB se llega bien apagando `gitea01`, `web01` y `db01` en las sesiones de integración continua (quedan 10 GB). Con 8 GB se sigue el curso hasta la UT5 de Despliegue y la UT2 de Mantenimiento, pero no caben Jenkins con su agente y la pila de monitorización a la vez. MinIO no entra en la cuenta si lo monta el profesor para toda el aula.
+Con 12 GB se llega bien apagando `gitea01`, `web01` y `db01` en las sesiones de integración continua (quedan 10 GB). Con 8 GB se sigue el curso hasta la UT5 de Despliegue y la UT2 de Mantenimiento, pero no caben Jenkins con su agente y la pila de monitorización a la vez. MinIO no añade ninguna línea a esa tabla: se monta el 8 de enero como un contenedor más de la pila de `mon01` y ocupa unos 300 MB de los 3 GB que esa máquina ya tiene. Si el profesor lo monta para toda el aula, no ocupa nada en el puesto.
 
 Desde el 14 de octubre, `app01` y `mon01` se quedan encendidas el resto del curso porque las usa la otra asignatura, así que en las sesiones que piden varias VM a la vez conviene bajar la memoria de las de prueba o apagar las que no se estén usando.
+
+**Disco.** Además de los clones de la plantilla (20 GB cada uno, de los que se ocupan unos 3 al principio), hay dos discos que se añaden a mano durante el curso: el segundo disco de `db01` para `/data`, de 5 GB, el 27 de noviembre, y el volumen `minio_data` de la pila de `mon01`, que crece con el estado de OpenTofu (unos pocos MB) y con las copias restic de `pre` (entre 1 y 3 GB a partir de marzo).
 
 Con un miniPC o un portátil antiguo de 16 GB disponible, instalar Proxmox directamente sobre él (tipo 1 de verdad) es mucho mejor que la VM anidada. Es la opción preferible siempre que sea posible.
 
@@ -133,10 +135,10 @@ Quién reparte direcciones cambia una sola vez en todo el curso. En la **sesión
 |---------|----------:|------|----|------------|----:|-----------|
 | OPNsense | 100 | las cuatro | `.1` de cada subred | `fw.dev.lab` | 1 GB | cortafuegos, NAT, DNS y DHCP del entorno |
 | jenkins01 | 101 | `devmgmt` | 10.10.0.10 | `jenkins.lab` | 2 GB | el controlador de Jenkins, con nginx delante |
-| gitea01 | 102 | `devmgmt` | 10.10.0.11 | `gitea.lab` y `registry.lab` | 1 GB | Gitea y el registry de imágenes |
+| gitea01 | 102 | `devmgmt` | 10.10.0.11 | `gitea.lab` y `registry.lab` | 1 GB | Gitea y el registry de imágenes; la máquina se monta en la A6.5 (17 de febrero) y hasta ese día Gitea corre como contenedor en mon01, con el nombre `gitea.lab` apuntando allí |
 | mon01 | 103 | `devmgmt` | 10.10.0.20 | `prometheus.lab` y `grafana.lab` | 3 GB | Prometheus, Alertmanager, Grafana y Loki |
-| MinIO | 104 | `devmgmt` | 10.10.0.30 | `minio.lab` | 1 GB | almacén S3 para el estado de OpenTofu y las copias restic; si lo monta el profesor para toda el aula, no ocupa memoria del puesto |
-| puesto de administración | 105 | `devmgmt` | 10.10.0.50 | sin nombre DNS | 1 GB | la VM desde la que se administra el cortafuegos en la UT3 |
+| MinIO | contenedor en mon01 | `devmgmt` | 10.10.0.30 | `minio.lab` | ~300 MB | almacén S3 para el estado de OpenTofu y las copias restic; si lo monta el profesor para toda el aula, no ocupa memoria del puesto; corre como contenedor de la pila de mon01 publicado en la 10.10.0.30, una segunda dirección de esa máquina; el ID 104 queda reservado por si algún curso necesita darle VM propia |
+| puesto de administración | 105 | `devmgmt` | 10.10.0.50 | sin nombre DNS | 1 GB | se crea en la A2.4 (6 de noviembre), en cuanto existe la subred de gestión, y se queda el resto del curso: administra el cortafuegos, guarda la CA del curso, ejecuta `tofu` contra el estado de MinIO y es la única máquina con salida a Internet |
 | agent01 | 106 | `devmgmt` | 10.10.0.12 | `agent01.lab` | 2 GB | el agente permanente de Jenkins, por SSH |
 | web01 | 110 | `devfront` | 10.10.1.10 | `web01.dev.lab`, publica `api.dev.lab` | 1 GB | nginx, terminación TLS del servicio |
 | app01 | 120 | `devback` | 10.10.2.10 | `app01.dev.lab` | 2 GB | la API del curso en Docker Compose |

@@ -50,7 +50,7 @@ Cada sesión de 110 minutos empieza con una explicación corta y sigue con labor
 | [7](#sesion-7-diseno-de-la-vpc-dev) | 28 oct | Teoría y práctica | Qué es una VPC, CIDR y subnetting, RFC 1918, por qué /16 por entorno (25 min). | Diseñar en papel los tres entornos con tabla de direccionamiento propia (no copiar el ejemplo), justificar tamaños con ipcalc y comprobar que ningún bloque se solapa. |
 | [8](#sesion-8-crear-la-vpc-dev-con-sdn) | 30 oct | Teoría y práctica | Zonas, VNets y subredes del SDN de Proxmox; DHCP e IPAM integrados (15 min). | Crear en SDN la zona lab y las cuatro VNets de dev con DHCP; conectar dos VM de zonas distintas y comprobar IP e IPAM. |
 | [9](#sesion-9-dhcp-y-dns-propios) | 4 nov | Teoría y práctica | dnsmasq: rangos, reservas por MAC, registros y expand-hosts; por qué un router de entorno (20 min). | Sustituir el DHCP del SDN por la VM router con dnsmasq, reservar IP para web01 y db01, crear api.dev.lab y comprobar con dig. |
-| [10](#sesion-10-comunicacion-entre-zonas) | 6 nov | Teoría y práctica | Enrutar frente a hacer NAT; ip_forward y nftables masquerade (15 min). | Activar el reenvío en el router, comprobar web01 a db01 con ping y nc, capturar el tráfico en el router con tcpdump. |
+| [10](#sesion-10-comunicacion-entre-zonas) | 6 nov | Teoría y práctica | Enrutar frente a hacer NAT; ip_forward y nftables masquerade (15 min). | Crear el puesto de administración en la subred de gestión, activar el reenvío en el router, comprobar web01 a db01 con ping y nc, capturar el tráfico en el router con tcpdump. |
 | [11](#sesion-11-segundo-y-tercer-entorno-aislamiento) | 11 nov | Práctica | Repaso de cinco minutos de cómo se prueba el aislamiento. | Replicar pre y pro, lanzar nmap -sn desde dev contra pre y pro, documentar cada prueba con la plantilla del apartado de pruebas. |
 | [12](#sesion-12-automatizar-con-la-cli-de-proxmox) | 13 nov | Teoría y práctica | qm, pct y pvesh; la API REST con token como antesala del provider de OpenTofu (20 min). | Script que crea las tres VM de un entorno y otro que las destruye; ejecutar cada uno dos veces sin errores. |
 | [13](#sesion-13-practica-evaluable) | 18 nov | Práctica evaluable | Aclaración del enunciado (10 min). | Cerrar la memoria: esquema, direccionamiento, configuración, scripts y las cinco pruebas documentadas. |
@@ -786,17 +786,71 @@ Evidencia: captura dig-db01.png
 
 ### A2.4 Comunicación entre zonas (sesión 10)
 
-<span class="et et-obj">Objetivo</span> Demostrar con `ping`, `traceroute`, `nc` y una captura de `tcpdump` que `web01` (front) llega a `db01` (data) a través del router, con las IP reales a ambos lados, y qué pasa cuando el router deja de reenviar.
+<span class="et et-obj">Objetivo</span> Demostrar con `ping`, `traceroute`, `nc` y una captura de `tcpdump` que `web01` (front) llega a `db01` (data) a través del router, con las IP reales a ambos lados, y qué pasa cuando el router deja de reenviar. De camino queda creado el puesto de administración, la máquina de la subred de gestión desde la que se alcanzan las cuatro zonas y que se usa el resto del curso.
 
 <span class="et et-pre">Antes de empezar</span>
 
 - `router-dev` de la A2.3 funcionando, con `web01` en front (`10.10.1.10`) y `db01` en data (`10.10.3.10`).
+- La plantilla 9000 de la UT1 en el nodo, para clonar de ella el puesto de administración.
 - Tres terminales: `web01`, `db01` y el router.
 - Explicado en esta sesión: [enrutar frente a hacer NAT](#enrutar-frente-a-hacer-nat) y el reenvío IP del [router de entorno](#router-de-entorno). Para leer las salidas, el apartado [cómo se prueba una red](#como-se-prueba-una-red).
 
 <span class="et et-pas">Pasos</span>
 
-1. Comprueba que el router reenvía y que cada VM tiene su gateway correcto:
+1. Crea el puesto de administración. Es la VM 105 de la tabla de máquinas del laboratorio: vive en `devmgmt` con la 10.10.0.50, lleva 1 GB y no necesita escritorio, porque se trabaja contra ella por SSH. Nace hoy, con la subred de gestión ya montada, y se queda el resto del curso: en la UT3 es la máquina desde la que se administra el cortafuegos y se firma con la CA del curso, y en la UT5 la que ejecuta `tofu`.
+
+    **a.** Clónala de la plantilla 9000, con dos tarjetas: `net0` en `vmbr0`, la red del aula, y `net1` en `devmgmt`. Desde el nodo:
+
+    ```bash
+    qm clone 9000 105 --name admin01 --full
+    qm set 105 --memory 1024 --cores 1 \
+      --net0 virtio,bridge=vmbr0  --ipconfig0 ip=dhcp \
+      --net1 virtio,bridge=devmgmt --ipconfig1 ip=10.10.0.50/24
+    qm start 105
+    ```
+
+    **b.** La puerta de enlace por defecto le va por la tarjeta del aula, que es de donde sale Internet, y la subred de gestión la alcanza por estar conectada a ella. Para llegar a los `.1` de las otras tres zonas hace falta una ruta por el router del entorno. Dentro de la VM, mira primero con `ip -br a` cómo se llama la segunda tarjeta (en las VM del curso, `ens19`) y deja la ruta puesta para todos los arranques:
+
+    ```bash
+    sudo tee /etc/systemd/system/ruta-lab.service > /dev/null <<'EOF'
+    [Unit]
+    Description=Ruta hacia las zonas del laboratorio
+    After=network-online.target
+    Wants=network-online.target
+
+    [Service]
+    Type=oneshot
+    RemainAfterExit=yes
+    ExecStart=/sbin/ip route replace 10.10.0.0/16 via 10.10.0.1 dev ens19
+
+    [Install]
+    WantedBy=multi-user.target
+    EOF
+    sudo systemctl enable --now ruta-lab.service
+    ip -br a && ip route
+    ```
+
+    La ruta va en una unidad de systemd y no en `/etc/network/interfaces.d/`, porque la red de esta VM la escribe cloud-init y lo que se añada a mano a esos ficheros se pierde en cuanto los vuelve a generar. Apunta al `.1` de gestión, que hoy es `router-dev` y en la UT3 pasará a ser el cortafuegos: escrita así, no hay que volver a tocarla.
+
+    **c.** Comprueba que entras, que tiene salida y que la ruta funciona:
+
+    ```bash
+    ssh ops@<IP de aula de admin01>          # la que le haya dado el DHCP del aula
+    ping -c1 10.10.0.1 && ping -c1 deb.debian.org
+    ping -c1 10.10.1.1 && ping -c1 10.10.2.1 && ping -c1 10.10.3.1
+    ```
+
+    Los tres últimos salen por la ruta que acabas de poner y los contesta `router-dev` desde la pata de cada zona: es la misma travesía entre zonas que vas a medir en el resto de la hoja, vista desde gestión.
+
+    !!! ojo "Es la única VM con dos patas, y eso se paga"
+        Esta máquina tiene un pie en el aula y otro en gestión, así que lo que entra por ella no pasa por
+        el router del entorno, ni por el cortafuegos que lo releva en la UT3. Se acepta porque es el puesto
+        del administrador y porque sin él no hay forma de abrir desde el aula una consola que solo escuche
+        en gestión, pero es exactamente el tipo de máquina que en una empresa se llama bastión y se vigila
+        más que ninguna otra: acceso solo con clave, nada de servicios publicados y registro de quién
+        entra. Ninguna otra VM de servicio de la VPC lleva una segunda tarjeta.
+
+2. Comprueba que el router reenvía y que cada VM tiene su gateway correcto:
 
     ```bash
     # en el router
@@ -806,21 +860,21 @@ Evidencia: captura dig-db01.png
     ip r                                 # default via 10.10.1.1 (o 10.10.3.1)
     ```
 
-2. Deja algo escuchando en el 5432 de `db01` (PostgreSQL de verdad, con `listen_addresses = '*'`, queda como extensión):
+3. Deja algo escuchando en el 5432 de `db01` (PostgreSQL de verdad, con `listen_addresses = '*'`, queda como extensión):
 
     ```bash
     apt install netcat-openbsd
     nc -l -p 5432
     ```
 
-3. En el router, abre la captura en la pata de data y déjala corriendo:
+4. En el router, abre la captura en la pata de data y déjala corriendo:
 
     ```bash
     apt install tcpdump
     tcpdump -ni ens22 port 5432
     ```
 
-4. Desde `web01`, las tres pruebas de conectividad, en este orden:
+5. Desde `web01`, las tres pruebas de conectividad, en este orden:
 
     ```bash
     ping -c 3 db01.dev.lab
@@ -828,8 +882,8 @@ Evidencia: captura dig-db01.png
     nc -zv db01.dev.lab 5432
     ```
 
-5. En el router, copia las tres líneas del handshake (`[S]`, `[S.]`, `[.]`) y escribe debajo, en tres líneas, quién inicia, quién responde y con qué IP de origen llega el paquete a `db01`.
-6. Desactiva el reenvío y repite:
+6. En el router, copia las tres líneas del handshake (`[S]`, `[S.]`, `[.]`) y escribe debajo, en tres líneas, quién inicia, quién responde y con qué IP de origen llega el paquete a `db01`.
+7. Desactiva el reenvío y repite:
 
     ```bash
     # en el router
@@ -841,12 +895,12 @@ Evidencia: captura dig-db01.png
 
     Anota qué cambia: el `ping` deja de responder y el traceroute muestra `10.10.1.1` y después asteriscos. En el router, `tcpdump -ni ens20 icmp` enseña que los paquetes llegan por front y no salen por data.
 
-7. Vuelve a activar el reenvío (`sysctl -w net.ipv4.ip_forward=1`) y confirma con un `ping`.
-8. Rellena la plantilla del apartado de pruebas para la conectividad intra-entorno y para la captura de tráfico: dos de las cinco de la evaluable.
+8. Vuelve a activar el reenvío (`sysctl -w net.ipv4.ip_forward=1`) y confirma con un `ping`.
+9. Rellena la plantilla del apartado de pruebas para la conectividad intra-entorno y para la captura de tráfico: dos de las cinco de la evaluable.
 
-<span class="et et-com">Comprobación</span> El `traceroute` de `web01` a `db01` muestra un solo salto intermedio, `10.10.1.1`; `nc -zv` dice `succeeded`; la captura en `ens22` muestra origen `10.10.1.10` y destino `10.10.3.10`, sin NAT; con `ip_forward=0` el ping falla y el traceroute se queda en el router.
+<span class="et et-com">Comprobación</span> El puesto de administración responde a los cuatro `.1` y su `ip route` muestra `10.10.0.0/16 via 10.10.0.1 dev ens19` además de la ruta por defecto hacia el aula; el `traceroute` de `web01` a `db01` muestra un solo salto intermedio, `10.10.1.1`; `nc -zv` dice `succeeded`; la captura en `ens22` muestra origen `10.10.1.10` y destino `10.10.3.10`, sin NAT; con `ip_forward=0` el ping falla y el traceroute se queda en el router.
 
-<span class="et et-ent">Entrega</span> En `ut2/a24` del repositorio: la captura del handshake con tu explicación, los dos `traceroute` (con y sin reenvío) y las dos plantillas de prueba.
+<span class="et et-ent">Entrega</span> En `ut2/a24` del repositorio: el `ip route` del puesto de administración con los cuatro `ping` del paso 1, la captura del handshake con tu explicación, los dos `traceroute` (con y sin reenvío) y las dos plantillas de prueba.
 
 <span class="et et-ext">Si te sobra tiempo</span> Instala PostgreSQL en `db01` con `listen_addresses = '*'`, conecta desde `web01` con `psql -h db01.dev.lab -U postgres` y mira en `/var/log/postgresql/` desde qué IP dice que viene la conexión.
 
