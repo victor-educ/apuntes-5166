@@ -41,7 +41,7 @@ Un jueves por la tarde un compañero de otro grupo lanza desde su VM del aula un
 Cómo está organizada la unidad: sigue las seis sesiones en el orden en que se dan, y cada sesión trae primero la teoría que se explica ese día (con el material de consulta que necesita la hoja) y después su hoja de práctica. En la sesión 14 se explica el modelo de zonas y el cortafuegos con estado, y se instala OPNsense con una interfaz por zona. En la 15 se aprenden las reglas, los aliases y el NAT, y se publica la primera web con certificado de una CA propia. En la 16 se completa la cadena proxy, aplicación y base de datos con las reglas mínimas entre capas, y en la 17 se añaden dos clientes en VLAN que comparten el proxy sin verse. La 18 ejecuta la matriz de pruebas con nmap, nc y tcpdump, y la 19 cierra el informe de la práctica evaluable. Al final quedan, como consulta, los errores frecuentes del laboratorio.
 
 !!! otra "Dónde se usa esto en la otra asignatura"
-    La [UT3 de Mantenimiento, seguridad de la monitorización](https://victor-educ.github.io/apuntes-5169/ut/ut3-seguridad-monitorizacion/) (26 nov a 10 dic) va en paralelo con esta (20 nov a 9 dic) y da por sabido lo que se explica aquí: nmap, tcpdump, nftables, la CA del curso y las reglas de OPNsense se aprenden en esta quincena y allí se aplican a los puertos de la monitorización.
+    La [UT3 de Mantenimiento, seguridad de la monitorización](https://victor-educ.github.io/apuntes-5169/ut/ut3-seguridad-monitorizacion/) (26 nov a 3 dic) va en paralelo con esta (20 nov a 9 dic) y da por sabido lo que se explica aquí: nmap, tcpdump, nftables, la CA del curso y las reglas de OPNsense se aprenden en esta quincena y allí se aplican a los puertos de la monitorización.
     Hasta ahora app01 y mon01 vivían en el entorno provisional del bridge del aula (vmbr0); esta unidad es el momento de moverlas a la VPC dev, detrás del firewall de la sesión 14: app01 a devback con la 10.10.2.10 y mon01 a devmgmt con la 10.10.0.20. Ninguna de las dos lleva una segunda tarjeta de gestión: la monitorización llega a app01 y a db01 atravesando el cortafuegos, que es justo lo que se aprende a permitir aquí.
     La matriz de reglas de la sección de documentación es la que en la 5169 se amplía con los puertos de los exporters (9100, 8081, 9187) desde mon01 y el 3100 de Loki desde cada host: allí no se hace una matriz nueva, se añaden filas a esta.
 
@@ -1010,6 +1010,9 @@ Checklist antes de entregar:
 | Pruebas de seguridad y aislamiento ejecutadas y documentadas | 30 % |
 | Separación de clientes demostrada | 20 % |
 | Matriz de reglas justificada y procedimiento | 20 % |
+
+!!! examen "Lo que viene después no es una unidad nueva"
+    Esta entrega cierra la UT3 y con ella la primera evaluación. El 11 de diciembre hay examen: una prueba teórico-práctica en el laboratorio sobre la UT1, la UT2 y la UT3, que pesa el 60 % de la nota de la evaluación. Entra todo lo que se ha montado a mano hasta hoy: hipervisor y plantilla cloud-init, VPC con SDN y direccionamiento, DHCP y DNS propios, cortafuegos por zonas, publicación con proxy inverso y TLS, separación de clientes y pruebas de aislamiento. Repasa con las tres unidades y con las prácticas evaluables ya entregadas. La UT5, infraestructura como código, no empieza hasta el 16 de diciembre.
 
 ## Errores frecuentes en el laboratorio
 

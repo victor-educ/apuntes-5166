@@ -2,7 +2,7 @@
 
 <p class="ut-meta">12 h · Formación en empresa (19 abr a 9 jun 2027) · RA2 CE a, b, c, d, e</p>
 
-Esta unidad no se cursa en el centro. Se hace en la empresa, durante el periodo de formación, y la plataforma la decide el tutor de empresa: puede ser AWS, Azure, Google Cloud o alguna alternativa europea (OVHcloud, Hetzner, Scaleway). Lo que sigue es la guía de referencia que conviene llevar leída el primer día y la lista de evidencias que hay que traer de vuelta. Hasta aquí, en las UT1 a UT3, todo se ha montado a mano sobre Proxmox: hipervisor, VPC con subredes, OPNsense, DMZ, proxy inverso. La nube pública es ese mismo diseño alquilado por horas y expuesto por API (una interfaz a la que un programa le pide por HTTP que cree o liste recursos). A la vuelta, en la UT5 (OpenTofu) y la UT6 (Jenkins), se automatiza sobre esa API lo que aquí se hace con la consola, la CLI (la herramienta de línea de comandos del proveedor) y el SDK (la librería para hacer lo mismo desde código), así que conviene salir de la empresa con perfiles de CLI funcionando y credenciales bien gestionadas.
+Esta unidad no se cursa en el centro. Se hace en la empresa, durante el periodo de formación, y la plataforma la decide el tutor de empresa: puede ser AWS, Azure, Google Cloud o alguna alternativa europea (OVHcloud, Hetzner, Scaleway). Lo que sigue es la guía de referencia que conviene llevar leída el primer día y la lista de evidencias que hay que entregar al terminar. En el centro, de la UT1 a la UT3, todo se ha montado a mano sobre Proxmox: hipervisor, VPC con subredes, OPNsense, DMZ, proxy inverso. La nube pública es ese mismo diseño alquilado por horas y expuesto por API (una interfaz a la que un programa le pide por HTTP que cree o liste recursos). Sobre la API de Proxmox ya trabajaron la UT5 (OpenTofu) y la UT6 (Jenkins), así que lo que aquí se hace con la consola, la CLI (la herramienta de línea de comandos del proveedor) y el SDK (la librería para hacer lo mismo desde código) es el mismo camino recorrido contra la API del proveedor de nube: conviene llegar a la empresa con ese trabajo reciente y salir de ella con perfiles de CLI funcionando y credenciales bien gestionadas.
 
 ## Introducción
 
@@ -366,7 +366,7 @@ Los tres tienen un terminal dentro de la consola:
 - **Azure Cloud Shell**: Bash o PowerShell con `az`, `terraform`, `kubectl` y muchas cosas más. La primera vez pide un storage account para el directorio personal (o una sesión efímera sin persistencia). Se abre desde el icono de terminal del portal o en `shell.azure.com`.
 - **Google Cloud Shell**: una VM pequeña con `gcloud`, `kubectl`, `docker` y editores, 5 GB de directorio personal persistente y ya autenticada. Se abre desde el icono de terminal de la consola.
 
-Para las actividades A4.3 y A4.4 el shell integrado vale y ahorra problemas de instalación, pero tiene un límite claro: las credenciales viven ahí dentro, así que para la A4.5 (SDK en el proyecto de la empresa) o para la UT5 hace falta la CLI en la máquina donde esté el código.
+Para las actividades A4.3 y A4.4 el shell integrado vale y ahorra problemas de instalación, pero tiene un límite claro: las credenciales viven ahí dentro, así que para la A4.5 (SDK en el proyecto de la empresa), o para lanzar OpenTofu como se hizo en la UT5, hace falta la CLI en la máquina donde esté el código.
 
 ### Etiquetas y costes
 
@@ -425,7 +425,7 @@ Al acabar este bloque la CLI del proveedor está instalada donde diga la empresa
 
 ### La CLI a fondo
 
-Aquí está el grueso de la unidad: instalar la CLI, autenticarse sin claves permanentes, comprobar la identidad, guardar un perfil por entorno y filtrar las respuestas. Es lo que evalúan los CE 2c y 2d, y lo que la UT5 (OpenTofu) da por hecho a la vuelta al centro.
+Aquí está el grueso de la unidad: instalar la CLI, autenticarse sin claves permanentes, comprobar la identidad, guardar un perfil por entorno y filtrar las respuestas. Es lo que evalúan los CE 2c y 2d, y el equivalente en la nube de lo que la UT5 (OpenTofu) hizo en el centro contra la API de Proxmox.
 
 Las tres CLI siguen el mismo patrón: `herramienta servicio recurso verbo --opciones` (`aws ec2 describe-vpcs`, `az network vnet list`, `gcloud compute networks list`). Las tres guardan la configuración en el directorio personal, aceptan variables de entorno que la sobrescriben y devuelven JSON que se puede filtrar. Lo que cambia es la ortografía.
 

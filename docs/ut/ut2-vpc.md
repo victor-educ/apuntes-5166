@@ -38,7 +38,7 @@ Cómo está organizada la unidad: conviene seguir las sesiones en orden, y cada 
 
 !!! otra "Dónde se usa esto en la otra asignatura"
     Mientras se cursa esta unidad (28 oct a 18 nov), en Mantenimiento toca la [UT2 de alarmas](https://victor-educ.github.io/apuntes-5169/ut/ut2-alarmas/) con `app01` y `mon01`, las dos VM del bridge del aula (`vmbr0`) clonadas en la UT1. Están ahí de forma provisional porque la VPC que se construye aquí no existía.
-    Cuando la VPC dev esté terminada, esas dos VM se mueven a sus subredes: `app01` a back (`10.10.2.10`) y `mon01` a gestión (`10.10.0.20`). `app01` lleva una sola tarjeta, la de su zona: las máquinas de servicio no tienen pata de gestión, y Prometheus llega a sus exporters atravesando el cortafuegos que se monta en la UT3. El traslado se hace en la [UT3 de Mantenimiento](https://victor-educ.github.io/apuntes-5169/ut/ut3-seguridad-monitorizacion/) (26 nov a 10 dic), que coincide con la UT3 de aquí y aprovecha que ya hay cortafuegos.
+    Cuando la VPC dev esté terminada, esas dos VM se mueven a sus subredes: `app01` a back (`10.10.2.10`) y `mon01` a gestión (`10.10.0.20`). `app01` lleva una sola tarjeta, la de su zona: las máquinas de servicio no tienen pata de gestión, y Prometheus llega a sus exporters atravesando el cortafuegos que se monta en la UT3. El traslado se hace en la [UT3 de Mantenimiento](https://victor-educ.github.io/apuntes-5169/ut/ut3-seguridad-monitorizacion/) (26 nov a 3 dic), que coincide con la UT3 de aquí y aprovecha que ya hay cortafuegos.
     Por eso conviene que las reservas por MAC y los registros DNS de `dev.conf` incluyan a `app01` y `mon01` desde ahora: al llegar a la VPC tienen que seguir llamándose igual, o Prometheus dejará de encontrar sus targets.
 
 ### Plan de sesiones

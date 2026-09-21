@@ -1,6 +1,6 @@
 # Despliegue de plataformas de contenedores
 
-<p class="ut-meta">Apuntes de la asignatura · Curso de especialización · 120 h (90 en el centro, 30 en empresa) · Curso 2026-27</p>
+<p class="ut-meta">Apuntes de la asignatura · Curso de especialización · 120 h oficiales (90 en el centro, 30 en empresa) · 43 sesiones en el centro · Curso 2026-27</p>
 
 Aquí están los apuntes de toda la asignatura, unidad por unidad, con las actividades de cada sesión y las prácticas evaluables. Es el mismo material que se trabaja en clase, ampliado con lo que no cabe en dos horas y con enlaces a la documentación oficial para no quedarse en lo que se explica en clase. La asignatura hermana, [Mantenimiento del sistema de contenedores](https://victor-educ.github.io/apuntes-5169/), tiene su propio sitio con la misma estructura.
 
@@ -57,7 +57,7 @@ Cada unidad se apoya en la anterior: la red de la UT2 es donde la UT3 pone el co
 
     ---
 
-    Las 45 sesiones del curso con fecha, unidad y lo que se hace en cada una. La vista de calendario muestra el detalle al pasar el ratón y lleva a la actividad con un clic. Incluye festivos y el periodo de formación en empresa.
+    Las 43 sesiones del curso con fecha, unidad y lo que se hace en cada una. La vista de calendario muestra el detalle al pasar el ratón y lleva a la actividad con un clic. Incluye festivos y el periodo de formación en empresa.
 
 -   :material-school: **[Presentación y evaluación](modulo.md)**
 
@@ -112,11 +112,11 @@ Cada unidad se apoya en la anterior: la red de la UT2 es donde la UT3 pone el co
 | [UT3](ut/ut3-seguridad-por-capas.md) | Seguridad por capas: DMZ externa, DMZ interna y zona interna | 12 | Centro | RA1 d |
 | [UT4](ut/ut4-nube-publica.md) | Nube pública: consola, CLI y SDK | 12 | Empresa | RA2 a–e |
 | [UT5](ut/ut5-iac.md) | Infraestructura como código (OpenTofu + Ansible) | 18 | Centro | RA3 a–d |
-| [UT6](ut/ut6-ci.md) | Orquestador de integración continua (Jenkins / GitLab CI) | 24 | Centro | RA4 a–h |
+| [UT6](ut/ut6-ci.md) | Orquestador de integración continua (Jenkins / GitLab CI) | 20 | Centro | RA4 a–h |
 | [UT7](ut/ut7-monitorizacion.md) | Monitorización: Prometheus + Grafana | 6 + 12 | Centro + Empresa | RA4 i, j, k |
 | UT8 | Proyecto integrador y puesta en producción | 6 | Empresa | Todos |
 
-Los exámenes de evaluación van después de la UT5 (primera evaluación, 29 de enero de 2027) y después de la UT7 (segunda evaluación, 16 de abril de 2027); las dos sesiones de examen son las 4 h que faltan para las 120 del módulo.
+Los exámenes de evaluación van después de la UT3 (primera evaluación, 11 de diciembre de 2026) y después de la UT7 (segunda evaluación, 9 de abril de 2027, que es además la última sesión en el centro). El módulo son 120 h oficiales, 90 en el centro y 30 en la empresa; el calendario del curso 2026-27 deja 43 sesiones, o sea 86 h en el centro, porque las clases terminan el 9 de abril. Las dos sesiones de examen están dentro de esas 86 h.
 
 ## Cómo usar estos apuntes
 

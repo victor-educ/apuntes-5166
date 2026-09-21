@@ -1,6 +1,6 @@
 # Presentación y evaluación
 
-<p class="ut-meta">Módulo 5166 · Despliegue de plataformas de ejecución de contenedores · 120 h · Clases miércoles y viernes, 1 h 50 min por sesión</p>
+<p class="ut-meta">Módulo 5166 · Despliegue de plataformas de ejecución de contenedores · 120 h oficiales · 43 sesiones de 1 h 50 min en el centro, miércoles y viernes</p>
 
 ## De qué va el módulo
 
@@ -58,14 +58,14 @@ El currículo define cuatro resultados de aprendizaje. Las tablas siguientes los
 
 ## Cómo se evalúa
 
-La nota sale de tres cosas: las prácticas evaluables de cada unidad, dos exámenes teórico-prácticos en el laboratorio y la formación en empresa.
+La nota sale de tres cosas: las prácticas evaluables de cada unidad, dos exámenes teórico-prácticos en el laboratorio y la formación en empresa. El primer examen cierra la UT3 y con ella la primera evaluación; el segundo cierra la UT7 y es además la última sesión del curso en el centro.
 
 | Evaluación | Qué entra | Peso |
 |------------|-----------|-----:|
-| Prácticas evaluables UT1, UT2, UT3, UT5 | Informe o repositorio al cierre de cada unidad | 40 % de la 1ª evaluación |
-| Examen 1ª evaluación (29 ene 2027) | UT1 a UT5, prueba práctica en el laboratorio | 60 % de la 1ª evaluación |
-| Prácticas evaluables UT6, UT7 | Repositorios y informes de pruebas | 40 % de la 2ª evaluación |
-| Examen 2ª evaluación (16 abr 2027) | UT6 y UT7, prueba práctica en el laboratorio | 60 % de la 2ª evaluación |
+| Prácticas evaluables UT1, UT2 y UT3 | Informe o repositorio al cierre de cada unidad | 40 % de la 1ª evaluación |
+| Examen 1ª evaluación (11 dic 2026) | UT1, UT2 y UT3, prueba práctica en el laboratorio | 60 % de la 1ª evaluación |
+| Prácticas evaluables UT5, UT6 y UT7 | Repositorios, informe de pruebas y panel exportado | 40 % de la 2ª evaluación |
+| Examen 2ª evaluación (9 abr 2027) | UT5, UT6 y UT7, prueba práctica en el laboratorio | 60 % de la 2ª evaluación |
 | Formación en empresa | UT4, UT7b y UT8 con ficha de evidencias firmada por el tutor | Según el plan de FE del centro |
 
 Cada práctica evaluable lleva su tabla de criterios y pesos al final de la unidad. Se entrega en la fecha de la sesión marcada; una entrega fuera de plazo sin causa justificada se corrige sobre el 50 %.
