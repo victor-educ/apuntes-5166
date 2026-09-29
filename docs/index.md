@@ -16,7 +16,7 @@ Estos son los conceptos que vertebran el curso, en el orden en que aparecen:
 - **Nube pública.** La misma infraestructura alquilada por horas: consola, línea de comandos y SDK de AWS, Azure o Google Cloud. Se trabaja en la empresa.
 - **Infraestructura como código.** Todo lo anterior escrito en ficheros que OpenTofu y Ansible aplican de forma reproducible, versionado en Git, probado y escaneado en busca de errores de seguridad.
 - **Integración continua.** Un orquestador (Jenkins) que, con cada cambio en el repositorio, construye, prueba, empaqueta y despliega el servicio, con gestión de errores y mínimo privilegio.
-- **Monitorización.** Prometheus recogiendo métricas de hosts, contenedores y del propio orquestador, Grafana mostrándolas y una alerta que llega al móvil cuando algo se cae.
+- **Monitorización.** Sobre la pila de Prometheus y Grafana que monta la asignatura hermana, las métricas de hosts, contenedores y del propio orquestador, un panel con los indicadores de la plataforma y una alerta que llega por correo cuando algo se cae.
 
 ```mermaid
 flowchart LR
@@ -112,11 +112,11 @@ Cada unidad se apoya en la anterior: la red de la UT2 es donde la UT3 pone el co
 | [UT3](ut/ut3-seguridad-por-capas.md) | Seguridad por capas: DMZ externa, DMZ interna y zona interna | 12 | Centro | RA1 d |
 | [UT4](ut/ut4-nube-publica.md) | Nube pública: consola, CLI y SDK | 12 | Empresa | RA2 a–e |
 | [UT5](ut/ut5-iac.md) | Infraestructura como código (OpenTofu + Ansible) | 18 | Centro | RA3 a–d |
-| [UT6](ut/ut6-ci.md) | Orquestador de integración continua (Jenkins / GitLab CI) | 20 | Centro | RA4 a–h |
-| [UT7](ut/ut7-monitorizacion.md) | Monitorización: Prometheus + Grafana | 6 + 12 | Centro + Empresa | RA4 i, j, k |
-| UT8 | Proyecto integrador y puesta en producción | 6 | Empresa | Todos |
+| [UT6](ut/ut6-ci.md) | Orquestador de integración continua (Jenkins) | 18 | Centro | RA4 a–h |
+| [UT7](ut/ut7-monitorizacion.md) | Monitorización: Prometheus + Grafana | 4 + 12 | Centro + Empresa | RA4 i, j, k |
+| [UT8](modulo.md#formacion-en-empresa) | Proyecto integrador y puesta en producción | 6 | Empresa | Todos |
 
-Los exámenes de evaluación van después de la UT3 (primera evaluación, 11 de diciembre de 2026) y después de la UT7 (segunda evaluación, 9 de abril de 2027, que es además la última sesión en el centro). El módulo son 120 h oficiales, 90 en el centro y 30 en la empresa; el calendario del curso 2026-27 deja 43 sesiones, o sea 86 h en el centro, porque las clases terminan el 9 de abril. Las dos sesiones de examen están dentro de esas 86 h.
+Los exámenes de evaluación van después de la UT3 (primera evaluación, 11 de diciembre de 2026) y después de la UT7 (segunda evaluación, 24 de marzo de 2027, que entra UT5, UT6 y UT7), así que la teoría y los exámenes terminan antes de Pascua. Después de Pascua, las dos últimas sesiones (7 y 9 de abril) se dedican a un proyecto conjunto con el resto de asignaturas del curso, que se plantea aparte. El módulo son 120 h oficiales, 90 en el centro y 30 en la empresa; el calendario del curso 2026-27 deja 43 sesiones, o sea 86 h en el centro, porque la semana del 12 al 16 de abril ya no tiene clase. Las dos sesiones de examen y las dos de proyecto están dentro de esas 86 h.
 
 ## Cómo usar estos apuntes
 
