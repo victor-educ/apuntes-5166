@@ -390,6 +390,65 @@ Desde el 27 de noviembre app01 llega a Gitea por la fila 6 de la [matriz de regl
 
 Ninguno puede contener un secreto: `.env` y `secrets/` van en `.gitignore` desde el primer commit, y desde la A5.8 (27 ene) gitleaks corre como hook de pre-commit en `iac-lab`.
 
+## Cómo se monta MinIO
+
+Lo monta cada alumno en el paso 1 de la A5.2 (18 de diciembre), salvo que el profesor lo monte para toda el aula: entonces basta con apuntar el endpoint, la clave y el secreto que dé, y comprobar con `mc ls` que se ven `tfstate` y `backups`. Va como un contenedor más de la pila de `mon01` y no como VM propia porque la máquina ya tiene Docker, está encendida desde octubre y así el presupuesto de memoria no sube. Fuera de un laboratorio no se juntaría el almacén de copias con la máquina que vigila: si se pierde `mon01`, se pierden a la vez la monitorización y las copias. En una empresa es un servicio aparte, con versionado y Object Lock, que es lo que comprueba la UT6 de Mantenimiento.
+
+**La segunda dirección.** La `10.10.0.30` se añade a la tarjeta de gestión de `mon01` (en las VM del curso, `ens18`) con una unidad de systemd, igual que la ruta del puesto de administración en la A2.4, para no depender de los ficheros de red que escribe cloud-init. El `Before=docker.service` asegura que la dirección existe antes de que arranque el contenedor; sin él, Docker falla con `cannot assign requested address`.
+
+```bash
+sudo tee /etc/systemd/system/ip-minio.service > /dev/null <<'EOF'
+[Unit]
+Description=Segunda dirección de mon01 para MinIO
+After=network-online.target
+Wants=network-online.target
+Before=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/sbin/ip addr replace 10.10.0.30/24 dev ens18
+
+[Install]
+WantedBy=multi-user.target
+EOF
+sudo systemctl enable --now ip-minio.service
+```
+
+**El servicio.** Va en el `compose.yml` de `/opt/monitoring`, con `minio_data:` declarado en `volumes:`. El puerto se publica solo en la dirección nueva, para que la pila de monitorización siga en la `10.10.0.20`. La contraseña de `admin` va en el `.env` junto al `compose.yml`, en 600 y en el `.gitignore` del repositorio `monitoring`. La ruta interna es `/almacen` para no confundirla con el `/data` de `db01`.
+
+```yaml
+  minio:
+    image: quay.io/minio/minio:latest
+    command: server /almacen --console-address ":9001"
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?ponla en el .env}
+    ports:
+      - "10.10.0.30:9000:9000"
+      - "10.10.0.30:9001:9001"
+    volumes:
+      - minio_data:/almacen
+```
+
+**Buckets y credenciales.** `mc`, el cliente de MinIO, se usa como contenedor de un solo uso. Los secretos de `tofu` y `restic` van al gestor de contraseñas del puesto de administración: el de `tofu` lo pide la A5.4 y el de `restic`, la A7.4 de Mantenimiento.
+
+```bash
+cd /opt/monitoring && docker compose up -d minio
+set -a; . ./.env; set +a               # trae MINIO_ROOT_PASSWORD a esta terminal
+M="docker run --rm --network host -e MC_HOST_lab=http://admin:$MINIO_ROOT_PASSWORD@10.10.0.30:9000 quay.io/minio/mc"
+$M mb lab/tfstate                      # el estado de OpenTofu
+$M mb lab/backups                      # las copias restic de Mantenimiento
+$M admin user add lab tofu   'CambiaEsteSecreto1'
+$M admin user add lab restic 'CambiaEsteSecreto2'
+$M admin policy attach lab readwrite --user tofu
+$M admin policy attach lab readwrite --user restic
+$M ls lab                              # tfstate y backups
+```
+
+Desde el puesto de administración, `curl -s -o /dev/null -w '%{http_code}\n' http://10.10.0.30:9000/minio/health/live` tiene que responder `200`.
+
 ## Cuando algo se rompe
 
 Se va a romper. Es parte del módulo. El orden de recuperación, de menos a más drástico:

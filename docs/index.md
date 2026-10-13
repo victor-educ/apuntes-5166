@@ -51,7 +51,7 @@ Cada unidad se apoya en la anterior: la red de la UT2 es donde la UT3 pone el co
 
     ---
 
-    Los apuntes de las siete unidades. Cada una empieza con una introducción (qué hay que saber hacer al terminar, los conceptos y herramientas que aparecen, el plan de sesiones) y sigue con las sesiones en orden: en cada una, la teoría que se explica ese día y, a continuación, su hoja de práctica. La práctica evaluable cierra la unidad con su rúbrica.
+    Los apuntes de las siete unidades. Cada una empieza con un par de párrafos sobre lo que se busca y sigue con las sesiones en orden: en cada una, la teoría que se explica ese día y, a continuación, su hoja de práctica. La práctica evaluable cierra la unidad con su rúbrica.
 
 -   :material-calendar-month: **[Calendario de sesiones](calendario.md)**
 

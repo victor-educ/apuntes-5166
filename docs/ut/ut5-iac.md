@@ -2,60 +2,7 @@
 
 <p class="ut-meta">18 h · Sesiones 21 a 29 · RA3 CE a, b, c, d</p>
 
-En la UT2 la VPC se montó dos veces: primero a mano en la consola de Proxmox, y después con un script bash, el de la [A2.6](ut2-vpc.md#a26-script-de-creacion-sesion-12), que repetía los mismos pasos. El script fue un avance, pero tiene un defecto de fondo: describe cómo llegar, no dónde hay que estar. Ejecutado dos veces crea las cosas dos veces (o falla), y si alguien toca una VM a mano, el script no se entera. En esta unidad cambia el enfoque: se escribe en ficheros de texto el estado deseado (tres VM con estas CPU, estas IP, en estos puentes) y una herramienta calcula y aplica la diferencia. El playbook y el script de pruebas que salen de aquí son lo que ejecuta el pipeline de Jenkins en UT6 al desplegar en `pre`. Es la primera de las tres unidades que entran en la segunda evaluación, cuyo examen es la sesión 41, el 24 de marzo de 2027.
-
-## Introducción
-
-Esta unidad se lee en el orden en que se da en clase: primero los conceptos y las herramientas que se manejan, y después las ocho sesiones una detrás de otra, cada una con la teoría que se explica ese día y su hoja de práctica.
-
-### Qué tienes que saber hacer al terminar
-
-- Recoger los requisitos de un servicio (cómputo, memoria, disco, red, disponibilidad, backup) y convertirlos en variables tipadas y validadas, no en números sueltos por el código (CE a).
-- Escribir código OpenTofu/Terraform funcional, dividido en módulos y con entornos separados, que aplicado dos veces no cambia nada, y un playbook de Ansible que deja el servicio corriendo con la misma propiedad (CE b).
-- Encadenar despliegue, configuración, smoke tests y comprobación de configuración en un script que devuelve 0 o distinto de 0, y saber leer un plan antes de aplicarlo (CE c).
-- Pasar checkov, trivy y gitleaks sobre el repositorio, corregir o justificar cada hallazgo, y tener el token de la API fuera del código y del historial de Git (CE d).
-
-### Los conceptos de la unidad
-
-Un jueves de diciembre, a las tres de la tarde, el nodo Proxmox del aula se reinicia por una actualización y la VPC dev montada en noviembre vuelve sin dos de las tres VM. Quien las creó a mano en UT2 tiene que recordar la RAM, el puente, la IP y la clave SSH de cada una, y pierde una tarde en dejarlo parecido. Con el script de la A2.6 va más rápido, pero el script no sabe qué sobrevivió: o se lanza entero y crea duplicados, o hay que ir comentando líneas. Lo que se busca cabe en una frase: que cualquiera del grupo, con un `git clone` y tres comandos, levante el entorno completo con el servicio funcionando, y que un script diga si está bien.
-
-| Herramienta o concepto | Qué es, en una frase | Para qué se usa en esta unidad |
-|----|----|----|
-| OpenTofu (y Terraform) | Programa que lee ficheros con la infraestructura deseada, la compara con lo que existe y crea, cambia o borra lo que haga falta | Crear las VM del servicio en Proxmox a partir de código |
-| HCL | El lenguaje de esos ficheros: bloques con atributos, parecido a un JSON con variables | Todo el código `.tf` de la unidad |
-| Provider (bpg/proxmox) | El complemento que enseña a OpenTofu a hablar con una plataforma, como un driver de impresora | Que OpenTofu sepa crear y borrar VM en el Proxmox del aula |
-| Estado y backend remoto (MinIO) | El fichero donde OpenTofu apunta qué ha creado; el backend es dónde se guarda, y MinIO un servidor de ficheros compatible con S3 | Que OpenTofu recuerde qué VM son suyas y que dos personas no se pisen |
-| cloud-init | Lo que configura una VM recién clonada en su primer arranque (IP, usuario, clave SSH), visto en UT1 | Que las VM nazcan accesibles por SSH sin tocar la consola |
-| Ansible | Programa que entra por SSH en las máquinas y las deja como se le pide (paquetes, ficheros, servicios), sin instalar nada en ellas | Dejar PostgreSQL en `db01` y el servicio del curso en `app01` de `pre` |
-| Playbook e inventario | El playbook es la lista de tareas en YAML; el inventario, la lista de máquinas y sus grupos | Decir a Ansible qué hacer y en qué hosts |
-| Ansible Vault, sops y age | Formas de guardar contraseñas cifradas dentro del repositorio | Saber elegir dónde vive un secreto; en el laboratorio la contraseña de la base no entra en Git, y cifrarla es el «Si te sobra tiempo» de la A5.8 |
-| checkov y trivy config | Escáneres que leen el código y avisan de configuraciones inseguras, como un corrector ortográfico de seguridad | Encontrar puertos abiertos de más, versiones sin fijar y permisos excesivos |
-| gitleaks | Escáner que busca contraseñas y tokens en los ficheros y en todo el historial de Git | Comprobar que ningún secreto ha entrado en el repositorio |
-| pre-commit | Programa que ejecuta comprobaciones antes de cada commit y lo bloquea si fallan | Que un commit con un token dentro no llegue a existir |
-| jq | Filtro de JSON para la línea de comandos | Convertir las salidas de OpenTofu en el inventario de Ansible |
-
-**Cómo está organizada la unidad.** La unidad sigue las sesiones en orden y cada sesión trae primero la teoría que se explica y después su hoja de práctica. Todo se trabaja desde el puesto de administración. En la sesión 21 se instala OpenTofu y se crea y se destruye una VM para ver el ciclo `init`, `plan`, `apply`; en la 22 se monta MinIO y se pasa de los requisitos del servicio a variables con validación, y en la 23 se abre el camino de gestión hasta `pre`, se despliegan con el provider de Proxmox sus tres VM y se aprende a leer un plan. En la 24 la VM se empaqueta en un módulo, los entornos se separan en directorios y el estado pasa a MinIO con bloqueo. En la 25 Ansible deja PostgreSQL en `db01` y el servicio en `app01`; en la 26 un `test.sh` encadena despliegue, configuración y pruebas con un código de salida; en la 27 se escanea el repositorio y en la 28 se corrigen los hallazgos. La sesión 29 cierra el repositorio como práctica evaluable, y al final de la página queda la lista de errores frecuentes para consultar durante el trabajo.
-
-!!! otra "Dónde se usa esto en la otra asignatura"
-    - Esta unidad coincide con la [UT4 de Mantenimiento (KPI y pruebas)](https://victor-educ.github.io/apuntes-5169/ut/ut4-kpi-pruebas/), del 15 de diciembre al 28 de enero. Allí se prueba el servicio en `dev`, que por eso sigue encendido todo enero; aquí se crea desde código el entorno `pre`.
-    - El entorno `pre` que se despliega en A5.3, se organiza en A5.4 (`envs/pre`) y recibe PostgreSQL y el servicio en A5.5 no es un ejercicio de un día: es el que la [UT7 de Mantenimiento](https://victor-educ.github.io/apuntes-5169/ut/ut7-actualizacion-vulnerabilidades/) estrena y actualiza en febrero (A7.4, 11 de febrero). A principios de febrero tiene que existir, desplegado con `tofu apply` y el playbook desde el repositorio y no a mano.
-    - La [UT8 de Mantenimiento](https://victor-educ.github.io/apuntes-5169/ut/ut8-terminacion-segura/) (del 25 de febrero al 18 de marzo) da de baja ese entorno: el 11 de marzo, en su A8.3, retira el `prevent_destroy` que se pone aquí en la A5.3 y lanza `tofu destroy`. Necesita el repositorio `iac-lab`, el estado remoto y el token de `terraform@pve` tal como quedan aquí. El estado no se borra al terminar la práctica evaluable.
-
-### Plan de sesiones
-
-Cada sesión de 110 minutos empieza con una explicación corta y sigue con laboratorio. La columna «Se explica» recoge los apartados de teoría que se desarrollan en clase, con su duración aproximada; la columna «Se practica», el trabajo de laboratorio de esa sesión. Las sesiones marcadas solo como práctica no traen teoría nueva.
-
-| Sesión | Fecha | Tipo | Se explica | Se practica |
-|---:|-------|------|------------|-------------|
-| [21](#sesion-21-iac-conceptos-y-primer-despliegue) | 16 dic | Teoría y práctica | Qué es IaC, declarativo frente a imperativo e idempotencia (15 min); OpenTofu, el ciclo init, plan, apply, cómo leer un plan y el proyecto mínimo (15 min). | En el puesto de administración: instalar OpenTofu, crear terraform@pve con su token, iniciar iac-lab con su remoto en Gitea y un proyecto mínimo que clona la plantilla; init, plan, apply, plan otra vez, destroy. |
-| [22](#sesion-22-requisitos-y-variables) | 18 dic | Teoría y práctica | De los requisitos del servicio a variables tipadas con validación (15 min). | Montar MinIO en mon01 para el estado y las copias; rellenar la tabla de requisitos del servicio y escribir variables.tf con tipos, descripciones y validaciones. |
-| [23](#sesion-23-vm-con-opentofu) | 8 ene | Teoría y práctica | El lenguaje HCL: tipos, for_each y funciones (10 min); el provider bpg/proxmox con una VM completa y el camino de gestión a pre (10 min). | Abrir el camino de gestión a pre por router-pre; desplegar web01, app01 y db01 de pre con cloud-init, IP fija y prevent_destroy; comprobar en el plan que cambiar la memoria de app01 solo toca ese recurso. |
-| [24](#sesion-24-modulos-y-estado) | 13 ene | Teoría y práctica | Módulos y estructura del repositorio por entornos (5 min); el estado, el backend remoto en MinIO con bloqueo y cómo mover recursos (15 min). | Extraer el módulo vm, configurar el backend en MinIO, crear envs/dev y envs/pre. |
-| [25](#sesion-25-ansible) | 15 ene | Teoría y práctica | Inventario, playbooks, módulos idempotentes, roles y Vault (25 min). | Inventario desde tofu output, playbook que deja PostgreSQL en db01 y el servicio en app01 de pre; ejecutarlo dos veces y capturar que la segunda no cambia nada. |
-| [26](#sesion-26-pruebas-del-despliegue) | 20 ene | Teoría y práctica | Niveles de prueba del IaC, smoke tests y el test.sh de la unidad (15 min). | Poner en marcha test.sh, que encadena apply, playbook, smoke tests y chequeo de configuración; bajar la vCPU de db01 y parar el servicio para ver que devuelve error. |
-| [27](#sesion-27-escaneo-de-seguridad) | 22 ene | Teoría y práctica | Errores típicos del IaC; checkov, trivy config y gitleaks; cómo leer y suprimir un hallazgo (15 min). | Ejecutar checkov, trivy config y gitleaks sobre el repositorio, clasificar los hallazgos, comprobar con fallos provocados que los escáneres los ven, y tabularlos con su riesgo y la corrección prevista. |
-| [28](#sesion-28-correccion-de-hallazgos) | 27 ene | Teoría y práctica | Dónde viven los secretos (entorno, Ansible Vault, sops, Vault); qué hacer cuando gitleaks encuentra uno; .gitignore y pre-commit (10 min). | Corregir los hallazgos altos y críticos, justificar el resto, rotar el token si gitleaks lo encuentra en el historial e instalar pre-commit con gitleaks. |
-| [29](#sesion-29-practica-evaluable) | 29 ene | Práctica evaluable | Aclaración del enunciado (10 min). | Cerrar el repositorio IaC: README, código modular con dos entornos, playbook, test.sh e informe de seguridad. |
+En la UT2 la VPC se montó dos veces: primero a mano en la consola de Proxmox, y después con un script bash, el de la [A2.6](ut2-vpc.md#a26-script-de-creacion-sesion-12), que repetía los mismos pasos. El script fue un avance, pero tiene un defecto de fondo: describe cómo llegar, no dónde hay que estar. Ejecutado dos veces crea las cosas dos veces (o falla), y si alguien toca una VM a mano, el script no se entera. En esta unidad cambia el enfoque: se escribe en ficheros de texto el estado deseado (tres VM con estas CPU, estas IP, en estos puentes) y una herramienta calcula y aplica la diferencia. El playbook y el script de pruebas que salen de aquí son lo que ejecuta el pipeline de Jenkins en UT6 al desplegar en `pre`. Es la primera de las tres unidades que entran en la segunda evaluación, cuyo examen es la sesión 41, el 24 de marzo de 2027. El entorno `pre` que nace aquí no es de un día: Mantenimiento lo actualiza en febrero y lo da de baja en marzo con el mismo repositorio, el mismo estado remoto y el mismo token, así que al terminar la práctica evaluable no se destruye ni se borra su estado.
 
 ## Sesión 21 · IaC: conceptos y primer despliegue
 
@@ -236,59 +183,25 @@ El `vm_id` no es opcional en la práctica: sin él Proxmox da el primer ID libre
 
 <span class="et et-obj">Objetivo</span> Desde el puesto de administración, una VM clonada de la plantilla 9000 aparece en Proxmox creada por OpenTofu, un segundo `plan` dice `No changes` y `destroy` la elimina. De paso nacen dos cosas que se usan hasta marzo: el usuario `terraform@pve` con su token y el repositorio `iac-lab` en Gitea.
 
-<span class="et et-pre">Antes de empezar</span> El puesto de administración (VM 105, 10.10.0.50, de la A2.4) encendido; entras en él desde tu puesto con `ssh ops@<IP de aula de admin01>`. La consola del nodo (Shell en la interfaz web, o SSH como `root`), Proxmox accesible en `https://192.168.1.50:8006/` (la IP del nodo en la red del aula, la de `vmbr0` de la UT1; sustitúyela por la tuya) y la plantilla cloud-init 9000. La Gitea de `mon01` en `http://gitea.lab:3001` con el usuario `ops`, la de la A2.6 de Mantenimiento. Se ha explicado [qué es IaC y la idempotencia](#infraestructura-como-codigo), [el ciclo init, plan, apply](#el-ciclo-init-plan-apply) y [el proyecto mínimo](#el-proyecto-minimo).
+<span class="et et-pre">Antes de empezar</span> El puesto de administración (VM 105, 10.10.0.50, de la A2.4) encendido; entras en él desde tu puesto con `ssh ops@<IP de aula de admin01>`. La consola del nodo (Shell en la interfaz web, o SSH como `root`), Proxmox en `https://192.168.1.50:8006/` (o la IP de tu nodo en la red del aula) y la plantilla cloud-init 9000. La Gitea de `mon01` en `http://gitea.lab:3001` con el usuario `ops`, la de la A2.6 de Mantenimiento. Se ha explicado [qué es IaC y la idempotencia](#infraestructura-como-codigo), [el ciclo init, plan, apply](#el-ciclo-init-plan-apply) y [el proyecto mínimo](#el-proyecto-minimo).
 
 <span class="et et-pas">Pasos</span>
 
-1. En el puesto de administración, instala OpenTofu y comprueba la versión:
+1. Crea en el nodo el usuario `terraform@pve` con un token `tofu` sin separación de privilegios y tres permisos: `PVEVMAdmin` sobre `/vms`, `PVEDatastoreUser` sobre `/storage/local-lvm` y `PVESDNUser` sobre `/sdn/zones/lab`. En el puesto de administración, exporta el token en `TF_VAR_pve_token`, nunca en un fichero, y comprueba que la API de Proxmox responde con él.
 
-    ```bash
-    curl -fsSL https://get.opentofu.org/install-opentofu.sh | sh -s -- --install-method deb
-    tofu version
-    ```
+    *Pista:* todo sale de `pveum` (`user add`, `acl modify` y `user token add` con `--privsep 0`). El secreto se ve una sola vez: guárdalo en el gestor de contraseñas. El valor completo es `terraform@pve!tofu=<secreto>`, y el `curl` de prueba está en [Errores frecuentes](#errores-frecuentes-en-el-laboratorio).
 
-2. En la consola del nodo, crea el usuario de OpenTofu con sus tres permisos y su token. El tercer permiso es el que deja conectar una VM a una VNet del SDN; sin él, el `apply` falla con `Permission check failed`:
+2. Instala OpenTofu en el puesto y crea el repositorio `~/iac-lab` con el [proyecto mínimo](#el-proyecto-minimo) tal cual, un `terraform.tfvars` con el `pve_endpoint` de tu nodo y, antes del primer commit, un `.gitignore` que deje fuera `.terraform/`, `*.tfstate`, `*.tfstate.*` y `plan.bin`.
 
-    ```bash
-    pveum user add terraform@pve --comment "OpenTofu del laboratorio"
-    pveum acl modify /vms --users terraform@pve --roles PVEVMAdmin
-    pveum acl modify /storage/local-lvm --users terraform@pve --roles PVEDatastoreUser
-    pveum acl modify /sdn/zones/lab --users terraform@pve --roles PVESDNUser
-    pveum user token add terraform@pve tofu --privsep 0
-    ```
+    *Pista:* el proyecto lee `~/.ssh/id_ed25519.pub`; si el puesto no tiene ese par de claves, genéralo antes.
 
-    La última orden muestra el secreto del token (`value`) una sola vez: cópialo en el momento.
+3. Recorre el ciclo con un plan guardado en `plan.bin`: aplícalo, entra por SSH en `prueba01` (ID 150), repite el `plan` y destruye la VM. Guarda la salida de los dos planes y cuenta en el primero cuántos atributos lleva la VM, aunque tú solo hayas escrito una docena.
 
-3. En el puesto de administración, exporta el token en la terminal (solo en la sesión, nunca en un fichero) y comprueba que la API responde con su versión:
+4. Publica `iac-lab` en la Gitea de `mon01` como repositorio privado de `ops` y sube el primer commit.
 
-    ```bash
-    export TF_VAR_pve_token='terraform@pve!tofu=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
-    curl -k -H "Authorization: PVEAPIToken=$TF_VAR_pve_token" https://192.168.1.50:8006/api2/json/version
-    ```
+    *Pista:* el remoto es `http://gitea.lab:3001/ops/iac-lab.git`, y el repositorio vacío se crea antes, desde la web o con un `POST` a `/api/v1/user/repos`.
 
-4. Crea el repositorio. Si `ls ~/.ssh/id_ed25519.pub` no encuentra nada, genera antes el par de claves del puesto de administración con `ssh-keygen -t ed25519`: es la clave pública que OpenTofu mete en cada VM que crea. El `.gitignore` va desde el primer día, antes del primer commit:
-
-    ```bash
-    mkdir ~/iac-lab && cd ~/iac-lab && git init -b main
-    printf '.terraform/\n*.tfstate\n*.tfstate.*\nplan.bin\n' > .gitignore
-    ```
-
-    Crea `providers.tf`, `variables.tf` y `main.tf` copiando tal cual el [proyecto mínimo](#el-proyecto-minimo), y `terraform.tfvars` con la línea `pve_endpoint = "https://192.168.1.50:8006/"`.
-
-5. `tofu init`, `tofu fmt`, `tofu validate`, `tofu plan -out=plan.bin`. Lee el plan entero y cuenta los atributos que lleva la VM aunque tú solo hayas escrito una docena; anota el número.
-6. `tofu apply plan.bin`. Cuando termine, comprueba en la consola de Proxmox que `prueba01` (ID 150) existe y arranca, y entra desde el puesto de administración con `ssh ops@10.10.1.200`.
-7. `tofu plan` otra vez y `tofu destroy`.
-8. Publica el repositorio en la Gitea de `mon01`: crea el repositorio vacío con la API (`curl` te pide la contraseña de `ops` en Gitea) y sube el primer commit.
-
-    ```bash
-    curl -u ops -X POST -H 'Content-Type: application/json' \
-      -d '{"name": "iac-lab", "private": true}' http://gitea.lab:3001/api/v1/user/repos
-    git add . && git commit -m "A5.1 proyecto mínimo"
-    git remote add origin http://gitea.lab:3001/ops/iac-lab.git
-    git push -u origin main
-    ```
-
-<span class="et et-com">Comprobación</span> El segundo `plan` termina en `No changes. Your infrastructure matches the configuration.`, tras `destroy` la VM 150 no aparece en Proxmox y `git status` no muestra `.terraform/` ni ningún tfstate. Si `plan` o `apply` fallan con `401 authentication failure` o con `Permission check failed`, revisa los permisos del paso 2 en [Errores frecuentes](#errores-frecuentes-en-el-laboratorio).
+<span class="et et-com">Comprobación</span> El segundo `plan` termina en `No changes. Your infrastructure matches the configuration.`, tras `destroy` la VM 150 no aparece en Proxmox y `git status` no muestra `.terraform/` ni ningún tfstate. Si `plan` o `apply` fallan con `401 authentication failure` o con `Permission check failed`, revisa los permisos del paso 1 en [Errores frecuentes](#errores-frecuentes-en-el-laboratorio).
 
 <span class="et et-ent">Entrega</span> `iac-lab` en Gitea con los `.tf` y el `.gitignore` (el tfvars no contiene el token), y la salida del primer `plan` y la del segundo en `ut5/a51/` de `entregas-5166`. Desde hoy cada hoja de la unidad termina con `git add`, `git commit` y `git push` de `iac-lab`, y sus salidas van a `ut5/` de `entregas-5166`.
 
@@ -353,96 +266,25 @@ Las validaciones se evalúan en `plan`, así que un tfvars mal escrito falla en 
 
 <span class="et et-obj">Objetivo</span> Un `variables.tf` con tipos, descripciones y validaciones que rechaza con tu propio mensaje un tfvars mal escrito, y MinIO en marcha en la `10.10.0.30` con sus dos buckets, listo para la A5.4.
 
-<span class="et et-pre">Antes de empezar</span> El proyecto `iac-lab` de A5.1 en el puesto de administración (sin VM creadas), con `TF_VAR_pve_token` exportado como en el paso 3 de la A5.1: sin él, `tofu plan` se para a pedirlo. Para el paso 1, SSH a `mon01` (10.10.0.20) como `ops`, con su pila en `/opt/monitoring`: entra en el puesto de administración con `ssh -A ops@<IP de aula de admin01>` (el `-A` le presta la clave de tu puesto sin copiarla) y desde ahí `ssh ops@10.10.0.20`. Se ha explicado [cómo pasar de los requisitos a variables](#de-los-requisitos-al-codigo); la sintaxis está en [validation y sensitive](#validation-y-sensitive).
+<span class="et et-pre">Antes de empezar</span> El proyecto `iac-lab` de A5.1 en el puesto de administración (sin VM creadas), con `TF_VAR_pve_token` exportado como en el paso 1 de la A5.1: sin él, `tofu plan` se para a pedirlo. Para el paso 1, SSH a `mon01` (10.10.0.20) como `ops`, saltando desde el puesto de administración: entra en él con `ssh -A`, que le presta la clave de tu puesto sin copiarla. Si el profesor monta MinIO para toda el aula, el paso 1 se reduce a lo que dice la receta para ese caso. Se ha explicado [cómo pasar de los requisitos a variables](#de-los-requisitos-al-codigo); la sintaxis está en [validation y sensitive](#validation-y-sensitive).
 
 <span class="et et-pas">Pasos</span>
 
-1. **Preparación: el almacén S3 del laboratorio.** Monta MinIO en `mon01`. Hoy no se usa: es donde la [A5.4](#a54-modulos-y-estado-sesion-24) guardará el estado remoto de los dos entornos y donde la asignatura de Mantenimiento dejará sus copias desde febrero, y se monta ahora porque esas dos sesiones van justas de tiempo. Va como un contenedor más de la pila de `mon01` y no como VM propia: la máquina ya tiene Docker, está encendida desde octubre y así el presupuesto de memoria del nodo no sube. La dirección es la de la tabla del laboratorio, `10.10.0.30`, que se añade a `mon01` como segunda dirección de su tarjeta de gestión.
+1. **Preparación: el almacén S3 del laboratorio.** Monta MinIO en `mon01`, como un servicio más de su pila, con la receta de [Cómo se monta MinIO](../laboratorio.md#como-se-monta-minio): segunda dirección `10.10.0.30`, servicio `minio`, buckets `tfstate` y `backups` y credenciales `tofu` y `restic`. Hoy no se usa: guardará el estado remoto desde la [A5.4](#a54-modulos-y-estado-sesion-24) y las copias de Mantenimiento desde febrero. Comprueba desde el puesto de administración que responde.
 
-    !!! ojo "Si el profesor monta MinIO para toda el aula"
-        Sáltate este paso entero. Apunta el endpoint que te dé (normalmente `http://10.10.0.30:9000`), tu
-        clave de acceso y tu secreto, comprueba con el `mc ls` de la letra c que ves los buckets `tfstate`
-        y `backups`, y sigue en el paso 2. El resto de la hoja no cambia.
-
-    **a.** En `mon01`, añade la segunda dirección con una unidad de systemd, igual que la ruta del puesto de administración en la A2.4: la red de la VM la escribe cloud-init, y así no depende de sus ficheros. Comprueba antes el nombre de la tarjeta con `ip -br a`; en las VM del curso es `ens18`:
-
-    ```bash
-    sudo tee /etc/systemd/system/ip-minio.service > /dev/null <<'EOF'
-    [Unit]
-    Description=Segunda dirección de mon01 para MinIO
-    After=network-online.target
-    Wants=network-online.target
-    Before=docker.service
-
-    [Service]
-    Type=oneshot
-    RemainAfterExit=yes
-    ExecStart=/sbin/ip addr replace 10.10.0.30/24 dev ens18
-
-    [Install]
-    WantedBy=multi-user.target
-    EOF
-    sudo systemctl enable --now ip-minio.service
-    ip -br a show ens18      # tienen que salir la 10.10.0.20 y la 10.10.0.30
-    ```
-
-    El orden importa: si el contenedor arranca antes de que exista la 10.10.0.30, Docker falla con `cannot assign requested address`. El `Before=docker.service` lo asegura en cada arranque.
-
-    **b.** En `/opt/monitoring`, añade el servicio al `compose.yml` de la pila y declara `minio_data:` en `volumes:`. El puerto se publica solo en la dirección nueva, para que la pila de monitorización siga escuchando en la 10.10.0.20 y no se mezclen:
-
-    ```yaml
-      minio:
-        image: quay.io/minio/minio:latest
-        command: server /almacen --console-address ":9001"
-        restart: unless-stopped
-        environment:
-          MINIO_ROOT_USER: admin
-          MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?ponla en el .env}
-        ports:
-          - "10.10.0.30:9000:9000"
-          - "10.10.0.30:9001:9001"
-        volumes:
-          - minio_data:/almacen
-    ```
-
-    La contraseña va en el `.env` junto al `compose.yml`, que es un secreto y no se sube: añádele (o créalo, si no existe) una línea `MINIO_ROOT_PASSWORD=` con una contraseña tuya, `chmod 600 .env`, y añade `.env` al `.gitignore` del repositorio `monitoring` si no está. La ruta interna es `/almacen` a propósito, para no confundirla con el `/data` de `db01`, que es otra cosa.
-
-    **c.** Levanta el servicio y crea los dos buckets y las dos credenciales de trabajo. `mc` es el cliente de línea de comandos de MinIO y se usa como contenedor de un solo uso, sin instalar nada:
-
-    ```bash
-    cd /opt/monitoring && docker compose up -d minio
-    set -a; . ./.env; set +a               # trae MINIO_ROOT_PASSWORD a esta terminal
-    M="docker run --rm --network host -e MC_HOST_lab=http://admin:$MINIO_ROOT_PASSWORD@10.10.0.30:9000 quay.io/minio/mc"
-    $M mb lab/tfstate                      # el estado de OpenTofu
-    $M mb lab/backups                      # las copias restic, que empiezan en la UT7 de Mantenimiento
-    $M admin user add lab tofu   'CambiaEsteSecreto1'
-    $M admin user add lab restic 'CambiaEsteSecreto2'
-    $M admin policy attach lab readwrite --user tofu
-    $M admin policy attach lab readwrite --user restic
-    $M ls lab                              # tfstate y backups
-    ```
-
-    Apunta los dos secretos en el gestor de contraseñas del puesto de administración. Ninguno de los dos se usa hoy: el de `tofu` lo pide la A5.4 el 13 de enero y el de `restic`, la [A7.4 de Mantenimiento](https://victor-educ.github.io/apuntes-5169/ut/ut7-actualizacion-vulnerabilidades/) el 11 de febrero; volver a MinIO a crearlos entonces cuesta más que crearlos ahora.
-
-    **d.** De vuelta en el puesto de administración (10.10.0.50), que es desde donde la A5.4 usará el estado remoto, comprueba que el servicio responde:
-
-    ```bash
-    curl -s -o /dev/null -w '%{http_code}\n' http://10.10.0.30:9000/minio/health/live   # 200
-    ```
-
-    !!! empresa "Dónde vive esto en producción"
-        Juntar el almacén de copias con la máquina que vigila no se hace fuera de un laboratorio: si se
-        pierde `mon01` se pierden a la vez la monitorización y las copias. Aquí se acepta porque el nodo
-        tiene 16 GB en el pico de febrero y una VM más no cabe. En una empresa el almacén de objetos es un
-        servicio aparte, en otra máquina y a poder ser en otro edificio, y además con versionado y Object
-        Lock, que es lo que se comprueba en la UT6 de Mantenimiento.
+    *Pista:* la receta se copia tal cual; lo único tuyo son las tres contraseñas, y las de `tofu` y `restic` van al gestor de contraseñas antes de seguir.
 
 2. Copia la tabla de requisitos del apartado "De los requisitos al código" a un `README.md` en la raíz de `iac-lab` y rellénala para el servicio del curso (web + API + PostgreSQL). Cada fila lleva su origen del dato; si no lo sabes, escribe de dónde lo sacarías. Debajo, en dos o tres líneas, las diferencias del laboratorio con su motivo, como las cuenta el apartado.
-3. Convierte las filas en variables. Escribe `variables.tf` copiando del apartado [validation y sensitive](#validation-y-sensitive) la variable `vms`, que ya trae sus dos validaciones (memoria mínima de 1024 e `ip` con prefijo), y `pve_token`; añade `pve_endpoint` como en la A5.1 y pon `description` a las tres. Comprueba que cada fila de cómputo, memoria, almacenamiento y red de tu tabla tiene su campo en `vms`.
-4. Añade una tercera validación tuya al bloque `vms`, sobre disco (por ejemplo `disk >= 10`) o sobre `bridge` (que esté en `["devfront", "devback", "devdata", "prefront", "preback", "predata"]` con `contains`), con su propio `error_message`.
-5. Escribe `terraform.tfvars` con las tres VM del servicio en el entorno `pre`: ID 210, 220 y 230, puentes `prefront`, `preback` y `predata`, IP `10.20.1.10/24`, `10.20.2.10/24` y `10.20.3.10/24`, 1024 MB y 20 GB cada una, y las vCPU de tu tabla. Sin recursos aún, `main.tf` queda vacío: borra el recurso `prueba` de la A5.1.
-6. `tofu fmt`, `tofu validate`, `tofu plan`. Guarda la salida.
-7. Copia el tfvars a `malo.tfvars`, pon `memory = 512` en `db01` y ejecuta `tofu plan -var-file=malo.tfvars`. Guarda la salida.
+
+3. Convierte las filas en un `variables.tf` con `vms` y `pve_token`, de [validation y sensitive](#validation-y-sensitive), y `pve_endpoint`, de la A5.1, las tres con `description`. Cada fila de cómputo, memoria, almacenamiento y red de tu tabla tiene su campo en `vms`, y el bloque lleva una tercera validación tuya, sobre el disco o sobre `bridge`, con su propio `error_message`.
+
+    *Pista:* para `bridge`, `contains()` contra la lista de las seis VNets de dev y pre.
+
+4. Escribe `terraform.tfvars` con las tres VM del servicio en el entorno `pre`: ID 210, 220 y 230, puentes `prefront`, `preback` y `predata`, IP `10.20.1.10/24`, `10.20.2.10/24` y `10.20.3.10/24`, 1024 MB y 20 GB cada una, y las vCPU de tu tabla. Sin recursos aún, `main.tf` queda vacío: borra el recurso `prueba` de la A5.1.
+
+5. Pasa `fmt`, `validate` y `plan`, y guarda la salida. Prueba después la validación con un `malo.tfvars`, copia del tuyo con `memory = 512` en `db01`, y guarda también la salida de ese plan.
+
+    *Pista:* otro fichero de valores se le pasa al plan con `-var-file=`.
 
 <span class="et et-com">Comprobación</span> `tofu validate` sale con `Success!`, el `plan` correcto no da errores y el `plan` con `malo.tfvars` falla en segundos mostrando tu `error_message`, no un error genérico del provider. El `$M ls lab` del paso 1 lista `tfstate` y `backups`, y el `curl` de salud responde `200`.
 
@@ -454,7 +296,7 @@ Las validaciones se evalúan en `plan`, así que un tfvars mal escrito falla en 
 
 <p class="ut-meta" markdown>8 de enero · Teoría y práctica · <span class="dur" tabindex="0" aria-label="El lenguaje HCL · 10 min&#10;Provider Proxmox y una VM completa · 10 min&#10;A5.3 VM completas · 90 min" data-dur="El lenguaje HCL · 10 min&#10;Provider Proxmox y una VM completa · 10 min&#10;A5.3 VM completas · 90 min">:material-school:<i class="dur-barra" style="--teoria:18%"></i>:material-flask:</span></p>
 
-Al acabar, el puesto de administración llega a `pre` a través de `router-pre`, y `web01`, `app01` y `db01` corren en ese entorno, creadas por un solo bloque `resource` con `for_each`, configuradas por cloud-init y protegidas con `prevent_destroy`; queda visto además un plan que cambia la memoria de una sola VM sin recrearla. Primero se repasa el lenguaje HCL (tipos de bloque, tipos de dato, `for_each` y las funciones de red) y después el proyecto completo con el provider `bpg/proxmox`, que es el que se copia en A5.3. Para leer el plan del paso 7 de la A5.3 sirve la tabla de símbolos de la sesión 21.
+Al acabar, el puesto de administración llega a `pre` a través de `router-pre`, y `web01`, `app01` y `db01` corren en ese entorno, creadas por un solo bloque `resource` con `for_each`, configuradas por cloud-init y protegidas con `prevent_destroy`; queda visto además un plan que cambia la memoria de una sola VM sin recrearla. Primero se repasa el lenguaje HCL (tipos de bloque, tipos de dato, `for_each` y las funciones de red) y después el proyecto completo con el provider `bpg/proxmox`, que es el que se copia en A5.3. Para leer el plan del paso 4 de la A5.3 sirve la tabla de símbolos de la sesión 21.
 
 ### El lenguaje HCL
 
@@ -691,56 +533,23 @@ Lo que llega a `pre` se empuja siempre desde gestión: ficheros con Ansible e im
 
 <span class="et et-obj">Objetivo</span> El puesto de administración llega a `pre`, y `web01`, `app01` y `db01` corren en ese entorno, accesibles por SSH desde el puesto y protegidas con `prevent_destroy`, con un cambio de memoria que el plan resuelve con `~` sobre un solo recurso.
 
-<span class="et et-pre">Antes de empezar</span> `iac-lab` con el `variables.tf` y el tfvars de A5.2 y `TF_VAR_pve_token` exportado en el puesto de administración. `pre` tal como quedó en la A2.5: las VNets `prefront`, `preback` y `predata`, cada una con su subred **sin puerta de enlace y sin rango DHCP**, y `router-pre` (ID 200) encendido haciendo de `.1`, de DHCP y de DNS del entorno, al que entras como en la A2.5, por su IP del aula. La `web01` de pre (ID 210) que clonaste en la A2.5 ya no existe, porque se destruyó al cerrar la evaluable de la UT2: `qm list` en el nodo no debe mostrar ninguna VM entre la 210 y la 239. Se ha explicado [el recurso VM del provider](#provider-proxmox-y-una-vm-completa), [cómo llega el puesto de administración a pre](#como-llega-el-puesto-de-administracion-a-pre), [for_each](#count-frente-a-for_each) y [cómo leer un plan](#como-leer-un-plan).
-
-!!! ojo "Se despliega `pre`, no `dev`"
-    Las VM de `dev` ya existen: se crearon a mano en UT1 y UT2, con esas mismas IP. Aplicar el código contra `dev` chocaría con ellas, así que el entorno que nace desde código es `pre`, en el bloque `10.20.0.0/16`. Es además el que Mantenimiento actualiza en febrero y da de baja en marzo. Las tres VM llevan 1 GB cada una y caben en el [presupuesto de memoria](../laboratorio.md#requisitos-por-puesto) sin apagar nada de `dev`, que Mantenimiento sigue usando en enero para sus pruebas.
+<span class="et et-pre">Antes de empezar</span> `iac-lab` con el `variables.tf` y el tfvars de A5.2 y `TF_VAR_pve_token` exportado en el puesto de administración. `pre` como quedó en la A2.5: las VNets `prefront`, `preback` y `predata`, con su subred **sin puerta de enlace y sin rango DHCP**, y `router-pre` (ID 200) encendido como `.1`, DHCP y DNS del entorno, accesible por su IP del aula. La `web01` de pre (ID 210) de la A2.5 se destruyó al cerrar la UT2: en `qm list` no hay ninguna VM entre la 210 y la 239. Se despliega `pre` porque las VM de `dev` existen desde la UT1 con las mismas IP, y las tres nuevas caben en el [presupuesto de memoria](../laboratorio.md#requisitos-por-puesto) sin apagar nada de `dev`. Se ha explicado [el recurso VM del provider](#provider-proxmox-y-una-vm-completa), [cómo llega el puesto de administración a pre](#como-llega-el-puesto-de-administracion-a-pre), [for_each](#count-frente-a-for_each) y [cómo leer un plan](#como-leer-un-plan).
 
 <span class="et et-pas">Pasos</span>
 
-1. **El camino de gestión a pre.** Son los tres cambios del [apartado](#como-llega-el-puesto-de-administracion-a-pre), cada uno en una máquina.
+1. **El camino de gestión a pre.** Abre el paso del puesto de administración a `pre` con los tres cambios de [Cómo llega el puesto de administración a pre](#como-llega-el-puesto-de-administracion-a-pre), de forma que sobrevivan a un reinicio: la tarjeta de `router-pre` en `devmgmt`, sus tres reglas de `forward` y la ruta del puesto. Guarda el `ip r` de `router-pre` y comprueba que `10.20.1.1` responde desde el puesto.
 
-    **a.** En el nodo, la tarjeta nueva de `router-pre`, y un reinicio para que cloud-init la configure:
+    *Pista:* la tarjeta se añade desde el nodo con `qm set 200 --net5 ... --ipconfig5 ...`, y cloud-init no la configura hasta que reinicias la VM. Las reglas van en la tabla `inet fw` y se guardan en `/etc/nftables.conf`; la ruta es una segunda línea `ExecStart=` en `ruta-lab.service`.
 
-    ```bash
-    qm set 200 --net5 virtio,bridge=devmgmt --ipconfig5 ip=10.10.0.2/24
-    qm reboot 200
-    ```
+2. Escribe `main.tf` y `outputs.tf` con el ejemplo de [Provider Proxmox y una VM completa](#provider-proxmox-y-una-vm-completa) y despliega las tres VM a partir de un plan guardado, que tiene que resumirse en `Plan: 3 to add, 0 to change, 0 to destroy`. Comprueba sus direcciones con `tofu output ips` y entra por SSH en las tres desde el puesto de administración.
 
-    La plantilla ya se comprobó en la A5.1: si allí el `apply` terminó y entraste por SSH, tiene `qemu-guest-agent` y el `apply` de hoy no se quedará en `Still creating...`.
+3. Comprueba la protección: `tofu plan -destroy` tiene que fallar sin tocar nada. Guarda la salida.
 
-    **b.** En `router-pre`, comprueba la dirección y la ruta, y añade las tres reglas de `forward`, guardándolas para los siguientes arranques:
+4. Sube la memoria de `app01` a 1536 en `terraform.tfvars` y guarda la salida completa del plan, sin aplicar: el nodo no tiene RAM para ello. Devuélvela a 1024 y comprueba que el plan no deja nada pendiente.
 
-    ```bash
-    ip -br a show ens23          # 10.10.0.2/24
-    ip r                         # 10.10.0.0/24 dev ens23, además del blackhole de 10.10.0.0/16
-    sudo nft add table inet fw
-    sudo nft add chain inet fw forward '{ type filter hook forward priority 0 ; policy accept ; }'
-    sudo nft add rule inet fw forward ct state established,related accept
-    sudo nft add rule inet fw forward iifname "ens23" accept
-    sudo nft add rule inet fw forward oifname "ens23" drop
-    sudo sh -c 'nft list ruleset > /etc/nftables.conf'
-    ```
+<span class="et et-com">Comprobación</span> `ping -c1 10.20.1.1` responde desde el puesto de administración. El `plan -destroy` del paso 3 falla con `Instance cannot be destroyed`. El plan del paso 4 lleva exactamente un recurso con `~ update in-place`, `Plan: 0 to add, 1 to change, 0 to destroy`, y ninguna línea `# forces replacement`; con la memoria devuelta a 1024, `tofu plan` dice `No changes`.
 
-    **c.** En el puesto de administración, la ruta a `pre`, añadida a la unidad de la A2.4:
-
-    ```bash
-    sudo sed -i '/^ExecStart=/a ExecStart=/sbin/ip route replace 10.20.0.0/16 via 10.10.0.2 dev ens19' \
-      /etc/systemd/system/ruta-lab.service
-    sudo systemctl daemon-reload && sudo systemctl restart ruta-lab.service
-    ping -c1 10.20.1.1           # responde router-pre
-    ```
-
-2. Escribe `main.tf` y `outputs.tf` con el ejemplo completo del apartado del provider: `for_each = var.vms`, `clone { vm_id = 9000 }`, `agent { enabled = true }`, el bloque `initialization` con IP, puerta de enlace y la clave pública del puesto de administración, y el bloque `lifecycle`. Comprueba que el tfvars es el de `pre`: ID 210, 220 y 230, 1024 MB, puentes `prefront`, `preback` y `predata`, e IP `10.20.1.10/24`, `10.20.2.10/24` y `10.20.3.10/24`.
-3. `tofu fmt`, `tofu validate`, `tofu plan -out=plan.bin`. El resumen debe ser `Plan: 3 to add, 0 to change, 0 to destroy`.
-4. `tofu apply plan.bin` y `tofu output ips`.
-5. Entra en las tres desde el puesto de administración: `ssh ops@10.20.1.10`, `ssh ops@10.20.2.10`, `ssh ops@10.20.3.10`. Si alguna no tiene IP, revisa el punto de cloud-init en [Errores frecuentes](#errores-frecuentes-en-el-laboratorio).
-6. Comprueba la protección: `tofu plan -destroy` tiene que fallar con `Instance cannot be destroyed` sin tocar nada. Guarda la salida.
-7. Cambia `memory` de `app01` a 1536 en `terraform.tfvars` y ejecuta `tofu plan`. Guarda la salida completa. No apliques: devuélvelo a 1024 y comprueba con otro `tofu plan` que no queda nada pendiente. El presupuesto de RAM del nodo no da para subirlo.
-
-<span class="et et-com">Comprobación</span> `ping -c1 10.20.1.1` responde desde el puesto de administración. El `plan -destroy` del paso 6 falla con `Instance cannot be destroyed`. El plan del paso 7 lleva exactamente un recurso con `~ update in-place`, `Plan: 0 to add, 1 to change, 0 to destroy`, y ninguna línea `# forces replacement`; con la memoria devuelta a 1024, `tofu plan` dice `No changes`.
-
-<span class="et et-ent">Entrega</span> `main.tf` y `outputs.tf` en `iac-lab`. En `ut5/a53/` de `entregas-5166`, el `ip r` de `router-pre` y las salidas de los pasos 6 y 7. No destruyas las VM: A5.4 sigue sobre ellas.
+<span class="et et-ent">Entrega</span> `main.tf` y `outputs.tf` en `iac-lab`. En `ut5/a53/` de `entregas-5166`, el `ip r` de `router-pre` y las salidas de los pasos 3 y 4. No destruyas las VM: A5.4 sigue sobre ellas.
 
 <span class="et et-ext">Si te sobra tiempo</span> Cambia `node_name` o `datastore_id` solo en el plan (sin aplicar), localiza la línea `# forces replacement` y fíjate en que `prevent_destroy` para el plan antes de destruir nada.
 
@@ -864,46 +673,29 @@ tofu import 'proxmox_virtual_environment_vm.legacy' pve/110  # adopta una VM que
 
 <span class="et et-obj">Objetivo</span> El repositorio queda con `modules/vm`, `envs/pre` y `envs/dev`, el estado en MinIO con bloqueo, y las tres VM de A5.3 siguen vivas sin haberse recreado.
 
-<span class="et et-pre">Antes de empezar</span> Las VM de A5.3 desplegadas y su `terraform.tfstate` local, en `iac-lab` del puesto de administración. MinIO en marcha en la `10.10.0.30`, con los buckets `tfstate` y `backups` y el secreto de la credencial `tofu` a mano: se montó en el paso 1 de la [A5.2](#a52-requisitos-y-variables-sesion-22), y si no está, móntalo con ese paso antes de la sesión. El puesto de administración está en la subred de gestión y alcanza el 9000 de MinIO: compruébalo con `curl -s -o /dev/null -w '%{http_code}\n' http://10.10.0.30:9000/minio/health/live`, que responde `200`. Se han explicado [módulos y entornos](#modulos-entornos-y-estructura-del-repositorio), el [backend remoto](#backend-remoto-s3-contra-minio) y [cómo mover recursos en el estado](#manipular-el-estado).
+<span class="et et-pre">Antes de empezar</span> Las VM de A5.3 desplegadas y su `terraform.tfstate` local, en `iac-lab` del puesto de administración. MinIO en marcha en la `10.10.0.30`, con los buckets `tfstate` y `backups` y el secreto de la credencial `tofu` a mano: se montó en el paso 1 de la [A5.2](#a52-requisitos-y-variables-sesion-22), y si no está, móntalo con ese paso antes de la sesión. El puesto de administración está en la subred de gestión y alcanza el 9000 de MinIO: el `curl` de salud de ese paso tiene que dar `200`. Se han explicado [módulos y entornos](#modulos-entornos-y-estructura-del-repositorio), el [backend remoto](#backend-remoto-s3-contra-minio) y [cómo mover recursos en el estado](#manipular-el-estado).
 
 <span class="et et-pas">Pasos</span>
 
-1. Crea `modules/vm/` con `main.tf` (un solo `resource "proxmox_virtual_environment_vm" "this"` sin `for_each`, con `var.name`, `var.vmid`, `var.cores`, `var.memory`, `var.disk`, `var.bridge`, `var.ip`, y el mismo bloque `lifecycle` de la A5.3), `variables.tf` con esas siete variables y `outputs.tf` con `ip` y `vm_id`. El módulo no lleva bloque `provider`.
-2. Crea `envs/pre/` y mueve allí `providers.tf`, `variables.tf`, `outputs.tf` y `terraform.tfvars`; el `main.tf` de la raíz se borra. El de `envs/pre/` queda así:
+1. Extrae la VM a un módulo, `modules/vm`, y pasa el proyecto a `envs/pre/`. El módulo tiene un solo `resource "proxmox_virtual_environment_vm" "this"` sin `for_each`, las variables `name`, `vmid`, `cores`, `memory`, `disk`, `bridge` e `ip`, el `lifecycle` de la A5.3 y los outputs `ip` y `vm_id`, y no lleva bloque `provider`. A `envs/pre/` van `providers.tf`, `variables.tf`, `outputs.tf` y el tfvars, con un `main.tf` nuevo que llama al módulo con `for_each = var.vms`; el de la raíz se borra.
 
-    ```hcl
-    module "vm" {
-      source   = "../../modules/vm"
-      for_each = var.vms
-      name     = each.key
-      vmid     = each.value.vmid
-      cores    = each.value.cores
-      memory   = each.value.memory
-      disk     = each.value.disk
-      bridge   = each.value.bridge
-      ip       = each.value.ip
-    }
-    ```
+    *Pista:* la llamada lleva `source = "../../modules/vm"`, `name = each.key` y cada campo de `each.value` en la variable del mismo nombre.
 
-3. Copia el `terraform.tfstate` de A5.3 a `envs/pre/`, ejecuta `tofu init` y añade a `main.tf` un bloque `moved` por VM, o ejecuta el `state mv` equivalente:
+2. Mueve las VM al módulo sin recrearlas: con el `terraform.tfstate` de la A5.3 copiado a `envs/pre/`, dile a OpenTofu dónde ha ido a parar cada una, hasta que el plan diga `No changes` o solo anuncie los movimientos. Guarda esa salida.
 
-    ```hcl
-    moved {
-      from = proxmox_virtual_environment_vm.vm["web01"]
-      to   = module.vm["web01"].proxmox_virtual_environment_vm.this
-    }
-    ```
+    *Pista:* un bloque `moved` por VM, de `proxmox_virtual_environment_vm.vm["web01"]` a `module.vm["web01"].proxmox_virtual_environment_vm.this`, o el `state mv` equivalente de [Manipular el estado](#manipular-el-estado).
 
-4. `tofu plan`: debe decir `No changes` (o solo el aviso de movimientos). Si falta un `moved`, el plan querría destruir y crear, y `prevent_destroy` lo para con un error: añade el `moved` que falta y repite.
-5. Añade `envs/pre/backend.tf` con el bloque `backend "s3"` del apartado del estado (`key = "envs/pre/terraform.tfstate"`), exporta `AWS_ACCESS_KEY_ID=tofu` y `AWS_SECRET_ACCESS_KEY` con el secreto de la credencial `tofu` que creaste en la A5.2, y ejecuta `tofu init -migrate-state`. Responde `yes` a copiar el estado.
-6. `tofu state list` debe listar las tres VM; borra el `terraform.tfstate` local (queda `terraform.tfstate.backup`, bórralo también) y repite `tofu state list`.
-7. Desde dos terminales, lanza `tofu apply` a la vez y captura el `Error acquiring the state lock` de la segunda. Responde `no` en la primera.
-8. Crea `envs/dev/` copiando `pre`: cambia `key` a `envs/dev/terraform.tfstate` en `backend.tf` y en el tfvars pon los `vmid` 110, 120 y 130, los puentes `devfront`, `devback` y `devdata`, las IP `10.10.1.10/24`, `10.10.2.10/24` y `10.10.3.10/24` y la memoria de la tabla del laboratorio (1024, 2048 y 2048). `tofu init` y `tofu plan`, **sin aplicar**: esas VM ya existen creadas a mano desde UT1 y UT2 y un `apply` chocaría con ellas. Queda el código escrito; adoptarlas sería trabajo de `tofu import` con esos mismos ID.
-9. Haz commit de todo y `git push`. El `.gitignore` de la A5.1 ya deja fuera `.terraform/`, `plan.bin` y los tfstate de cualquier directorio.
+3. Lleva el estado de `pre` a MinIO con un `envs/pre/backend.tf` con el bloque de [Backend remoto: s3 contra MinIO](#backend-remoto-s3-contra-minio) y la credencial `tofu` de la A5.2 exportada en `AWS_ACCESS_KEY_ID` y `AWS_SECRET_ACCESS_KEY`. Guarda la salida de `tofu state list` antes y después de borrar el `terraform.tfstate` local y su `.backup`: las dos veces tiene que listar las tres VM.
 
-<span class="et et-com">Comprobación</span> `git status` no muestra ningún tfstate; `tofu state list` en `envs/pre` responde desde MinIO; el plan del paso 4 no destruyó nada; el error de bloqueo está capturado.
+    *Pista:* la clave de acceso es el propio nombre de la credencial, `tofu`. El cambio de backend se hace con `tofu init -migrate-state`.
 
-<span class="et et-ent">Entrega</span> `modules/` y `envs/` en `iac-lab`, y las salidas de los pasos 4, 6 y 7 en `ut5/a54/` de `entregas-5166`. Este estado remoto se queda hasta marzo: lo usa Mantenimiento.
+4. Comprueba el bloqueo: lanza `tofu apply` a la vez desde dos terminales, captura el error de la segunda y responde `no` en la primera.
+
+5. Crea `envs/dev/` copiando `pre`, con su propia `key` en el backend, `envs/dev/terraform.tfstate`, y el tfvars de dev: `vmid` 110, 120 y 130, puentes `devfront`, `devback` y `devdata`, IP `10.10.1.10/24`, `10.10.2.10/24` y `10.10.3.10/24` y la memoria de la tabla del laboratorio (1024, 2048 y 2048). Inicialízalo y pasa el plan **sin aplicar**: esas VM existen desde la UT1, creadas a mano, y un `apply` chocaría con ellas.
+
+<span class="et et-com">Comprobación</span> `git status` no muestra ningún tfstate; `tofu state list` en `envs/pre` responde desde MinIO; el plan del paso 2 no destruyó nada; el error de bloqueo está capturado.
+
+<span class="et et-ent">Entrega</span> `modules/` y `envs/` en `iac-lab`, y las salidas de los pasos 2, 3 y 4 en `ut5/a54/` de `entregas-5166`. Este estado remoto se queda hasta marzo: lo usa Mantenimiento.
 
 <span class="et et-ext">Si te sobra tiempo</span> Añade una variable `env` al módulo y úsala en el nombre (`"${var.env}-${var.name}"`); mira en el plan qué atributos fuerza a recrear un cambio de nombre en bpg/proxmox.
 
@@ -1136,35 +928,27 @@ El fichero cifrado sí se sube a Git (empieza por `$ANSIBLE_VAULT;1.1;AES256` y 
 
 <span class="et et-obj">Objetivo</span> PostgreSQL corre en `db01` y el servicio del curso en `app01` de `pre`, desplegados por un playbook cuyo inventario sale de `tofu output`, y la segunda pasada termina con `changed=0`.
 
-<span class="et et-pre">Antes de empezar</span> Las VM de `envs/pre` levantadas y accesibles por SSH desde el puesto de administración, con las credenciales de la cuenta `tofu` de MinIO exportadas como en el paso 5 de la A5.4: `gen-inventory.sh` lee el estado remoto con `tofu output`, y `tofu state list` en `envs/pre` tiene que listar las tres VM. Entra hoy en el puesto con `ssh -A ops@<IP de aula de admin01>`: el `-A` le presta la clave de tu puesto para llegar a `app01` de dev (10.10.2.10), de donde salen el compose del servicio y su imagen. Se han explicado [inventario, playbooks y módulos idempotentes](#ansible), el [inventario generado desde los outputs](#inventario-generado-desde-los-outputs-de-opentofu) y el [playbook del curso](#comandos-ad-hoc-y-playbooks).
+<span class="et et-pre">Antes de empezar</span> Las VM de `envs/pre` levantadas y accesibles por SSH desde el puesto de administración, con las credenciales de la cuenta `tofu` de MinIO exportadas como en el paso 3 de la A5.4, porque `gen-inventory.sh` lee el estado remoto. Entra hoy en el puesto con `ssh -A ops@<IP de aula de admin01>`: el `-A` le presta la clave de tu puesto para llegar a `app01` de dev (10.10.2.10), de donde salen el compose del servicio y su imagen. Se han explicado [inventario, playbooks y módulos idempotentes](#ansible), el [inventario generado desde los outputs](#inventario-generado-desde-los-outputs-de-opentofu) y el [playbook del curso](#comandos-ad-hoc-y-playbooks).
 
 <span class="et et-pas">Pasos</span>
 
-1. Instala Ansible y el linter con los paquetes de Debian, que traen también las colecciones que usa el playbook: `sudo apt install -y ansible ansible-lint`. `ansible --version` debe dar core 2.18 o superior.
-2. Crea el directorio `ansible/`, copia `gen-inventory.sh` del apartado del inventario a la raíz del repositorio, dale permisos (`chmod +x`) y ejecútalo. Mira `ansible/inventory.ini`: tres grupos con la IP sin `/24`.
-3. `ansible -i ansible/inventory.ini all -m ping`: los tres hosts deben responder `pong`. Si sale `Permission denied`, añade `ansible_ssh_private_key_file=~/.ssh/id_ed25519` a `[all:vars]` en el script.
-4. Prepara los ficheros. El compose es el del repositorio `servicio` tal como corre en `app01` de dev (el que se guarda desde la [A1.1 de Mantenimiento](https://victor-educ.github.io/apuntes-5169/ut/ut1-observabilidad/)), que desde noviembre solo tiene el servicio `app`:
+1. Instala Ansible, ansible-lint y `jq` con los paquetes de Debian (Ansible core 2.18 o superior), genera `ansible/inventory.ini` con el `gen-inventory.sh` de [Inventario generado desde los outputs de OpenTofu](#inventario-generado-desde-los-outputs-de-opentofu), copiado a la raíz del repositorio, y comprueba que los tres hosts responden al módulo `ping`.
 
-    ```bash
-    mkdir -p ansible/files ansible/group_vars
-    scp ops@10.10.2.10:/opt/servicio/compose.yml ansible/files/compose.yml
-    echo 'ansible/secretos/' >> .gitignore
-    ```
+    *Pista:* el script escribe en `ansible/` y no crea la carpeta. Lo que añadas a `[all:vars]` va en el script y no en `inventory.ini`, que se regenera en cada ejecución.
 
-    En la copia, borra el bloque `build:` del servicio `app` si lo tiene (a `pre` la imagen llega hecha) y deja su línea de imagen como `image: ${APP_IMAGE}`. Crea `ansible/site.yml` y `ansible/group_vars/all.yml` copiando tal cual los del [apartado](#comandos-ad-hoc-y-playbooks), y pon en `app_image` la etiqueta que te dé `ssh ops@10.10.2.10 docker image ls app`.
+2. Prepara `ansible/`: en `files/compose.yml`, el compose que corre en `app01` de dev (`/opt/servicio/compose.yml`, solo con el servicio `app` desde noviembre), sin bloque `build:` y con `image: ${APP_IMAGE}`; `site.yml` y `group_vars/all.yml`, los de [Comandos ad hoc y playbooks](#comandos-ad-hoc-y-playbooks), con la etiqueta de la imagen de `app01` de dev en `app_image`. Añade `ansible/secretos/` al `.gitignore` antes de la primera ejecución: ahí deja el playbook la contraseña de la base.
 
-5. Lleva Docker y la imagen a `app01` de pre. Docker, con el comando ad hoc del apartado; la imagen, desde `app01` de dev por una tubería, con la misma etiqueta que has puesto en `app_image`:
+3. Lleva Docker y la imagen a `app01` de pre: Docker, con el comando ad hoc del apartado; la imagen, desde `app01` de dev, con la etiqueta de `app_image` y sin pasar por ningún registry.
 
-    ```bash
-    ansible -i ansible/inventory.ini app -b -m apt -a 'name=docker.io,docker-compose state=present update_cache=true'
-    ssh ops@10.10.2.10 docker save app:<versión> | ssh ops@10.20.2.10 sudo docker load
-    ```
+    *Pista:* es una tubería entre dos `ssh` lanzada desde el puesto: `ssh ops@10.10.2.10 docker save app:<versión> | ssh ops@10.20.2.10 sudo docker load`.
 
-6. `ansible-playbook -i ansible/inventory.ini ansible/site.yml`. La primera vez casi todas las tareas salen `changed`. Comprueba que el servicio corre con `ssh ops@10.20.2.10 sudo docker compose -f /opt/servicio/compose.yml ps` y que responde con `curl http://10.20.2.10:8080/health`.
-7. Vuelve a ejecutar el playbook y guarda la salida completa: el resumen debe llevar `changed=0` en `app01` y en `db01`. Si no, localiza la tarea con `--diff` y corrígela.
-8. `ansible-lint ansible/site.yml` y corrige todo lo que marque hasta que salga limpio.
+4. Ejecuta el playbook y comprueba que el servicio corre en `app01` de pre y responde en `http://10.20.2.10:8080/health`.
 
-<span class="et et-com">Comprobación</span> La segunda pasada del paso 7 termina en `changed=0 unreachable=0 failed=0` para los dos hosts; `ansible-lint` no devuelve hallazgos; `curl http://10.20.2.10:8080/health` responde y `nc -zv 10.20.3.10 5432` conecta.
+5. Ejecútalo otra vez y guarda la salida completa: el resumen tiene que llevar `changed=0` en `app01` y en `db01`.
+
+6. Pasa `ansible-lint` a `ansible/site.yml` y corrige lo que marque hasta que salga limpio.
+
+<span class="et et-com">Comprobación</span> La segunda pasada del paso 5 termina en `changed=0 unreachable=0 failed=0` para los dos hosts; `ansible-lint` no devuelve hallazgos; `curl http://10.20.2.10:8080/health` responde y `nc -zv 10.20.3.10 5432` conecta.
 
 <span class="et et-ent">Entrega</span> `gen-inventory.sh` y `ansible/` en `iac-lab` (`ansible/secretos/` no entra), y las salidas de las dos ejecuciones en `ut5/a55/` de `entregas-5166`. Las VM se quedan levantadas con el servicio dentro: las usan la A5.6 y, en febrero, Mantenimiento.
 
@@ -1273,18 +1057,21 @@ El umbral de memoria es 900 y no 1024 porque el kernel reserva parte y `ansible_
 
 <span class="et et-obj">Objetivo</span> Un `test.sh` que despliega, configura y comprueba el entorno `pre`, y que devuelve 0 cuando todo está bien y distinto de 0 cuando algo falla, demostrado con las dos salidas.
 
-<span class="et et-pre">Antes de empezar</span> El repositorio tal como quedó en A5.5 (envs, playbook, `gen-inventory.sh`) con el servicio corriendo en `pre`. En el puesto de administración, `TF_VAR_pve_token` y las credenciales de la cuenta `tofu` de MinIO exportadas (`AWS_ACCESS_KEY_ID` y `AWS_SECRET_ACCESS_KEY`, como en la A5.4), y `curl` y `nc` instalados (`sudo apt install netcat-openbsd` si falta `nc`). Se han explicado [los niveles de prueba](#pruebas-del-despliegue) y el [script test.sh](#testsh).
+<span class="et et-pre">Antes de empezar</span> El repositorio tal como quedó en A5.5 (envs, playbook, `gen-inventory.sh`) con el servicio corriendo en `pre`. En el puesto de administración, `TF_VAR_pve_token` y las credenciales de la cuenta `tofu` de MinIO exportadas (`AWS_ACCESS_KEY_ID` y `AWS_SECRET_ACCESS_KEY`, como en la A5.4), y `curl` y `nc` (paquete `netcat-openbsd`) instalados. Se han explicado [los niveles de prueba](#pruebas-del-despliegue) y el [script test.sh](#testsh).
 
 <span class="et et-pas">Pasos</span>
 
-1. Copia el `test.sh` del apartado a la raíz del repositorio y `chmod +x test.sh`. Los smoke tests no se tocan: comprueban lo que la A5.5 dejó en `pre` (SSH en las tres VM, PostgreSQL en `db01` y `/health` de la API en `app01`).
-2. Ajusta los umbrales de la sección "Configuración contra requisitos" a tu tfvars (vCPU y MB de `db01`) si no son 2 y 1024.
-3. `./test.sh pre` con todo en orden. Guarda la salida completa y el código de salida: `echo $?` justo después debe dar `0`.
-4. Rompe la configuración: baja `cores` de `db01` a 1 en `envs/pre/terraform.tfvars` y ejecuta `./test.sh pre` otra vez. El `apply` reinicia `db01` con una sola vCPU y el script tiene que pararse en la comprobación de configuración. Guarda salida y `echo $?`.
-5. Devuelve `cores` a 2 en el tfvars (se aplicará en el paso 6). Rompe ahora el servicio con `ssh ops@10.20.2.10 sudo docker compose -f /opt/servicio/compose.yml stop app` y ejecuta `SOLO_PRUEBAS=1 ./test.sh pre`: sin esa variable, el playbook volvería a levantar el servicio antes de probarlo. Guarda salida y código de salida.
-6. Pasa `./test.sh pre` completo una última vez: el `apply` devuelve la vCPU a `db01`, el playbook levanta el servicio y el script queda en verde.
+1. Copia a la raíz del repositorio el [test.sh](#testsh) del apartado, con los smoke tests tal cual, y ajusta los umbrales de «Configuración contra requisitos» a las vCPU y los MB de `db01` de tu tfvars, si no son 2 y 1024.
 
-<span class="et et-com">Comprobación</span> Las ejecuciones de los pasos 3 y 6 terminan con `OK: despliegue pre válido` y `$?` igual a 0. Las de los pasos 4 y 5 terminan con una línea `FALLO: ...` que nombra la causa correcta (vCPU de `db01`, servicio sin responder en `/health`) y `$?` distinto de 0. Ninguna ejecución se queda colgada: si `curl` o `nc` tardan, revisa los `--max-time` y `-w`.
+2. Pasa `./test.sh pre` con todo en orden y guarda la salida completa y el código de salida.
+
+3. Rompe la configuración: baja a 1 los `cores` de `db01` en `envs/pre/terraform.tfvars`, pasa el script completo y guarda la salida y el código de salida.
+
+4. Devuelve a 2 los `cores` de `db01` en el tfvars, sin aplicar, y rompe ahora el servicio: para `app` en `app01` de pre y pasa el script con `SOLO_PRUEBAS=1`. Guarda la salida y el código de salida.
+
+5. Pasa `./test.sh pre` completo una última vez, para que devuelva la vCPU a `db01`, vuelva a levantar el servicio y quede en verde.
+
+<span class="et et-com">Comprobación</span> Las ejecuciones de los pasos 2 y 5 terminan con `OK: despliegue pre válido` y `$?` igual a 0. Las de los pasos 3 y 4 terminan con una línea `FALLO: ...` que nombra la causa correcta (vCPU de `db01`, servicio sin responder en `/health`) y `$?` distinto de 0. Ninguna ejecución se queda colgada: si `curl` o `nc` tardan, revisa los `--max-time` y `-w`.
 
 <span class="et et-ent">Entrega</span> `test.sh` en `iac-lab`, y en `ut5/a56/` de `entregas-5166` las tres salidas (correcta, vCPU baja, servicio parado) con su código de salida.
 
@@ -1351,27 +1138,29 @@ Una supresión sin justificación no vale; en la práctica evaluable cuenta como
 
 <span class="et et-pas">Pasos</span>
 
-1. En el puesto de administración, instala lo que falta: `sudo apt install -y pipx gitleaks` y `pipx install checkov` (si después la terminal no encuentra `checkov`, `pipx ensurepath` y vuelve a entrar). Trivy ya lo tienes desde la A4.6 de Mantenimiento: comprueba `trivy version` y sigue.
-2. Desde la raíz del repositorio ejecuta los tres escáneres y guarda cada salida en `informe/antes-*.txt`:
+1. Instala checkov y gitleaks en el puesto de administración (trivy ya está desde la A4.6 de Mantenimiento) y pasa los tres escáneres desde la raíz del repositorio, cada uno a su fichero: `informe/antes-checkov.txt`, `informe/antes-trivy.txt` e `informe/antes-gitleaks.txt`.
 
-    ```bash
-    mkdir -p informe
-    checkov -d . > informe/antes-checkov.txt
-    trivy config . > informe/antes-trivy.txt
-    gitleaks detect -v > informe/antes-gitleaks.txt   # o gitleaks git -v
-    ```
+    *Pista:* checkov se instala con `pipx`; si luego la terminal no lo encuentra, `pipx ensurepath` y vuelve a entrar. La orden de cada escáner está en [Escáneres](#escaneres).
 
-3. Cuenta lo que tienes antes de leerlo: cuántos hallazgos ha sacado cada herramienta y cuántos hay de cada severidad. checkov sin cuenta en su plataforma no muestra la severidad: a los suyos dales la de la regla equivalente de trivy, o media si trivy no la tiene. Después agrupa los altos y críticos en las cuatro categorías del apartado de [seguridad del IaC](#seguridad-del-iac) (secretos, exposición de red o permisos de más, versiones sin fijar, estado en el repositorio) y anota cuántos caen en cada una. Si alguno no encaja en ninguna, abre una categoría tuya y ponle nombre.
-4. Lee de verdad los tres hallazgos más graves, o todos si hay menos de tres. De cada uno abre el enlace `Guide` (o busca el id en la documentación de la herramienta) y escribe dos cosas con tus palabras: qué comprueba la regla y qué podría pasar en este laboratorio si no se corrige. Una frase de riesgo por hallazgo, y que sea tuya, no la del enlace.
-5. Compara checkov con trivy: busca un hallazgo que salga en los dos informes y otro que solo vea uno de ellos. Con esos dos delante, escribe dos líneas diciendo si en una empresa te llevarías las dos herramientas o te quedarías con una, y por qué.
-6. Comprueba que los escáneres detectan de verdad, porque un informe vacío tanto puede significar que todo está bien como que la herramienta no está mirando donde crees. Sin hacer commit, introduce dos fallos a propósito en ficheros que ya estén en Git: pon `mode: "0777"` en una tarea `copy` del playbook y añade a cualquier `.tf` una línea con un token falso con el formato de Proxmox (`terraform@pve!tofu=` y un uuid inventado). Vuelve a pasar las tres herramientas (para el árbol de trabajo, `gitleaks detect --no-git` o `gitleaks dir .` según tu versión) y apunta qué herramienta ve cada fallo y cuál no lo ve: ninguna de las tres los ve los dos, y esa es la razón de pasarlas todas. Deshaz los cambios con `git checkout -- .` y confirma con `git status` que el árbol vuelve a estar limpio.
-7. Escribe `informe/hallazgos.md`. Una fila por hallazgo alto o crítico, con estas columnas: id, severidad, fichero y línea, descripción, categoría del paso 3, riesgo en una frase (el del paso 4 en los que leíste a fondo), decisión (corregir o aceptar) y **corrección prevista**. Esa última columna es la que hace el trabajo: para los que vas a corregir, escribe qué fichero tocarás, en qué línea y qué vas a poner en ella; para los que vas a aceptar, escribe la línea de supresión completa (`#checkov:skip=ID: motivo` o `#trivy:ignore:ID motivo`) con el motivo ya redactado. No apliques nada todavía: eso es la A5.8.
+2. Cuenta los hallazgos de cada herramienta por severidad y reparte los altos y críticos entre las cuatro categorías de [Seguridad del IaC](#seguridad-del-iac), más una tuya, con nombre, si alguno no encaja.
 
-<span class="et et-com">Comprobación</span> La tabla cubre todos los hallazgos de severidad alta o crítica de los tres informes y ninguna fila tiene la columna de corrección prevista vacía. Los dos fallos del paso 6 aparecen en la salida de alguna herramienta y `git status` vuelve a estar limpio.
+    *Pista:* checkov sin cuenta en su plataforma no da la severidad: usa la de la regla equivalente de trivy, o media si trivy no la tiene.
 
-<span class="et et-ent">Entrega</span> La carpeta `informe/` de `iac-lab` (los tres `antes-*.txt`, `hallazgos.md` y la comparación del paso 5). La columna de corrección prevista es el plan de trabajo de la A5.8 y el arranque del punto 5 de la práctica evaluable.
+3. De los tres hallazgos más graves (o de todos, si hay menos), lee el enlace `Guide` y escribe con tus palabras qué comprueba la regla y, en una frase tuya, qué podría pasar en este laboratorio si no se corrige.
 
-<span class="et et-ext">Si te sobra tiempo</span> Pasa `checkov --compact --framework ansible -d ansible/` y compara el recuento con el de la pasada general del paso 2. Mira si `.terraform.lock.hcl` está en el repositorio y qué versiones del provider fija por hash.
+4. Con un hallazgo que vean checkov y trivy y otro que vea solo uno de los dos, escribe en dos líneas si en una empresa te quedarías con las dos herramientas o con una, y por qué.
+
+5. Comprueba que los escáneres detectan de verdad. Sin hacer commit, mete en ficheros que ya estén en Git dos fallos: `mode: "0777"` en una tarea `copy` del playbook y, en un `.tf`, un token falso con el formato de Proxmox (`terraform@pve!tofu=` y un uuid inventado). Pasa otra vez las tres herramientas, apunta cuál ve cada fallo y deja el árbol de trabajo limpio.
+
+    *Pista:* para que gitleaks mire el árbol de trabajo y no el historial, `gitleaks detect --no-git` (o `gitleaks dir .`, según la versión).
+
+6. Escribe `informe/hallazgos.md` con una fila por hallazgo alto o crítico y estas columnas: id, severidad, fichero y línea, descripción, categoría (la del paso 2), riesgo en una frase (el del paso 3 en los que leíste a fondo), decisión (corregir o aceptar) y **corrección prevista**: qué fichero, qué línea y qué pondrás en ella o, si lo aceptas, la línea de supresión completa con el motivo ya redactado. No apliques nada todavía: eso es la A5.8.
+
+<span class="et et-com">Comprobación</span> La tabla cubre todos los hallazgos de severidad alta o crítica de los tres informes y ninguna fila tiene la columna de corrección prevista vacía. Los dos fallos del paso 5 aparecen en la salida de alguna herramienta y `git status` vuelve a estar limpio.
+
+<span class="et et-ent">Entrega</span> La carpeta `informe/` de `iac-lab` (los tres `antes-*.txt`, `hallazgos.md` y la comparación del paso 4). La columna de corrección prevista es el plan de trabajo de la A5.8 y el arranque del punto 5 de la práctica evaluable.
+
+<span class="et et-ext">Si te sobra tiempo</span> Pasa `checkov --compact --framework ansible -d ansible/` y compara el recuento con el de la pasada general del paso 1. Mira si `.terraform.lock.hcl` está en el repositorio y qué versiones del provider fija por hash.
 
 ## Sesión 28 · Corrección de hallazgos
 
@@ -1444,16 +1233,23 @@ repos:
 
 <span class="et et-pas">Pasos</span>
 
-1. Instala pre-commit en el puesto de administración: `pipx install pre-commit`.
-2. Corrige todos los hallazgos altos y críticos: versión de provider fijada, `sensitive = true` donde falte, permisos de ficheros en `copy`, lo que salga. Para los que decidas aceptar, pon la supresión junto al recurso con la justificación en la misma línea (`#checkov:skip=ID: motivo`, `#trivy:ignore:ID motivo`) y copia la justificación al informe.
-3. Si gitleaks ha encontrado el token en algún commit, sigue el orden del apartado: revoca el token en el nodo (`pveum user token remove terraform@pve tofu`), crea uno nuevo con la última orden del paso 2 de la A5.1, expórtalo en `TF_VAR_pve_token` y reescribe el historial con `git filter-repo`. Repite `gitleaks detect` hasta que no quede nada.
-4. Crea `.pre-commit-config.yaml` con el contenido del apartado (pre-commit-terraform y gitleaks), exporta `PCT_TFPATH=tofu` y ejecuta `pre-commit install` y `pre-commit run --all-files`.
-5. Demuestra el bloqueo: crea `prueba.tf` con la línea `api_token = "terraform@pve!tofu=12345678-1234-1234-1234-123456789abc"`, haz `git add` y `git commit`. Captura el rechazo de gitleaks y borra el fichero.
-6. Vuelve a pasar los tres escáneres a `informe/despues-*.txt`.
+1. Corrige los hallazgos altos y críticos como dice la columna de corrección prevista de la A5.7. Los que aceptes llevan su supresión junto al recurso, con la justificación en la misma línea, y esa justificación también en el informe.
 
-<span class="et et-com">Comprobación</span> Los ficheros `despues-*` no contienen hallazgos de severidad alta o crítica que no estén en la tabla como aceptados y suprimidos con motivo; `gitleaks detect` sale sin hallazgos en todo el historial; la captura del paso 5 muestra el commit bloqueado.
+2. Si gitleaks encontró el token en algún commit, trátalo como un secreto real, en el orden de [Cuando gitleaks encuentra algo](#cuando-gitleaks-encuentra-algo): revócalo, crea otro como en el paso 1 de la A5.1, expórtalo y reescribe el historial, hasta que `gitleaks detect` no encuentre nada.
 
-<span class="et et-ent">Entrega</span> `informe/despues-*.txt`, `.pre-commit-config.yaml` y las supresiones en el código, en `iac-lab`, y la captura del paso 5 en `ut5/a58/` de `entregas-5166`. Este informe es el punto 5 de la práctica evaluable.
+    *Pista:* el token nuevo se sigue llamando `tofu`, que es el nombre con el que lo usan las dos asignaturas, y su secreto sustituye al anterior en el gestor de contraseñas.
+
+3. Instala pre-commit con `pipx`, monta en el repositorio el `.pre-commit-config.yaml` de [.gitignore y pre-commit](#gitignore-y-pre-commit) y haz que sus hooks pasen limpios sobre todos los ficheros, no solo sobre los del próximo commit.
+
+    *Pista:* los hooks de pre-commit-terraform llaman a `terraform` salvo que exportes `PCT_TFPATH=tofu`; `pre-commit run --all-files` los pasa sobre todo el repositorio.
+
+4. Demuestra el bloqueo: intenta hacer commit de un `prueba.tf` con la línea `api_token = "terraform@pve!tofu=12345678-1234-1234-1234-123456789abc"`, captura el rechazo de gitleaks y borra el fichero.
+
+5. Vuelve a pasar los tres escáneres a `informe/despues-*.txt`.
+
+<span class="et et-com">Comprobación</span> Los ficheros `despues-*` no contienen hallazgos de severidad alta o crítica que no estén en la tabla como aceptados y suprimidos con motivo; `gitleaks detect` sale sin hallazgos en todo el historial; la captura del paso 4 muestra el commit bloqueado.
+
+<span class="et et-ent">Entrega</span> `informe/despues-*.txt`, `.pre-commit-config.yaml` y las supresiones en el código, en `iac-lab`, y la captura del paso 4 en `ut5/a58/` de `entregas-5166`. Este informe es el punto 5 de la práctica evaluable.
 
 <span class="et et-ext">Si te sobra tiempo</span> Cifra con `ansible-vault encrypt_string` la contraseña que Ansible guardó en `ansible/secretos/db-pre` y ponla en `group_vars/all.yml` en lugar del `lookup`, o prueba sops con age sobre un `secrets.yaml`, y comprueba que gitleaks lo da por limpio.
 
@@ -1466,18 +1262,18 @@ La sesión empieza con diez minutos de aclaración del enunciado y el resto es t
 Entrega el repositorio `iac-lab`, publicado en Gitea, con:
 
 1. `README.md`: la tabla de requisitos con el origen del dato y las diferencias del laboratorio (de la A5.2, paso 2), y tres apartados cortos: cómo desplegar, cómo probar y cómo destruir.
-2. Código OpenTofu modular: `modules/vm` y los entornos `dev` y `pre` en directorios (de la A5.4, pasos 1, 2 y 8), backend remoto con bloqueo (de la A5.4, pasos 5 y 7), versiones de provider fijadas y sin secretos en ningún fichero ni en el historial (de la A5.8, pasos 2 y 3), y las VM de `pre` con `prevent_destroy` (de la A5.3, pasos 2 y 6).
-3. Playbook Ansible, con roles o sin ellos, pero con nombres completos de módulo y handlers, que deja PostgreSQL en `db01` y el servicio en `app01`, e inventario generado desde los outputs (de la A5.5, pasos 2, 6 y 7).
+2. Código OpenTofu modular: `modules/vm` y los entornos `dev` y `pre` en directorios (de la A5.4, pasos 1 y 5), backend remoto con bloqueo (de la A5.4, pasos 3 y 4), versiones de provider fijadas y sin secretos en ningún fichero ni en el historial (de la A5.8, pasos 1 y 2), y las VM de `pre` con `prevent_destroy` (de la A5.3, pasos 2 y 3).
+3. Playbook Ansible, con roles o sin ellos, pero con nombres completos de módulo y handlers, que deja PostgreSQL en `db01` y el servicio en `app01`, e inventario generado desde los outputs (de la A5.5, pasos 1, 4 y 5).
 4. `test.sh` con smoke tests y comprobación de configuración, que devuelve 0 o distinto de 0 (de la A5.6).
 5. Informe de seguridad: hallazgos, correcciones y justificaciones, con el antes y el después de los escáneres (de la A5.7 y la A5.8).
 
 Checklist antes de entregar:
 
-- [ ] `tofu fmt -check`, `tofu validate` y `ansible-lint` limpios (de la A5.5, paso 8, y de la A5.8, paso 4)
-- [ ] Segundo `tofu plan` con `No changes` (de la A5.4, paso 4) y segunda pasada del playbook con `changed=0` (de la A5.5, paso 7)
-- [ ] `gitleaks detect` sin hallazgos en todo el historial (de la A5.8, paso 3)
-- [ ] `.gitignore` con tfstate, `.terraform/` y `ansible/secretos/` (de la A5.1, paso 4, y de la A5.5, paso 4)
-- [ ] `test.sh` probado fallando y acertando (de la A5.6, pasos 3 a 6)
+- [ ] `tofu fmt -check`, `tofu validate` y `ansible-lint` limpios (de la A5.5, paso 6, y de la A5.8, paso 3)
+- [ ] Segundo `tofu plan` con `No changes` (de la A5.4, paso 2) y segunda pasada del playbook con `changed=0` (de la A5.5, paso 5)
+- [ ] `gitleaks detect` sin hallazgos en todo el historial (de la A5.8, paso 2)
+- [ ] `.gitignore` con tfstate, `.terraform/` y `ansible/secretos/` (de la A5.1, paso 2, y de la A5.5, paso 2)
+- [ ] `test.sh` probado fallando y acertando (de la A5.6, pasos 2 a 5)
 
 | Criterio | RA3 | Sale de | Peso |
 |----|----|----|----|
@@ -1496,10 +1292,10 @@ Checklist antes de entregar:
 - `Error acquiring the state lock` sin que nadie esté aplicando. Un apply anterior murió con el bloqueo puesto (Ctrl+C, portátil cerrado). `tofu force-unlock ID` con el ID que muestra el error, tras comprobarlo con el resto del grupo.
 - El plan falla con `Instance cannot be destroyed` después de mover el recurso al módulo (sin `prevent_destroy`, querría destruir y crear las tres VM). Falta `tofu state mv` o el bloque `moved`. No se quita la protección para seguir: son las mismas VM con otra dirección en el estado.
 - `Plan: 0 to add, 1 to change` cada vez que se ejecuta el plan, sin haber tocado nada. Un atributo que el provider lee distinto de como se escribió (mayúsculas en una MAC, tamaño de disco en G en vez de GB, orden de una lista). Se pone en el código el valor que devuelve el provider, o se añade a `lifecycle { ignore_changes = [...] }` con una justificación.
-- Ansible: `Permission denied (publickey)`. La clave que cloud-init instaló no es la que usa el agente SSH local, o el usuario no es `ops`. `ssh -v ops@10.20.2.10` lo dice; `ansible_ssh_private_key_file` en el inventario lo arregla.
+- Ansible: `Permission denied (publickey)`. La clave que cloud-init instaló no es la que usa el agente SSH local, o el usuario no es `ops`. `ssh -v ops@10.20.2.10` lo dice; `ansible_ssh_private_key_file=~/.ssh/id_ed25519` en `[all:vars]` lo arregla, añadido en `gen-inventory.sh` y no en el inventario, que se regenera.
 - Ansible: `/usr/bin/python3: not found`. Imagen mínima sin Python; `ansible -m raw -a 'apt-get install -y python3'` una vez, o meter el paquete en la plantilla.
 - `ssh ops@10.20.x.10` se queda sin respuesta desde el puesto de administración. Falta un trozo del camino de gestión a `pre` del paso 1 de la A5.3: `ip route get 10.20.1.10` en el puesto tiene que salir por la `10.10.0.2`, y en `router-pre` `ip r` tiene que mostrar `10.10.0.0/24 dev ens23` y `nft list ruleset` las tres reglas de `forward`.
-- El servicio de `app01` en `pre` no arranca y `docker compose ps` muestra `pull access denied for app`. La imagen no está cargada: repite la tubería `docker save | docker load` del paso 5 de la A5.5 con la etiqueta que dice `app_image` (`sudo grep APP_IMAGE /opt/servicio/.env` en `app01` muestra cuál espera).
+- El servicio de `app01` en `pre` no arranca y `docker compose ps` muestra `pull access denied for app`. La imagen no está cargada: repite la tubería `docker save | docker load` del paso 3 de la A5.5 con la etiqueta que dice `app_image` (`sudo grep APP_IMAGE /opt/servicio/.env` en `app01` muestra cuál espera).
 - La segunda pasada del playbook sigue diciendo `changed=1`. Una tarea `command` sin `creates` o `changed_when`, o un `copy` de un fichero que otra tarea modifica después. El módulo `debug` y `--diff` localizan cuál.
 - gitleaks encuentra el token en un commit de hace tres semanas aunque ya no está en el fichero. Está en el historial. Se rota el token en Proxmox primero y se reescribe el historial después.
 
