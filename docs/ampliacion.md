@@ -826,7 +826,7 @@ En el laboratorio se leen cuatro fuentes, pero en la empresa cada servicio tiene
 | blackbox_exporter | 9115 | Sondas desde fuera: HTTP, TCP, ICMP, DNS | Prometheus le pasa la URL como parámetro; mide lo que ve el usuario (código, latencia, caducidad del certificado TLS) |
 | postgres_exporter | 9187 | Conexiones, transacciones, tamaño, réplica de PostgreSQL | Necesita un usuario de solo lectura en la BD, con `pg_monitor` |
 | nginx-prometheus-exporter | 9113 | Conexiones activas y peticiones de nginx | Lee `stub_status`; para métricas por ruta hace falta un módulo de terceros o Traefik |
-| Plugin Prometheus de Jenkins | 443 (`https://jenkins.lab/prometheus/`) | Builds, duración, cola, ejecutores | Prefijo `default_`; se puede exigir autenticación en el endpoint |
+| Plugin Prometheus de Jenkins | 443 (`https://jenkins.lab/prometheus/`) | Builds, duración, cola, ejecutores | Prefijo `default_` en sus métricas propias (las de cola y ejecutores van sin él); se puede exigir autenticación en el endpoint |
 
 Blackbox cambia el punto de vista: los demás miden desde dentro ("el proceso usa 300 MB"); blackbox mide desde fuera ("la URL responde 200 en 120 ms y el certificado caduca en 41 días"), que es lo que le importa al que paga. Un job de blackbox contra la aplicación es el SLI de disponibilidad más honesto que se puede tener, y `probe_ssl_earliest_cert_expiry - time() < 14*86400` es una alerta que ha salvado más de un fin de semana. En el laboratorio del curso no se instala.
 

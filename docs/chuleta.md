@@ -210,7 +210,8 @@ docker compose exec alertmanager amtool --alertmanager.url=http://localhost:9093
 curl -s http://10.10.3.10:9100/metrics | grep -E '^node_(memory_MemAvailable|filesystem_avail)'   # desde mon01; el de app01 va con TLS
 curl -s -X POST http://localhost:9090/-/reload   # en mon01
 ansible-playbook -i ansible/dev.ini ansible/ut7-targets.yml   # en admin01, en iac-lab: regenera targets/ut7-*.yml (A7.1)
-# Exportar un dashboard de Grafana por API, por el túnel de Grafana
+# Exportar un dashboard de Grafana por API, por el túnel de Grafana (sale con el uid de la fuente
+# de datos de esta instancia, no con el hueco ${DS_PROMETHEUS} del export de la interfaz que pide la A7.2)
 curl -s --cacert ca.crt -H "Authorization: Bearer $GRAFANA_TOKEN" https://grafana.lab:8443/api/dashboards/uid/<uid> | jq .dashboard > grafana/ut7/kpi-plataforma.json
 ```
 
@@ -223,7 +224,7 @@ node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes * 100
 node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"} * 100
 rate(container_cpu_usage_seconds_total{service="app"}[5m])
 container_memory_working_set_bytes{service="app"}
-increase(default_jenkins_builds_failed_build_count[1h])
+increase(default_jenkins_builds_failed_build_count_total[1h])
 histogram_quantile(0.95, sum by(le)(rate(app_http_request_duration_seconds_bucket[5m])))
 ```
 

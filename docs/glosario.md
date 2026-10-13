@@ -4,9 +4,13 @@ Términos que aparecen en el módulo, explicados en una o dos frases y con la un
 
 **ACK** · Bandera del segmento TCP con la que el receptor confirma lo que ha recibido. En un escaneo, un SYN al que contesta un SYN/ACK indica un puerto abierto. UT3.
 
+**ACL (Access Control List)** · Lista que dice quién puede hacer qué sobre un recurso: un fichero, un bucket o el tráfico de una red. UT1, UT2, UT5.
+
 **ACME** · Protocolo con el que un servidor pide y renueva sus certificados sin intervención humana; es el que usa Let's Encrypt. UT3.
 
 **ADC (Application Default Credentials)** · Credenciales por defecto que buscan las librerías de Google Cloud. Las deja `gcloud auth application-default login` y son distintas del login de `gcloud`. UT4.
+
+**AES (Advanced Encryption Standard)** · Algoritmo estándar de cifrado simétrico (la misma clave cifra y descifra). Es el que usan por debajo el cifrado de discos, las conexiones TLS y los secretos de las herramientas del curso. UT1, UT5.
 
 **Agente (CI)** · Máquina o contenedor donde el orquestador ejecuta de verdad las tareas. El controlador solo coordina. En Jenkins se eligen por etiqueta; en GitLab se llaman runners. UT6.
 
@@ -66,6 +70,8 @@ Términos que aparecen en el módulo, explicados en una o dos frases y con la un
 
 **CSR** · Petición de firma de certificado: la clave pública y los nombres que se envían a la CA para que los firme. UT3.
 
+**CSRF (Cross-Site Request Forgery)** · Ataque en el que una web ajena hace que el navegador de un usuario con la sesión abierta envíe una petición sin que él lo sepa. Jenkins se protege con un token por petición, el *crumb*. UT6.
+
 **DMZ** · Zona desmilitarizada: subred entre Internet y la red interna donde van los servicios que deben verse desde fuera. Se habla de DMZ externa (proxy, web) y DMZ interna (aplicación). UT3.
 
 **DMZEXT, DMZINT e INT** · Nombres de las interfaces de OPNsense para front (DMZ externa), back (DMZ interna) y data (zona interna). Cada una es una pestaña de reglas en Firewall → Rules. UT3.
@@ -79,6 +85,8 @@ Términos que aparecen en el módulo, explicados en una o dos frases y con la un
 **EC2** · Servicio de máquinas virtuales de AWS; cada VM es una instancia. Equivale a Virtual Machines en Azure y a Compute Engine en Google Cloud. UT4.
 
 **ECS y AKS** · Servicios de contenedores gestionados: ECS en AWS, AKS (Kubernetes gestionado) en Azure. En el módulo solo se citan como correspondencia; no se despliega nada en ellos. UT4.
+
+**ELK** · Elasticsearch, Logstash y Kibana: la pila clásica para centralizar logs, indexarlos y buscarlos. En el curso se usa Loki, más ligera. UT7.
 
 **Estado (Terraform)** · Fichero que relaciona cada recurso del código con el recurso real que existe en el proveedor. Sin él, Terraform no sabe qué ha creado. UT5.
 
@@ -110,11 +118,15 @@ Términos que aparecen en el módulo, explicados en una o dos frases y con la un
 
 **Idempotencia** · Propiedad de una operación que, aplicada dos veces, deja el mismo resultado que aplicada una. Base del IaC. La A2.6 ya exige que los scripts de creación y destrucción se puedan ejecutar dos veces sin error ni duplicados. UT2, UT5.
 
+**IDS (Intrusion Detection System)** · Sistema que vigila el tráfico o la actividad de una máquina y avisa cuando reconoce un ataque. Solo avisa; el que además corta es el IPS. Ampliación de la UT3.
+
 **IOMMU (VT-d / AMD-Vi)** · Extensión del hardware que permite ceder un dispositivo PCI entero a una VM (passthrough). UT1.
 
 **IOPS** · Operaciones de entrada y salida por segundo que aguanta un disco. Es la cifra que se mide con `fio` y la que se hunde cuando varias VM comparten disco. UT1.
 
 **IPAM** · Gestión de direcciones IP: registro de qué IP está asignada a qué máquina. El SDN de Proxmox lo integra. UT2.
+
+**IPS (Intrusion Prevention System)** · Un IDS que además corta el tráfico que reconoce como ataque. Ampliación de la UT3.
 
 **JCasC** · Jenkins Configuration as Code: plugin que permite definir toda la configuración de Jenkins en un YAML versionado. UT6.
 
@@ -127,6 +139,10 @@ Términos que aparecen en el módulo, explicados en una o dos frases y con la un
 **KPI** · Indicador clave: la métrica o fórmula que resume si un servicio va bien (disponibilidad, latencia p95, errores por minuto). UT7.
 
 **KVM** · Módulo del kernel Linux que convierte al kernel en hipervisor usando VT-x/AMD-V. QEMU le pone los dispositivos virtuales. UT1.
+
+**LDAP (Lightweight Directory Access Protocol)** · Protocolo para consultar un directorio de usuarios y grupos, que es lo que permite que varias aplicaciones de una empresa usen las mismas cuentas. UT1.
+
+**LTS (Long Term Support)** · Línea de versiones con soporte largo: recibe parches de seguridad durante más tiempo y cambia de funciones con menos frecuencia. El curso usa la LTS de Jenkins. UT6.
 
 **LVM-thin** · Almacenamiento con aprovisionamiento ligero: un disco de 50 GB ocupa solo lo escrito. Permite snapshots. Riesgo: prometer más de lo que hay. UT1.
 
@@ -202,6 +218,8 @@ Términos que aparecen en el módulo, explicados en una o dos frases y con la un
 
 **QEMU** · Emulador de máquinas que, junto con KVM, ejecuta las VM en Proxmox. UT1.
 
+**RBAC (Role-Based Access Control)** · Control de acceso por roles: los permisos se dan a un rol y a cada persona se le asignan roles, no permisos sueltos. UT4.
+
 **Realm (Proxmox)** · Origen de los usuarios: pam (usuarios Linux del host), pve (usuarios propios), LDAP, AD. UT1.
 
 **Región (nube)** · Conjunto de centros de datos de una zona geográfica, con catálogo de servicios y precios propios. Casi todos los recursos son regionales: mirar en la región equivocada es no ver nada. UT4.
@@ -247,6 +265,8 @@ Términos que aparecen en el módulo, explicados en una o dos frases y con la un
 **SNAT** · Traducción de la dirección de origen: el router cambia la IP de origen de los paquetes que salen para que las respuestas vuelvan a él. El masquerade es el SNAT que usa la IP de la interfaz de salida. UT2, UT3.
 
 **sops** · Herramienta para cifrar ficheros de secretos (YAML, JSON, env) y guardarlos en el repositorio. UT5.
+
+**SSD (Solid State Drive)** · Disco de estado sólido, sin partes móviles. Da muchas más operaciones por segundo que un disco mecánico, y por eso las medidas de disco de la UT1 dependen tanto del que tenga el puesto. UT1.
 
 **SSO (inicio de sesión único)** · Entrar en la nube con la identidad corporativa y recibir credenciales temporales, en lugar de tener claves de larga duración. En AWS lo configura `aws configure sso`. UT4.
 
