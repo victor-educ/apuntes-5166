@@ -176,7 +176,7 @@ El cortafuegos decide por puertos y direcciones. No sabe si lo que entra por el 
 
 Ampliación de [Defensa en profundidad y zonas](ut/ut3-seguridad-por-capas.md#defensa-en-profundidad-y-zonas), en la sesión 14.
 
-Para que el modelo no se quede en una tabla bonita, conviene saber qué ataque concreto para cada zona. Un escaneo de puertos desde Internet contra la IP pública solo ve el 443 del proxy; los puertos 8080 de la aplicación y 5432 de PostgreSQL ni siquiera aparecen como cerrados, aparecen como filtrados, que es distinto y se explica con nmap en las [pruebas de seguridad](ut/ut3-seguridad-por-capas.md#pruebas-de-seguridad) de la sesión 18. Si un atacante explota una vulnerabilidad del proxy y consigue ejecutar código en él, se encuentra en la DMZ externa: puede llegar al 8080 de app01 porque es lo que el proxy necesita, pero no puede abrir una sesión a la base de datos, ni hacer SSH a nada, ni salir a Internet a descargarse herramientas si la regla de salida de la DMZ externa está cerrada. Si además compromete la aplicación (inyección SQL, deserialización, dependencia vulnerable), llega a la base de datos, pero con el usuario de aplicación, que no puede hacer `COPY ... TO PROGRAM` (una orden de PostgreSQL que ejecuta programas en el servidor) ni leer otras bases. Para llegar a la zona de gestión no hay ningún camino permitido desde ninguna zona de servicio, así que tendría que atacar el propio cortafuegos. Cada uno de esos saltos deja intentos denegados en el log, que es justo lo que un sistema de detección busca.
+Para que el modelo no se quede en una tabla bonita, conviene saber qué ataque concreto para cada zona. Un escaneo de puertos desde Internet contra la IP pública solo ve el 443 del proxy; los puertos 28080 de la aplicación y 5432 de PostgreSQL ni siquiera aparecen como cerrados, aparecen como filtrados, que es distinto y se explica con nmap en las [pruebas de seguridad](ut/ut3-seguridad-por-capas.md#pruebas-de-seguridad) de la sesión 18. Si un atacante explota una vulnerabilidad del proxy y consigue ejecutar código en él, se encuentra en la DMZ externa: puede llegar al 28080 de app01 porque es lo que el proxy necesita, pero no puede abrir una sesión a la base de datos, ni hacer SSH a nada, ni salir a Internet a descargarse herramientas si la regla de salida de la DMZ externa está cerrada. Si además compromete la aplicación (inyección SQL, deserialización, dependencia vulnerable), llega a la base de datos, pero con el usuario de aplicación, que no puede hacer `COPY ... TO PROGRAM` (una orden de PostgreSQL que ejecuta programas en el servidor) ni leer otras bases. Para llegar a la zona de gestión no hay ningún camino permitido desde ninguna zona de servicio, así que tendría que atacar el propio cortafuegos. Cada uno de esos saltos deja intentos denegados en el log, que es justo lo que un sistema de detección busca.
 
 ### La tabla de estados por dentro
 
@@ -260,7 +260,7 @@ table inet fw {
         iifname "wan" oifname "dmzext" ip daddr $srv_web tcp dport { 80, 443 } accept
 
         # Capas: proxy -> app -> db
-        iifname "dmzext" oifname "dmzint" ip saddr $srv_web ip daddr $srv_app tcp dport 8080 accept
+        iifname "dmzext" oifname "dmzint" ip saddr $srv_web ip daddr $srv_app tcp dport 28080 accept
         iifname "dmzint" oifname "int"    ip saddr $srv_app ip daddr $srv_db  tcp dport 5432 accept
 
         # Gestión llega a todo por SSH
@@ -308,7 +308,7 @@ Las alternativas habituales en empresas son **Traefik** y **Caddy**. Traefik des
 
 ```text
 api.dev.lab {
-    reverse_proxy 10.10.2.10:8080
+    reverse_proxy 10.10.2.10:28080
 }
 ```
 
@@ -707,40 +707,48 @@ services:
       - --storage.tsdb.retention.time=45d
       - --storage.tsdb.retention.size=8GB
       - --web.enable-lifecycle
-    ports: ["127.0.0.1:9090:9090"]
+      - --web.listen-address=:29090
+    ports: ["127.0.0.1:29090:29090"]
     restart: unless-stopped
   alertmanager:
     image: prom/alertmanager:v0.28.1
     volumes:
       - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
       - am_data:/alertmanager
-    ports: ["127.0.0.1:9093:9093"]
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+      - --web.listen-address=:29093
+    ports: ["127.0.0.1:29093:29093"]
     restart: unless-stopped
   grafana:
     image: grafana/grafana:12.1.0
     environment:
       GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin
       GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_HTTP_PORT: "23000"
     volumes:
       - graf_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
       - ./secrets/grafana_admin:/run/secrets/grafana_admin:ro
-    ports: ["127.0.0.1:3000:3000"]   # delante va un nginx con TLS en el 443
+    ports: ["127.0.0.1:23000:23000"]   # delante va un nginx con TLS en el 443
     restart: unless-stopped
   mailpit:
     image: axllent/mailpit:v1.22.3
-    ports: ["127.0.0.1:8025:8025"]   # interfaz web; SMTP en 1025 solo dentro de la red de compose
+    environment:
+      MP_UI_BIND_ADDR: "0.0.0.0:28025"
+    ports: ["127.0.0.1:28025:28025"]   # interfaz web; SMTP en 1025 solo dentro de la red de compose
     restart: unless-stopped
 volumes: { prom_data: {}, am_data: {}, graf_data: {} }
 ```
 
-Las versiones se fijan siempre (nada de `latest` en una pila que tiene que ser reproducible). `--web.enable-lifecycle` permite recargar la configuración con `curl -X POST http://localhost:9090/-/reload` sin reiniciar el contenedor. La retención por tiempo y por tamaño se combinan: lo primero que se cumpla borra bloques antiguos.
+Las versiones se fijan siempre (nada de `latest` en una pila que tiene que ser reproducible). Los puertos son los de la [franja del curso](laboratorio.md#puertos), y cada servicio escucha dentro de su contenedor en el mismo número con el que se publica: lo fija `--web.listen-address` en Prometheus y en Alertmanager, `GF_SERVER_HTTP_PORT` en Grafana y `MP_UI_BIND_ADDR` en Mailpit. Si solo se cambia el `ports:`, el contenedor sigue escuchando en su puerto de fábrica y la conexión se corta. El `command` de Alertmanager repite además las dos opciones que su imagen trae de serie, porque al escribirlo se sustituyen. `--web.enable-lifecycle` permite recargar la configuración con `curl -X POST http://localhost:29090/-/reload` sin reiniciar el contenedor. La retención por tiempo y por tamaño se combinan: lo primero que se cumpla borra bloques antiguos.
 
 En cada máquina a vigilar:
 
-- **node_exporter** (puerto 9100): CPU, memoria, disco, red, carga, systemd del host. Se instala con el paquete `prometheus-node-exporter` de Debian, que ya trae su unidad de systemd y su usuario de servicio (en el curso viene en la plantilla 9000), o con el binario oficial si hace falta una versión más nueva que la del repositorio; también existe como contenedor con `--pid=host` y los volúmenes `/proc`, `/sys` y `/` montados en solo lectura. Conviene dejarlo fuera de Docker: un exporter que depende de Docker no puede avisar de que Docker se ha caído.
-- **cAdvisor**: CPU, memoria, red y disco por contenedor, leyendo los cgroups (el mecanismo del kernel con el que Docker limita y contabiliza los recursos de cada contenedor). Va como contenedor (`gcr.io/cadvisor/cadvisor`) con `/var/run/docker.sock`, `/sys` y `/var/lib/docker` montados. Dentro de la red de Docker escucha en el 8080, pero en `app01` ese puerto del host lo ocupa la API del curso, así que se publica en el 8081 de la IP de la zona. Es glotón: con muchos contenedores conviene arrancarlo con `--docker_only=true --housekeeping_interval=30s`.
+- **node_exporter** (puerto 29100 en el curso): CPU, memoria, disco, red, carga, systemd del host. Se instala con el paquete `prometheus-node-exporter` de Debian, que ya trae su unidad de systemd y su usuario de servicio y lee sus opciones de la línea `ARGS` de `/etc/default/prometheus-node-exporter`, donde va `--web.listen-address=:29100` (en el curso viene así en la plantilla 9000), o con el binario oficial si hace falta una versión más nueva que la del repositorio; también existe como contenedor con `--pid=host` y los volúmenes `/proc`, `/sys` y `/` montados en solo lectura. Conviene dejarlo fuera de Docker: un exporter que depende de Docker no puede avisar de que Docker se ha caído.
+- **cAdvisor**: CPU, memoria, red y disco por contenedor, leyendo los cgroups (el mecanismo del kernel con el que Docker limita y contabiliza los recursos de cada contenedor). Va como contenedor (`gcr.io/cadvisor/cadvisor`) con `/var/run/docker.sock`, `/sys` y `/var/lib/docker` montados, y con `--port=28081` en su `command` para que escuche dentro del contenedor en el mismo puerto con el que se publica en la IP de la zona: el 28081 y no el 28080, que en `app01` es el de la API del curso. Es glotón: con muchos contenedores conviene arrancarlo con `--docker_only=true --housekeeping_interval=30s`.
 
 ```yaml
 # prometheus.yml
@@ -750,15 +758,15 @@ global:
 rule_files: ["alerts.yml"]
 alerting:
   alertmanagers:
-    - static_configs: [{ targets: ["alertmanager:9093"] }]
+    - static_configs: [{ targets: ["alertmanager:29093"] }]
 scrape_configs:
   - job_name: prometheus
-    static_configs: [{ targets: ["localhost:9090"] }]
+    static_configs: [{ targets: ["localhost:29090"] }]
   - job_name: node
     static_configs:
-      - targets: ["10.10.3.10:9100", "10.10.0.10:9100", "10.10.0.20:9100"]
+      - targets: ["10.10.3.10:29100", "10.10.0.10:29100", "10.10.0.20:29100"]
   - job_name: cadvisor
-    static_configs: [{ targets: ["10.10.2.10:8081"] }]
+    static_configs: [{ targets: ["10.10.2.10:28081"] }]
   - job_name: jenkins
     scheme: https                      # Jenkins solo se publica por su nginx, en el 443
     metrics_path: /prometheus/
@@ -772,7 +780,7 @@ Con `scrape_interval: 15s` y un entorno de cuatro hosts (unas 1 000 series por n
 
 Para entender lo que Prometheus guarda hay que ver primero lo que lee: cada exporter publica una página de texto que se puede abrir con el navegador, y conviene saber leerla porque es lo primero que se mira cuando un panel sale vacío.
 
-Un `/metrics` es texto plano, una métrica por línea, con dos líneas de comentario opcionales (`HELP` y `TYPE`) que la documentan. Esto es un extracto real de lo que devuelve un node_exporter, por ejemplo el de `db01` con `curl -s http://10.10.3.10:9100/metrics` desde `mon01` (node_exporter expone entre 500 y 1500 líneas según el hardware):
+Un `/metrics` es texto plano, una métrica por línea, con dos líneas de comentario opcionales (`HELP` y `TYPE`) que la documentan. Esto es un extracto real de lo que devuelve un node_exporter, por ejemplo el de `db01` con `curl -s http://10.10.3.10:29100/metrics` desde `mon01` (node_exporter expone entre 500 y 1500 líneas según el hardware):
 
 ```text
 # HELP node_cpu_seconds_total Seconds the CPUs spent in each mode.
@@ -817,15 +825,15 @@ El coste de Prometheus está en el número de series, no en el de muestras: cada
 
 ### Exporters más habituales
 
-En el laboratorio se leen cuatro fuentes, pero en la empresa cada servicio tiene su exporter y la pregunta es siempre la misma: qué puerto abre, qué mide y qué necesita. Esta tabla es la chuleta de los más habituales; el párrafo de después explica el único que mide desde fuera.
+En el laboratorio se leen cuatro fuentes, pero en la empresa cada servicio tiene su exporter y la pregunta es siempre la misma: qué puerto abre, qué mide y qué necesita. Esta tabla es la chuleta de los más habituales, con el puerto de fábrica de cada uno y, en los que monta el laboratorio, el de la [franja del curso](laboratorio.md#puertos); el párrafo de después explica el único que mide desde fuera.
 
 | Exporter | Puerto | Para qué | Comentario |
 |----|----|----|----|
-| node_exporter | 9100 | Sistema operativo del host | El primero que se instala en cualquier máquina Linux |
-| cAdvisor | 8080 dentro de Docker, 8081 publicado en `app01` | Contenedores por cgroup | Mantenido por Google; en Kubernetes va dentro del kubelet |
-| blackbox_exporter | 9115 | Sondas desde fuera: HTTP, TCP, ICMP, DNS | Prometheus le pasa la URL como parámetro; mide lo que ve el usuario (código, latencia, caducidad del certificado TLS) |
-| postgres_exporter | 9187 | Conexiones, transacciones, tamaño, réplica de PostgreSQL | Necesita un usuario de solo lectura en la BD, con `pg_monitor` |
-| nginx-prometheus-exporter | 9113 | Conexiones activas y peticiones de nginx | Lee `stub_status`; para métricas por ruta hace falta un módulo de terceros o Traefik |
+| node_exporter | 9100 de fábrica; 29100 en el curso | Sistema operativo del host | El primero que se instala en cualquier máquina Linux |
+| cAdvisor | 8080 de fábrica; 28081 en el curso, dentro y fuera del contenedor | Contenedores por cgroup | Mantenido por Google; en Kubernetes va dentro del kubelet |
+| blackbox_exporter | 9115 de fábrica | Sondas desde fuera: HTTP, TCP, ICMP, DNS | Prometheus le pasa la URL como parámetro; mide lo que ve el usuario (código, latencia, caducidad del certificado TLS) |
+| postgres_exporter | 9187 de fábrica; 29187 en el curso | Conexiones, transacciones, tamaño, réplica de PostgreSQL | Necesita un usuario de solo lectura en la BD, con `pg_monitor` |
+| nginx-prometheus-exporter | 9113 de fábrica | Conexiones activas y peticiones de nginx | Lee `stub_status`; para métricas por ruta hace falta un módulo de terceros o Traefik |
 | Plugin Prometheus de Jenkins | 443 (`https://jenkins.lab/prometheus/`) | Builds, duración, cola, ejecutores | Prefijo `default_` en sus métricas propias (las de cola y ejecutores van sin él); se puede exigir autenticación en el endpoint |
 
 Blackbox cambia el punto de vista: los demás miden desde dentro ("el proceso usa 300 MB"); blackbox mide desde fuera ("la URL responde 200 en 120 ms y el certificado caduca en 41 días"), que es lo que le importa al que paga. Un job de blackbox contra la aplicación es el SLI de disponibilidad más honesto que se puede tener, y `probe_ssl_earliest_cert_expiry - time() < 14*86400` es una alerta que ha salvado más de un fin de semana. En el laboratorio del curso no se instala.
@@ -855,7 +863,7 @@ Si se pone basic auth en los exporters, Prometheus tiene que presentarla al leer
 
 ### El repositorio de datos de la pila
 
-Los volúmenes `prom_data` y `graf_data` son el repositorio de datos, y quien llega a ellos tiene el histórico entero sin pasar por ninguna contraseña. Permisos restringidos en el host (usuario `nobody` para Prometheus, `472` para Grafana), retención definida (45 días en el curso) y copia de seguridad: los dashboards como JSON en Git, que es lo que hace la A7.2 con el panel de la plataforma, y, si el histórico importa, snapshots de la TSDB con `curl -XPOST http://localhost:9090/api/v1/admin/tsdb/snapshot` copiados fuera de la máquina.
+Los volúmenes `prom_data` y `graf_data` son el repositorio de datos, y quien llega a ellos tiene el histórico entero sin pasar por ninguna contraseña. Permisos restringidos en el host (usuario `nobody` para Prometheus, `472` para Grafana), retención definida (45 días en el curso) y copia de seguridad: los dashboards como JSON en Git, que es lo que hace la A7.2 con el panel de la plataforma, y, si el histórico importa, snapshots de la TSDB con `curl -XPOST http://localhost:29090/api/v1/admin/tsdb/snapshot` copiados fuera de la máquina.
 
 Dos cosas que se olvidan. La primera, que el snapshot necesita `--web.enable-admin-api`, y esa misma API permite borrar series enteras con una petición HTTP: se activa el rato que dura la copia y se vuelve a quitar, nunca se deja puesta "por comodidad". La segunda, que la base de datos de Grafana dentro de `graf_data` guarda los usuarios, los tokens de servicio y las credenciales de las fuentes de datos cifradas con la clave secreta de la instancia: una copia de ese volumen vale tanto como la contraseña de administración si la clave viaja al lado. Las copias se guardan con las mismas restricciones de acceso que el original, y quien pueda restaurarlas debe estar en la misma lista corta que quien puede entrar en `mon01`.
 

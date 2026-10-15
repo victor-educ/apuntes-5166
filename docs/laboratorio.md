@@ -29,7 +29,7 @@ flowchart TB
     Internet(("<b>Aula / Internet</b>")):::infra -->|443| fw
     Internet -->|SSH| adm
     fw --> web
-    web -->|8080| app
+    web -->|28080| app
     app -->|5432| db
     jenkins -.->|publica la imagen| git
     mon -.->|scrape| app & db & jenkins
@@ -215,7 +215,7 @@ Hay dos categorías de nombres y conviene no mezclarlas:
 - **Servicios de plataforma**, que viven en gestión y no pertenecen a ningún entorno: **dominio plano `.lab`**. `jenkins.lab`, `gitea.lab`, `registry.lab`, `grafana.lab` y `prometheus.lab`, y el de la máquina que los aloja, también en plano: `jenkins01.lab`, `mon01.lab`.
 - **Hosts de servicio**, uno por entorno: **`<host>.<entorno>.lab`**. `web01.dev.lab`, `app01.dev.lab`, `db01.dev.lab` y el servicio publicado, `api.dev.lab`.
 
-No existe ningún `gitea01.dev.lab`: meter un servicio de plataforma en un entorno lo mezcla con lo que se da de baja con ese entorno. MinIO no tiene nombre: se usa como `http://10.10.0.30:9000`.
+No existe ningún `gitea01.dev.lab`: meter un servicio de plataforma en un entorno lo mezcla con lo que se da de baja con ese entorno. MinIO no tiene nombre: se usa como `http://10.10.0.30:29000`.
 
 | Nombre | Apunta a | Lo resuelve | Desde |
 |--------|----------|-------------|-------|
@@ -266,9 +266,13 @@ Host web01 app01 db01 mon01 jenkins01 gitea01 agent01 10.20.*
 
 Con él, `ssh app01`, `scp fichero mon01:` o `ssh 10.20.2.10` pasan por `admin01` sin más. `ssh` toma cada opción del primer bloque que la define: por eso los `HostName` van arriba, uno por máquina, y el usuario y el salto, una sola vez abajo. Si el DHCP del aula cambia la IP de `admin01`, solo se toca la primera línea.
 
-Las consolas web se abren con un túnel a través de admin01. Las de esta asignatura son dos: la de OPNsense, `ssh -L 8443:10.10.0.1:443 admin01` y `https://localhost:8443`, y la de Jenkins, `ssh -L 8443:10.10.0.10:443 admin01` con la línea `127.0.0.1 jenkins.lab` en el fichero hosts del puesto y `https://jenkins.lab:8443`. Las de la pila de monitorización (Prometheus, Alertmanager, Mailpit y Grafana) están en el laboratorio de Mantenimiento, en [Cómo se llega a la pila desde el 3 de diciembre](https://victor-educ.github.io/apuntes-5169/laboratorio/#como-se-llega-a-la-pila-desde-el-3-de-diciembre). La de Grafana usa también el 8443 del puesto, así que de esos tres túneles solo puede estar abierto uno a la vez.
+Las consolas web se abren con un túnel a través de admin01, que en el puesto escucha en el 28443: un puerto de la [franja del curso](#puertos), para no chocar con lo que ya tenga abierto el equipo. Las de esta asignatura son dos: la de OPNsense, `ssh -L 28443:10.10.0.1:443 admin01` y `https://localhost:28443`, y la de Jenkins, `ssh -L 28443:10.10.0.10:443 admin01` con la línea `127.0.0.1 jenkins.lab` en el fichero hosts del puesto y `https://jenkins.lab:28443`. Las de la pila de monitorización (Prometheus, Alertmanager, Mailpit y Grafana) están en el laboratorio de Mantenimiento, en [Cómo se llega a la pila desde el 3 de diciembre](https://victor-educ.github.io/apuntes-5169/laboratorio/#como-se-llega-a-la-pila-desde-el-3-de-diciembre). La de Grafana usa también el 28443 del puesto, así que de esos tres túneles solo puede estar abierto uno a la vez.
 
 ### Puertos
+
+**La franja del curso.** Los puertos del servicio y de la monitorización van todos en la franja del 20000 al 29999, con una regla: el puerto de fábrica de cada programa más 20000 (Prometheus, del 9090 al 29090; la API, del 8080 al 28080). Los de fábrica son también los de muchas herramientas que pueden estar en marcha en el puesto del alumno, como el 80 de XAMPP o IIS, el 3000 de los servidores de desarrollo de Node, el 8080 de Tomcat o el 9090 de Cockpit, y un `docker compose up` que pide un puerto ocupado falla. La franja queda por encima de todos ellos y por debajo de los que el sistema operativo reparte a las conexiones salientes (desde el 32768 en Linux y desde el 49152 en Windows y macOS) y del rango de NodePort de Kubernetes (del 30000 al 32767). Cada servicio escucha en su número dentro del contenedor y se publica en el mismo, así que tiene uno solo en todas partes: en el `compose.yml`, en el navegador, en Prometheus y en el cortafuegos. La regla se ajusta cuando dos servicios de la misma máquina caerían en el mismo número: cAdvisor va en el 28081 porque el 28080 es de la API en app01, Gitea en el 23001 porque el 23000 es de Grafana en mon01, y `whoami` en el 28090 porque el 20080 es del nginx del compose del servicio.
+
+**Lo que se queda fuera.** Los puertos que espera cualquier cliente (22, 53, 80, 443 y el 5432 de PostgreSQL), los de productos que no forman parte del servicio (el 8006 de Proxmox, el 2376 de Docker con TLS y el 5000 del registry, que va escrito en el nombre de cada imagen) y los que solo existen dentro de una red de Docker y nunca se publican, como el 8080 de Jenkins o el 1025, el SMTP de Mailpit.
 
 | Puerto | Servicio | Dónde |
 |-------:|----------|-------|
@@ -276,26 +280,29 @@ Las consolas web se abren con un túnel a través de admin01. Las de esta asigna
 | 80 | HTTP, solo redirección a 443 | web01 |
 | 443 | HTTPS, con nginx delante | `api.dev.lab` en web01, publicado en la WAN de OPNsense; `jenkins.lab` en jenkins01, `gitea.lab` en gitea01 desde el 12 feb y `grafana.lab` en mon01 desde el 3 dic, los tres en gestión; la consola de OPNsense, solo desde MGMT |
 | 2376 | Docker de agent01 con TLS, para los agentes efímeros | agent01 |
-| 3000 | Grafana, y Gitea en gitea01, puerto interno | mon01 y gitea01, solo por detrás de su nginx |
-| 3001 | Gitea provisional, sin nginx | mon01, del 17 nov (A2.6 de Mantenimiento) al 12 feb (A6.4) |
-| 3100 | Loki, con certificado de cliente desde el 3 dic | mon01 |
 | 5000 | registry de imágenes con TLS y `htpasswd` | gitea01 desde el 19 feb, `registry.lab:5000` |
 | 5432 | PostgreSQL | db01, abierto solo a back; db01-pre, solo a 10.20.2.0/24 |
 | 8006 | interfaz web de Proxmox | el nodo, en la red del aula |
-| 8025 | Mailpit, buzón de pruebas de Alertmanager | mon01, solo en `127.0.0.1` desde el 3 dic |
-| 8080 | **la API del curso** | app01 y app01-pre; es la razón de que cAdvisor se publique en otro puerto |
 | 8080 | Jenkins por HTTP, puerto interno | dentro del compose de jenkins01, nunca publicado |
-| 8081 | cAdvisor publicado en el host | app01; dentro de la red de Docker cAdvisor sigue escuchando en `cadvisor:8080` |
-| 8090 | `whoami`, el contenedor de pruebas de cabeceras | app01, desde la A3.3 |
-| 9000 y 9001 | API S3 y consola de MinIO | 10.10.0.30, en mon01 |
-| 9080 | Promtail | app01 |
-| 9090 | Prometheus | mon01, solo en `127.0.0.1` desde el 3 dic |
-| 9093 | Alertmanager | mon01, solo en `127.0.0.1` desde el 3 dic |
-| 9100 | node_exporter | todas las VM que salen de la plantilla; en app01, con TLS y usuario desde el 1 dic |
-| 9102 | `/metrics` de la aplicación | app01 |
-| 9187 | postgres_exporter | db01, desde la A3.3 |
+| 20080 | nginx del compose del servicio | el puesto del alumno hasta el 13 oct y app01 hasta el 27 nov; desde entonces el proxy es el nginx de web01 |
+| 23000 | Grafana | mon01; desde el 3 dic, solo por detrás de su nginx |
+| 23001 | Gitea | mon01, publicado, del 17 nov (A2.6 de Mantenimiento) al 12 feb (A6.4); en gitea01, solo por detrás de su nginx |
+| 23100 | Loki, con certificado de cliente desde el 3 dic | mon01 |
+| 25000 | receptor de incidencias de Alertmanager | mon01, solo en `127.0.0.1` |
+| 28025 | Mailpit, buzón de pruebas de Alertmanager (su web; el SMTP sigue en el 1025, dentro del compose) | mon01, solo en `127.0.0.1` desde el 3 dic |
+| 28080 | **la API del curso** | app01 y app01-pre |
+| 28081 | cAdvisor | app01 |
+| 28090 | `whoami`, el contenedor de pruebas de cabeceras | app01, desde la A3.3 |
+| 28443 | túnel a las consolas web por HTTPS (OPNsense, Jenkins y Grafana) | el puesto del alumno |
+| 29000 y 29001 | API S3 y consola de MinIO | 10.10.0.30, en mon01 |
+| 29080 | Promtail | app01 |
+| 29090 | Prometheus | mon01, solo en `127.0.0.1` desde el 3 dic |
+| 29093 | Alertmanager | mon01, solo en `127.0.0.1` desde el 3 dic |
+| 29100 | node_exporter | todas las VM que salen de la plantilla, que lo deja en este puerto; en app01, con TLS y usuario desde el 1 dic |
+| 29102 | `/metrics` de la aplicación | app01 |
+| 29187 | postgres_exporter | en el compose del servicio hasta el 27 nov; en db01 desde la A3.3 |
 
-Jenkins deja escrito su nombre en tres sitios y los tres dicen lo mismo: **nombre público `jenkins.lab`, puerto público 443 (`https://jenkins.lab`, con nginx delante terminando TLS) y puerto interno 8080** dentro de la red del compose. En el servidor, el 8443 solo aparece en la variante con keystore Java, que no es la instalación del curso y está recogida en [Para ampliar](ampliacion.md#jenkins-con-keystore-java); el 8443 del puesto del alumno es el del túnel. Los agentes que llaman al controlador lo hacen por WebSocket a través del mismo 443, así que el puerto 50000 no se abre.
+Jenkins deja escrito su nombre en tres sitios y los tres dicen lo mismo: **nombre público `jenkins.lab`, puerto público 443 (`https://jenkins.lab`, con nginx delante terminando TLS) y puerto interno 8080** dentro de la red del compose. En el servidor, el 8443 solo aparece en la variante con keystore Java, que no es la instalación del curso y está recogida en [Para ampliar](ampliacion.md#jenkins-con-keystore-java); en el puesto del alumno, el túnel usa el 28443. Los agentes que llaman al controlador lo hacen por WebSocket a través del mismo 443, así que el puerto 50000 no se abre.
 
 El registry se escribe siempre entero, con puerto: **`registry.lab:5000`**. Ni `registry.dev.lab` ni `registry.lab` a secas.
 
@@ -308,17 +315,17 @@ Una sola matriz para las dos asignaturas. Las pestañas son las interfaces de OP
 | 0 | ZONAS | la red de la zona | This Firewall | `p_infra` (53 TCP y UDP, 123 UDP) e ICMP echo | Pass | no | DNS, hora y ping al propio cortafuegos | A3.1 (20 nov) |
 | 1 | WAN | any | `srv_web` | `p_web` (80, 443) | Pass | no | Publicación de `api.dev.lab`, con su port forward | A3.2 (25 nov) |
 | 2 | MGMT | `net_mgmt` | any | `p_web` (80, 443) | Pass | no | Consola del cortafuegos y salida a Internet de gestión, la única permanente | A3.2 (25 nov) |
-| 3 | DMZEXT | `srv_web` | `srv_app` | `p_app` (8080, 8090) | Pass | no | El proxy reenvía a la API y a `whoami` | A3.3 (27 nov) |
+| 3 | DMZEXT | `srv_web` | `srv_app` | `p_app` (28080, 28090) | Pass | no | El proxy reenvía a la API y a `whoami` | A3.3 (27 nov) |
 | 4 | DMZINT | `srv_app` | `srv_db` | 5432 | Pass | sí | La API consulta PostgreSQL | A3.3 (27 nov) |
 | 5 | MGMT | `net_mgmt` | any | 22 | Pass | sí | Administración por SSH | A3.2 (25 nov) |
-| 6 | DMZINT | `srv_app` | `srv_gitea` | 3001; 443 desde la A6.4 | Pass | no | `git pull` y `git push` de `servicio` desde app01. `srv_gitea` es la 10.10.0.20 hasta el 12 feb y la 10.10.0.11 desde la A6.4 | A3.3 (27 nov) |
+| 6 | DMZINT | `srv_app` | `srv_gitea` | 23001; 443 desde la A6.4 | Pass | no | `git pull` y `git push` de `servicio` desde app01. `srv_gitea` es la 10.10.0.20 hasta el 12 feb y la 10.10.0.11 desde la A6.4 | A3.3 (27 nov) |
 | 7 | CLI_A | `net_cli_a` | `srv_web` | 443 | Pass | no | Cliente A al proxy compartido | A3.4 (2 dic) |
 | 8 | CLI_A | `net_cli_a` | any | any | Block | sí | Cliente A: el resto, denegado | A3.4 (2 dic) |
 | 9 | CLI_B | `net_cli_b` | `srv_web` | 443 | Pass | no | Cliente B al proxy compartido | A3.4 (2 dic) |
 | 10 | CLI_B | `net_cli_b` | any | any | Block | sí | Cliente B: el resto, denegado | A3.4 (2 dic) |
-| 11 | MGMT | `srv_mon` | `srv_app` | `p_mon_app` (9100, 8081, 9102, 9080) | Pass | sí | Scrape de mon01 a app01 | A3.1 de Mantenimiento (26 nov) |
-| 12 | MGMT | `srv_mon` | `srv_db` | `p_mon_db` (9100, 9187) | Pass | sí | Scrape de mon01 a db01 | A3.1 de Mantenimiento (26 nov) |
-| 13 | DMZINT | `srv_app` | `srv_mon` | 3100 | Pass | sí | Promtail de app01 hacia Loki | A3.1 de Mantenimiento (26 nov) |
+| 11 | MGMT | `srv_mon` | `srv_app` | `p_mon_app` (29100, 28081, 29102, 29080) | Pass | sí | Scrape de mon01 a app01 | A3.1 de Mantenimiento (26 nov) |
+| 12 | MGMT | `srv_mon` | `srv_db` | `p_mon_db` (29100, 29187) | Pass | sí | Scrape de mon01 a db01 | A3.1 de Mantenimiento (26 nov) |
+| 13 | DMZINT | `srv_app` | `srv_mon` | 23100 | Pass | sí | Promtail de app01 hacia Loki | A3.1 de Mantenimiento (26 nov) |
 | T | la de la zona | la máquina | any | `p_web` | Pass | sí | `TEMPORAL alta <fecha> baja <fecha> <motivo>`: la salida de una zona de servicio para instalar algo | La hoja que la necesita, que la borra en el mismo paso |
 | 99 | todas | any | any | any | Block | sí | Denegación por defecto | A3.1 (20 nov) |
 
@@ -334,7 +341,7 @@ Las dos asignaturas trabajan sobre el mismo servicio, y esto es lo que cualquier
 | Rutas | `GET /health`, `GET /items`, `POST /items`, `GET /items/<id>` y `POST /login` |
 | Autenticación | `POST /login` con el usuario de prueba `test` devuelve un token Bearer |
 | Errores | JSON `{"error": "..."}` con 400, 401, 404 o 422 |
-| Puertos | la API en el 8080 y sus métricas en `/metrics` del 9102 |
+| Puertos | la API en el 28080 y sus métricas en `/metrics` del 29102, los de la [franja del curso](#puertos); hasta el 27 nov, el nginx del compose en el 20080 |
 | Repositorio | `servicio`: el código de la API en `api/`, con su `api/Dockerfile`, y `compose.yml` en la raíz |
 | Compose | proyecto `servicio` en `/opt/servicio`, en todos los entornos. Servicios `nginx`, `app` y `db` hasta el 27 nov; desde la A3.3, solo `app` |
 | Contenedores | `servicio-app-1`, `servicio-db-1` y `servicio-nginx-1` |
@@ -352,7 +359,7 @@ Cada artefacto que usan las dos asignaturas tiene un solo nombre. Un nombre dist
 
 | Artefacto | Nombre |
 |-----------|--------|
-| Plantilla cloud-init | 9000, Debian 13 genericcloud, con `qemu-guest-agent` y `prometheus-node-exporter` dentro y dos claves públicas, la del puesto del alumno y la del nodo |
+| Plantilla cloud-init | 9000, Debian 13 genericcloud, con `qemu-guest-agent` y `prometheus-node-exporter` dentro, este ya en el 29100, y dos claves públicas, la del puesto del alumno y la del nodo |
 | Usuario en las VM | `ops`, con clave SSH ed25519 y sin contraseña |
 | Zona del SDN | `lab`, tipo Simple, IPAM `pve` |
 | Imagen del servicio | `app:<versión>` local hasta el 19 feb; desde entonces, `registry.lab:5000/app:<versión>` y `registry.lab:5000/app:<commit corto>` |
@@ -366,14 +373,14 @@ Cada artefacto que usan las dos asignaturas tiene un solo nombre. Un nombre dist
 | Etiqueta de equipo en las alertas | `team` |
 | Tabla nftables en los hosts | `inet fw` |
 | Credencial de MinIO para las copias | `restic` |
-| Repositorio restic | uno solo, `s3:http://10.10.0.30:9000/backups`, con la contraseña en `/etc/restic/pass`; las copias de pre llevan `--tag pre` |
+| Repositorio restic | uno solo, `s3:http://10.10.0.30:29000/backups`, con la contraseña en `/etc/restic/pass`; las copias de pre llevan `--tag pre` |
 | Volumen de Gitea en mon01 | `monitoring_gitea_data` |
 | Alarmas de la UT2 de Mantenimiento | la lista cerrada de su A2.4, que incluye `HostDown`; ninguna unidad cita otras |
 | Retención de Prometheus | 45 días |
 
 ## Repositorios
 
-Todos los repositorios del curso viven en la Gitea del laboratorio, bajo el propietario `ops`. Hasta el 12 de febrero esa Gitea es un contenedor de `mon01` y la URL es `http://gitea.lab:3001/ops/<repositorio>.git`; la A6.4 la traslada a `gitea01`, y cada copia de trabajo cambia de remoto una sola vez, con `git remote set-url origin https://gitea.lab/ops/<repositorio>.git`.
+Todos los repositorios del curso viven en la Gitea del laboratorio, bajo el propietario `ops`. Hasta el 12 de febrero esa Gitea es un contenedor de `mon01` y la URL es `http://gitea.lab:23001/ops/<repositorio>.git`; la A6.4 la traslada a `gitea01`, y cada copia de trabajo cambia de remoto una sola vez, con `git remote set-url origin https://gitea.lab/ops/<repositorio>.git`.
 
 | Repositorio | Qué guarda | Nace en | Copia de trabajo | Remoto desde |
 |-------------|------------|---------|------------------|--------------|
@@ -381,7 +388,7 @@ Todos los repositorios del curso viven en la Gitea del laboratorio, bajo el prop
 | `monitoring` | La pila de mon01; desde la UT7 de esta asignatura, también sus ficheros `ut7-*` | A1.1 de Mantenimiento (1 oct) | mon01, en `/opt/monitoring` (en el puesto del alumno hasta el 15 oct) | A2.6 de Mantenimiento |
 | `alerting` | Reglas, Alertmanager y el receptor de incidencias | A2.1 de Mantenimiento (29 oct) | mon01, en `/opt/alerting` | A2.6 de Mantenimiento |
 | `incidencias` | Solo las issues que abre el receptor de alertas | A2.6 de Mantenimiento (17 nov), directamente en Gitea | ninguna | desde que nace |
-| `entregas-5166` | Las entregas de las hojas de esta asignatura, una carpeta por hoja | A2.1 de Despliegue (28 oct), en local | admin01 desde la A2.4 (6 nov) | 17 nov, en cuanto existe la Gitea de mon01 |
+| `entregas-5166` | El trabajo de las hojas de esta asignatura, una carpeta por hoja | A2.1 de Despliegue (28 oct), en local | admin01 desde la A2.4 (6 nov) | 17 nov, en cuanto existe la Gitea de mon01 |
 | `operacion` | Fichas de métricas, catálogo de alarmas, runbooks y revisiones | A4.1 de Mantenimiento (15 dic) | admin01 | la propia A4.1 |
 | `iac-lab` | OpenTofu y Ansible de pre | A5.1 de Despliegue (16 dic), con `git init` | admin01 | la propia A5.1 |
 | `jenkins-config` | La instalación de Jenkins (compose, JCasC, plugins, nginx) y el compose del registry | A6.2 de Despliegue (5 feb) | jenkins01, en `~/jenkins-config` | la propia A6.2 |
@@ -415,19 +422,19 @@ EOF
 sudo systemctl enable --now ip-minio.service
 ```
 
-**El servicio.** Va en el `compose.yml` de `/opt/monitoring`, con `minio_data:` declarado en `volumes:`. El puerto se publica solo en la dirección nueva, para que la pila de monitorización siga en la `10.10.0.20`. La contraseña de `admin` va en el `.env` junto al `compose.yml`, en 600 y en el `.gitignore` del repositorio `monitoring`. La ruta interna es `/almacen` para no confundirla con el `/data` de `db01`.
+**El servicio.** Va en el `compose.yml` de `/opt/monitoring`, con `minio_data:` declarado en `volumes:`. El puerto se publica solo en la dirección nueva, para que la pila de monitorización siga en la `10.10.0.20`. La contraseña de `admin` va en el `.env` junto al `compose.yml`, en 600 y en el `.gitignore` del repositorio `monitoring`. La ruta interna es `/almacen` para no confundirla con el `/data` de `db01`. Los puertos son los de fábrica de MinIO, el 9000 de la API S3 y el 9001 de la consola, llevados a la [franja del curso](#puertos) con `--address` y `--console-address`.
 
 ```yaml
   minio:
     image: quay.io/minio/minio:latest
-    command: server /almacen --console-address ":9001"
+    command: server /almacen --address ":29000" --console-address ":29001"
     restart: unless-stopped
     environment:
       MINIO_ROOT_USER: admin
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?ponla en el .env}
     ports:
-      - "10.10.0.30:9000:9000"
-      - "10.10.0.30:9001:9001"
+      - "10.10.0.30:29000:29000"
+      - "10.10.0.30:29001:29001"
     volumes:
       - minio_data:/almacen
 ```
@@ -437,7 +444,7 @@ sudo systemctl enable --now ip-minio.service
 ```bash
 cd /opt/monitoring && docker compose up -d minio
 set -a; . ./.env; set +a               # trae MINIO_ROOT_PASSWORD a esta terminal
-M="docker run --rm --network host -e MC_HOST_lab=http://admin:$MINIO_ROOT_PASSWORD@10.10.0.30:9000 quay.io/minio/mc"
+M="docker run --rm --network host -e MC_HOST_lab=http://admin:$MINIO_ROOT_PASSWORD@10.10.0.30:29000 quay.io/minio/mc"
 $M mb lab/tfstate                      # el estado de OpenTofu
 $M mb lab/backups                      # las copias restic de Mantenimiento
 $M admin user add lab tofu   'CambiaEsteSecreto1'
@@ -447,7 +454,7 @@ $M admin policy attach lab readwrite --user restic
 $M ls lab                              # tfstate y backups
 ```
 
-Desde el puesto de administración, `curl -s -o /dev/null -w '%{http_code}\n' http://10.10.0.30:9000/minio/health/live` tiene que responder `200`.
+Desde el puesto de administración, `curl -s -o /dev/null -w '%{http_code}\n' http://10.10.0.30:29000/minio/health/live` tiene que responder `200`.
 
 ## Cuando algo se rompe
 

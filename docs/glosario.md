@@ -170,7 +170,7 @@ Términos que aparecen en el módulo, explicados en una o dos frases y con la un
 
 **NIC** · Tarjeta de red, física o virtual. Cada interfaz que se añade a una VM es una NIC más, conectada a un bridge o a una VNet. UT1, UT2.
 
-**node_exporter** · Exporter de métricas del sistema operativo: CPU, memoria, disco, red. Puerto 9100. Viene instalado en la plantilla 9000 como paquete `prometheus-node-exporter` desde la A1.3, así que lo lleva toda VM clonada. UT1, UT7.
+**node_exporter** · Exporter de métricas del sistema operativo: CPU, memoria, disco, red. En el curso escucha en el 29100. Viene instalado en la plantilla 9000 como paquete `prometheus-node-exporter` desde la A1.3, ya en ese puerto, así que lo lleva toda VM clonada. UT1, UT7.
 
 **NTP** · Protocolo de sincronización de la hora (123 UDP). Desde la A3.1 el cortafuegos es el servidor de hora de todas las zonas. UT3.
 

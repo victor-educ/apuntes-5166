@@ -16,7 +16,8 @@ pvesm status                            # almacenes
 # Los dos agentes van dentro de la imagen: las VM sin salida a Internet no pueden instalarlos al arrancar
 apt install -y libguestfs-tools
 export LIBGUESTFS_BACKEND=direct
-virt-customize -a /root/debian-13-genericcloud-amd64.qcow2 --install qemu-guest-agent,prometheus-node-exporter
+virt-customize -a /root/debian-13-genericcloud-amd64.qcow2 --install qemu-guest-agent,prometheus-node-exporter \
+  --write '/etc/default/prometheus-node-exporter:ARGS="--web.listen-address=:29100"'   # node_exporter, en el 29100
 qm create 9000 --name debian-tpl --memory 2048 --cores 2 --cpu x86-64-v2-AES \
   --net0 virtio,bridge=vmbr0 --scsihw virtio-scsi-single --ostype l26
 qm set 9000 --scsi0 local-lvm:0,import-from=/root/debian-13-genericcloud-amd64.qcow2,discard=on,ssd=1
@@ -74,11 +75,11 @@ dig web01.dev.lab @10.10.0.1 +short
 nc -zv -w 3 10.10.3.10 5432             # ¿responde el puerto? timeout: filtrado; refused: cerrado
 nmap -sn 10.20.0.0/24                   # descubrimiento de hosts
 nmap -sS -p- -T4 10.10.2.10             # todos los puertos TCP (root)
-nmap -sT -Pn -p 22,80,443,8080 host     # sin ping previo
+nmap -sT -Pn -p 22,80,443,28080 host    # sin ping previo
 tcpdump -i ens22 -n host 10.10.3.10 and port 5432
-tcpdump -i any -n -w captura.pcap port 8080
+tcpdump -i any -n -w captura.pcap port 28080
 curl -kv https://api.dev.lab/health
-curl -sf -o /dev/null -w '%{http_code}\n' http://localhost:8080/health   # dentro de app01
+curl -sf -o /dev/null -w '%{http_code}\n' http://localhost:28080/health   # dentro de app01
 ssh -J ops@<IP de aula de admin01> ops@10.10.2.10   # desde el 27 nov; con el ~/.ssh/config del laboratorio, ssh app01
 
 # dnsmasq
@@ -88,7 +89,7 @@ cat /var/lib/misc/dnsmasq.leases
 # nftables
 nft list ruleset
 nft -f /etc/nftables.conf
-nft add rule inet fw forward iifname "dmzext" oifname "dmzint" tcp dport 8080 accept
+nft add rule inet fw forward iifname "dmzext" oifname "dmzint" tcp dport 28080 accept
 ```
 
 ## OpenTofu / Terraform
@@ -203,16 +204,16 @@ docker run --rm -v jenkins-config_jenkins_home:/data -v $PWD:/backup alpine tar 
 # shell en mon01 o por el túnel que da el laboratorio de Mantenimiento, y amtool, con docker compose exec
 cd /opt/monitoring                        # en mon01: promtool y amtool van dentro de sus contenedores
 docker compose exec prometheus promtool check config /etc/prometheus/prometheus.yml   # revisa también rule_files
-docker compose exec prometheus promtool query instant http://localhost:9090 'up'
+docker compose exec prometheus promtool query instant http://localhost:29090 'up'
 docker compose exec alertmanager amtool check-config /etc/alertmanager/alertmanager.yml
-docker compose exec alertmanager amtool --alertmanager.url=http://localhost:9093 alert
-docker compose exec alertmanager amtool --alertmanager.url=http://localhost:9093 silence add alertname=HostDown --duration=2h --comment "mantenimiento"
-curl -s http://10.10.3.10:9100/metrics | grep -E '^node_(memory_MemAvailable|filesystem_avail)'   # desde mon01; el de app01 va con TLS
-curl -s -X POST http://localhost:9090/-/reload   # en mon01
+docker compose exec alertmanager amtool --alertmanager.url=http://localhost:29093 alert
+docker compose exec alertmanager amtool --alertmanager.url=http://localhost:29093 silence add alertname=HostDown --duration=2h --comment "mantenimiento"
+curl -s http://10.10.3.10:29100/metrics | grep -E '^node_(memory_MemAvailable|filesystem_avail)'   # desde mon01; el de app01 va con TLS
+curl -s -X POST http://localhost:29090/-/reload   # en mon01
 ansible-playbook -i ansible/dev.ini ansible/ut7-targets.yml   # en admin01, en iac-lab: regenera targets/ut7-*.yml (A7.1)
 # Exportar un dashboard de Grafana por API, por el túnel de Grafana (sale con el uid de la fuente
 # de datos de esta instancia, no con el hueco ${DS_PROMETHEUS} del export de la interfaz que pide la A7.2)
-curl -s --cacert ca.crt -H "Authorization: Bearer $GRAFANA_TOKEN" https://grafana.lab:8443/api/dashboards/uid/<uid> | jq .dashboard > grafana/ut7/kpi-plataforma.json
+curl -s --cacert ca.crt -H "Authorization: Bearer $GRAFANA_TOKEN" https://grafana.lab:28443/api/dashboards/uid/<uid> | jq .dashboard > grafana/ut7/kpi-plataforma.json
 ```
 
 Consultas PromQL que se usan constantemente:
@@ -232,8 +233,8 @@ histogram_quantile(0.95, sum by(le)(rate(app_http_request_duration_seconds_bucke
 
 ```bash
 git init -b main && git add . && git commit -m "Primer despliegue"
-git remote add origin http://gitea.lab:3001/ops/iac-lab.git && git push -u origin main   # hasta el 12 feb
-git remote set-url origin https://gitea.lab/ops/iac-lab.git                              # desde la A6.4 (12 feb)
+git remote add origin http://gitea.lab:23001/ops/iac-lab.git && git push -u origin main   # hasta el 12 feb
+git remote set-url origin https://gitea.lab/ops/iac-lab.git                               # desde la A6.4 (12 feb)
 git switch -c feature/ansible-docker
 git log --oneline --graph --all
 git diff main..feature/ansible-docker

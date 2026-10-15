@@ -122,7 +122,7 @@ Los exámenes de evaluación van después de la UT3 (primera evaluación, 11 de 
 
 - Conviene leer la sesión antes de clase. Cada unidad está ordenada por sesiones, con la teoría de ese día seguida de su hoja de práctica. En clase la explicación es corta y el laboratorio largo; los apuntes cubren lo que no da tiempo a explicar.
 - Los comandos están pensados para copiarlos en el laboratorio. Si algo no funciona igual en la versión instalada, el primer sitio donde mirar es la sección "Errores frecuentes" de la unidad.
-- Las hojas de práctica numeradas (A1.1, A1.2...) se hacen en la sesión que se indica. La práctica evaluable cierra la unidad y se entrega por Aules. Lo que va más allá de lo que se hace en clase está apartado en [Para ampliar](ampliacion.md), para no cargar las unidades.
+- Las hojas de práctica numeradas (A1.1, A1.2...) se hacen en la sesión que se indica y no se entregan: su último apartado, «Para practicar», dice qué conviene apuntar, responder y guardar, y la práctica evaluable de la unidad parte muchas veces de ello. La práctica evaluable cierra la unidad y es lo que se entrega por Aules. Lo que va más allá de lo que se hace en clase está apartado en [Para ampliar](ampliacion.md), para no cargar las unidades.
 - Conviene documentar sobre la marcha: una captura con fecha, la salida de un comando, el fichero de configuración. Al final de la unidad eso es la práctica.
 
 ## Antes de empezar

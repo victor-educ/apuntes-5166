@@ -4,13 +4,13 @@
 
 La UT2 dejó una VPC por entorno (dev, pre, pro) con cuatro VNets, una por zona (gestión, front, back y data), y un router con una pata en cada una, con el enrutado entre ellas funcionando. Funcionaba demasiado bien: en la A2.4 se comprobó con `nc` que web01, en front, llegaba al 5432 de db01, en data, y lo mismo vale para cualquier máquina de cualquier zona hacia cualquier puerto de otra. Si alguien entrase en el proxy, que es lo único que se ve desde fuera, tendría la base de datos al alcance sin ningún filtro por medio. En esta unidad ese router se sustituye por un cortafuegos, cada zona recibe su papel de seguridad y esa red abierta se convierte en una red por capas donde cada salto está justificado, permitido de forma explícita y registrado.
 
-La unidad sigue el orden en que se haría en una empresa. Primero se pone el cortafuegos en el sitio del router sin que las máquinas lo noten (sesión 14); después se le enseña qué dejar pasar y se publica la web hacia fuera con un certificado de la CA del curso (sesión 15); luego cada pieza del servicio pasa a su zona, con una regla por salto y la documentación de cada regla (sesión 16), y dos clientes que comparten la infraestructura quedan separados (sesión 17). Al final se demuestra con nmap y tcpdump (un escáner de puertos y un capturador de tráfico) que el aislamiento es real (sesión 18), y con todo ello se escribe el informe de la práctica evaluable (sesión 19). Lo que se construye aquí no se tira: el cortafuegos, sus reglas y la CA del curso son los que usan el resto del curso y la asignatura de Mantenimiento.
+La unidad sigue el orden en que se haría en una empresa. Primero se pone el cortafuegos en el sitio del router sin que las máquinas lo noten; después se le enseña qué dejar pasar y se publica la web hacia fuera con un certificado de la CA del curso; luego cada pieza del servicio pasa a su zona, con una regla por salto y la documentación de cada regla, y dos clientes que comparten la infraestructura quedan separados. Al final se demuestra con nmap y tcpdump (un escáner de puertos y un capturador de tráfico) que el aislamiento es real, y con todo ello se escribe el informe de la práctica evaluable. Lo que se construye aquí no se tira: el cortafuegos, sus reglas y la CA del curso se usan hasta el final del curso, también en Mantenimiento.
 
 ## Sesión 14 · Modelo de seguridad por capas
 
 <p class="ut-meta" markdown>20 de noviembre · Teoría y práctica · <span class="dur" tabindex="0" aria-label="Defensa en profundidad y zonas · 10 min&#10;DMZ con uno y con dos cortafuegos · 5 min&#10;Cortafuegos con estado · 10 min&#10;A3.1 Instalar el firewall · 85 min" data-dur="Defensa en profundidad y zonas · 10 min&#10;DMZ con uno y con dos cortafuegos · 5 min&#10;Cortafuegos con estado · 10 min&#10;A3.1 Instalar el firewall · 85 min">:material-school:<i class="dur-barra" style="--teoria:23%"></i>:material-flask:</span></p>
 
-Hoy `router-dev` deja su sitio a un cortafuegos, y antes de tocar nada hay que tener claro para qué. Por eso la teoría va de lo general a lo concreto: primero el modelo de seguridad por capas, que dice por qué se separa la red en zonas y qué papel tiene cada una, y cómo encaja en las cuatro VNets que ya existen; después las dos formas de colocar el cortafuegos, con uno o con dos; y al final cómo decide un cortafuegos con estado qué paquete pasa, que es lo que determina cuántas reglas hacen falta y en qué dirección se escriben. Lo que viene detrás, OPNsense con su instalación y el relevo de `router-dev`, es material de consulta para la hoja, y la variante con nftables queda apuntada al final. La hoja no escribe todavía ninguna regla de paso entre zonas: pone el cortafuegos en el sitio del router sin que ninguna VM se quede sin red, con la IP .1 en cada zona, el DHCP y el DNS traspasados, la regla 0 que deja a todas las zonas preguntar al cortafuegos por nombres y por la hora, y la consola web accesible solo desde gestión. Desde ese momento todo lo que cruza de una zona a otra pasa por el cortafuegos, y lo que sale de las zonas de servicio se queda en él: las reglas de paso empiezan en la sesión 15.
+Hoy `router-dev` deja su sitio a un cortafuegos, y antes de tocar nada hay que tener claro para qué. Por eso la teoría va de lo general a lo concreto: primero el modelo de seguridad por capas, que dice por qué se separa la red en zonas y qué papel tiene cada una, y cómo encaja en las cuatro VNets que ya existen; después las dos formas de colocar el cortafuegos, con uno o con dos; y al final cómo decide un cortafuegos con estado qué paquete pasa, que es lo que determina cuántas reglas hacen falta y en qué dirección se escriben. Lo que viene detrás, OPNsense con su instalación y el relevo de `router-dev`, es material de consulta para la hoja, y la variante con nftables queda apuntada al final. La hoja no escribe todavía ninguna regla de paso entre zonas: pone el cortafuegos en el sitio del router sin que ninguna VM se quede sin red, con la IP .1 en cada zona, el DHCP y el DNS traspasados, la regla 0 que deja a todas las zonas preguntar al cortafuegos por nombres y por la hora, y la consola web accesible solo desde gestión. Desde ese momento todo lo que cruza de una zona a otra pasa por el cortafuegos, y lo que sale de las zonas de servicio se queda en él. Las reglas de paso empiezan en la sesión siguiente, el 25 de noviembre.
 
 ### Defensa en profundidad y zonas
 
@@ -37,11 +37,11 @@ Cada zona existe para proteger algo. La DMZ externa, para que el único que habl
 - **Mínima exposición**: un servicio en DMZ externa solo expone el puerto que necesita. La gestión (SSH, consola web, API de Proxmox) va por una red aparte que no es alcanzable desde ninguna zona de servicio.
 - **Registro**: todo lo denegado, y todo lo permitido hacia zonas sensibles, queda en un log con marca de tiempo, regla que lo decidió, origen y destino. Sin registro, un ataque frenado no se distingue de uno que no ha ocurrido, y nadie se entera de que alguien lo está intentando.
 
-La comparación con la red plana de la UT2 es inmediata: allí una vulnerabilidad en el proxy daba acceso directo a la base de datos y al hipervisor; aquí cada capa que cae deja al atacante delante de otro filtro. El recorrido completo, capa por capa y con lo que frena cada una, está en [Qué frena cada capa](../ampliacion.md#que-frena-cada-capa).
+La comparación con la red plana de `router-dev` es inmediata: allí una vulnerabilidad en el proxy daba acceso directo a la base de datos y al hipervisor; aquí cada capa que cae deja al atacante delante de otro filtro. El recorrido completo, capa por capa y con lo que frena cada una, está en [Qué frena cada capa](../ampliacion.md#que-frena-cada-capa).
 
 #### Mapa sobre la VPC de la UT2
 
-**No hay que rehacer la red.** Las cuatro VNets de la UT2 ya están, y la UT2 ya tomó la decisión que hace posible todo lo que viene: una VNet por zona, es decir, un bridge distinto por zona. Entre dos bridges distintos no hay más camino que una máquina con una pata en cada uno, y esa máquina es el único sitio por el que pasa el tráfico entre zonas: hasta hoy, `router-dev`; desde hoy, el cortafuegos. Si dos de estas subredes compartieran bridge, su tráfico no pasaría por el cortafuegos y no habría dónde filtrarlo.
+**No hay que rehacer la red.** Las cuatro VNets de dev ya están, y su diseño ya tomó la decisión que hace posible todo lo que viene: una VNet por zona, es decir, un bridge distinto por zona. Entre dos bridges distintos no hay más camino que una máquina con una pata en cada uno, y esa máquina es el único sitio por el que pasa el tráfico entre zonas: hasta hoy, `router-dev`; desde hoy, el cortafuegos. Si dos de estas subredes compartieran bridge, su tráfico no pasaría por el cortafuegos y no habría dónde filtrarlo.
 
 **Lo que cambia es el papel de cada una.** La subred front pasa a ser la DMZ externa, back la DMZ interna, data la zona interna y gestión la red de administración. En el entorno dev del aula queda así:
 
@@ -65,8 +65,8 @@ flowchart LR
     ADM["<b>Puesto admin</b><br><small>10.10.0.50</small>"]:::act
     INET -->|443| FW
     FW -->|443| WEB
-    WEB -->|8080| FW
-    FW -->|8080| APP
+    WEB -->|28080| FW
+    FW -->|28080| APP
     APP -->|5432| FW
     FW -->|5432| DB
     ADM -->|22, 443 gestión| FW
@@ -80,9 +80,9 @@ flowchart LR
 
 <p class="pie" markdown>Ningún salto entre capas es directo: todos vuelven a pasar por el cortafuegos, y por eso se puede filtrar cada uno por separado.</p>
 
-**El cortafuegos hereda las direcciones del router.** El cortafuegos es el gateway de todas las zonas, con la IP .1 en cada una, así que ningún paquete cruza de una subred a otra sin pasar por él. Es el papel que en la UT2 hacía `router-dev`, y OPNsense lo hereda entero: sus cuatro direcciones `.1`, su DHCP con las mismas reservas y su DNS con los mismos nombres. Que sean exactamente las mismas no es casualidad: las VM de las zonas reciben por DHCP como puerta de enlace el `.1` de su zona y como DNS la 10.10.0.1, y si el cortafuegos ocupa esas direcciones, ninguna tiene que cambiar nada. `router-dev` se apaga cuando el relevo está hecho y se destruye al cerrar la evaluable de la unidad, el 9 de diciembre.
+**El cortafuegos hereda las direcciones del router.** El cortafuegos es el gateway de todas las zonas, con la IP .1 en cada una, así que ningún paquete cruza de una subred a otra sin pasar por él. Es el papel que hacía `router-dev`, y OPNsense lo hereda entero: sus cuatro direcciones `.1`, su DHCP con las mismas reservas y su DNS con los mismos nombres. Que sean exactamente las mismas no es casualidad: las VM de las zonas reciben por DHCP como puerta de enlace el `.1` de su zona y como DNS la 10.10.0.1, y si el cortafuegos ocupa esas direcciones, ninguna tiene que cambiar nada. `router-dev` se apaga cuando el relevo está hecho y se destruye al cerrar la evaluable de la unidad, el 9 de diciembre.
 
-**Y añade un servicio: la hora.** Desde hoy las zonas de servicio dejan de salir a Internet (el motivo se explica en la sesión 15, con el NAT), así que tampoco llegan a los servidores de hora públicos. El cortafuegos pasa a ser su servidor de hora por NTP, el protocolo de sincronización de la hora. No es un detalle: con la hora mal, los logs de dos máquinas no se pueden cruzar, y un certificado puede parecer caducado o todavía no válido.
+**Y añade un servicio: la hora.** Desde hoy las zonas de servicio dejan de salir a Internet, para que una máquina comprometida no pueda descargar herramientas ni sacar datos, así que tampoco llegan a los servidores de hora públicos. El cortafuegos pasa a ser su servidor de hora por NTP, el protocolo de sincronización de la hora. No es un detalle: con la hora mal, los logs de dos máquinas no se pueden cruzar, y un certificado puede parecer caducado o todavía no válido.
 
 ### DMZ con uno y con dos cortafuegos
 
@@ -110,19 +110,19 @@ flowchart LR
 
 **Lo que hay que entender antes de la primera regla.** Antes de escribir la primera regla hay que entender cómo decide el cortafuegos qué paquete pasa, porque de eso depende cuántas reglas hacen falta y en qué dirección se escriben. La idea del apartado es una: el cortafuegos recuerda las conexiones que ya aceptó, así que solo hay que permitir el primer paquete de cada una.
 
-**El problema de un filtro sin estado.** Los primeros cortafuegos, a finales de los años ochenta, eran filtros de paquetes sin estado (stateless). Un filtro así mira cada paquete de forma aislada, por su origen, su destino, su protocolo, su puerto y sus flags (los bits de la cabecera TCP que dicen qué tipo de paquete es). Una conexión TCP tiene paquetes en los dos sentidos, y un filtro así necesita una regla para cada uno. Para permitir que web01 abra una conexión a app01:8080 harían falta dos reglas, una para el SYN de ida (el primer paquete de una conexión TCP, el que pide abrirla) y otra para la respuesta de vuelta. Y la de vuelta tendría que permitir tráfico desde el puerto 8080 de app01 hacia cualquier puerto alto de web01, porque el cliente sale de un puerto que el sistema elige al azar en cada conexión (el puerto efímero). Eso es un agujero: cualquier cosa que se origine en app01 con puerto de origen 8080 pasaría.
+**El problema de un filtro sin estado.** Los primeros cortafuegos, a finales de los años ochenta, eran filtros de paquetes sin estado (stateless). Un filtro así mira cada paquete de forma aislada, por su origen, su destino, su protocolo, su puerto y sus flags (los bits de la cabecera TCP que dicen qué tipo de paquete es). Una conexión TCP tiene paquetes en los dos sentidos, y un filtro así necesita una regla para cada uno. Para permitir que web01 abra una conexión a app01:28080 harían falta dos reglas, una para el SYN de ida (el primer paquete de una conexión TCP, el que pide abrirla) y otra para la respuesta de vuelta. Y la de vuelta tendría que permitir tráfico desde el puerto 28080 de app01 hacia cualquier puerto alto de web01, porque el cliente sale de un puerto que el sistema elige al azar en cada conexión (el puerto efímero). Eso es un agujero: cualquier cosa que se origine en app01 con puerto de origen 28080 pasaría.
 
-**Cómo funciona uno con estado.** Un cortafuegos **con estado** (stateful), el tipo que se generalizó en los años noventa y que hoy usan todos, recuerda las conexiones. Cuando ve el SYN de web01:43812 hacia app01:8080 y una regla lo permite, crea una entrada en su **tabla de estados** con la tupla (protocolo, IP origen, puerto origen, IP destino, puerto destino) y el estado de la conexión. Cuando llega el SYN-ACK de vuelta (la respuesta con la que el servidor acepta la conexión), no evalúa las reglas: busca en la tabla, encuentra la entrada, comprueba que el paquete es coherente con el estado (números de secuencia, flags) y lo deja pasar. Lo mismo con todos los paquetes siguientes en ambas direcciones, hasta que ve el cierre (FIN, o RST si la conexión se corta de golpe) o la entrada expira por inactividad.
+**Cómo funciona uno con estado.** Un cortafuegos **con estado** (stateful), el tipo que se generalizó en los años noventa y que hoy usan todos, recuerda las conexiones. Cuando ve el SYN de web01:43812 hacia app01:28080 y una regla lo permite, crea una entrada en su **tabla de estados** con la tupla (protocolo, IP origen, puerto origen, IP destino, puerto destino) y el estado de la conexión. Cuando llega el SYN-ACK de vuelta (la respuesta con la que el servidor acepta la conexión), no evalúa las reglas: busca en la tabla, encuentra la entrada, comprueba que el paquete es coherente con el estado (números de secuencia, flags) y lo deja pasar. Lo mismo con todos los paquetes siguientes en ambas direcciones, hasta que ve el cierre (FIN, o RST si la conexión se corta de golpe) o la entrada expira por inactividad.
 
 ```mermaid
 sequenceDiagram
     participant W as web01:43812
     participant F as Cortafuegos
     participant T as Tabla de estados
-    participant A as app01:8080
+    participant A as app01:28080
     W->>F: SYN
     F->>F: evalúa las reglas · hay una que lo permite
-    F->>T: crea la entrada (tcp, web01:43812, app01:8080)
+    F->>T: crea la entrada (tcp, web01:43812, app01:28080)
     F->>A: SYN
     A->>F: SYN-ACK
     F->>T: ¿coincide con algún estado?
@@ -147,10 +147,10 @@ sequenceDiagram
 
 Para UDP e ICMP, que no tienen conexión, conntrack crea "pseudo-estados" basados en la tupla y un temporizador: si una máquina envía una consulta DNS al puerto 53 de un servidor, la respuesta que llegue desde ese servidor y ese puerto en los 30 segundos siguientes (el valor por defecto en Linux) se considera `established`.
 
-**Qué cambia al escribir reglas.** Solo hay que escribir la regla del primer paquete, en la dirección en que se inicia la conexión. Es lo que hace que la política "DMZ externa puede iniciar hacia DMZ interna:8080, pero DMZ interna no puede iniciar nada hacia DMZ externa" se escriba con una sola línea. Cómo se consigue depende de la herramienta:
+**Qué cambia al escribir reglas.** Solo hay que escribir la regla del primer paquete, en la dirección en que se inicia la conexión. Es lo que hace que la política "DMZ externa puede iniciar hacia DMZ interna:28080, pero DMZ interna no puede iniciar nada hacia DMZ externa" se escriba con una sola línea. Cómo se consigue depende de la herramienta:
 
 - **En OPNsense no se escribe nada más.** Cada regla Pass crea su estado sola (es la opción por defecto de toda regla, *keep state*), y las respuestas encajan en él antes de llegar a ninguna regla. Por eso en las reglas del curso no aparece nunca una regla para el tráfico de vuelta.
-- **En nftables hay que escribirlo.** Una regla genérica `ct state established,related accept` al principio de la cadena, como en el [fichero de app01 de Mantenimiento](https://victor-educ.github.io/apuntes-5169/ut/ut3-seguridad-monitorizacion/#nftables-por-host-el-fichero-completo). De ahí sale un error clásico: si esa regla no está, o está después de un `drop`, la conexión abre (el SYN pasa) pero nunca responde, y en tcpdump aparecen SYN, SYN-ACK... y el SYN-ACK muriendo en el firewall.
+- **En nftables hay que escribirlo.** Una regla genérica `ct state established,related accept` al principio de la cadena. De ahí sale un error clásico: si esa regla no está, o está después de un `drop`, la conexión abre (el SYN pasa) pero nunca responde, y en tcpdump aparecen SYN, SYN-ACK... y el SYN-ACK muriendo en el firewall.
 
 La tabla de estados no es infinita y sus entradas caducan: cuántas caben, qué ocurre cuando se llena y cuánto vive una conexión inactiva está en [La tabla de estados por dentro](../ampliacion.md#la-tabla-de-estados-por-dentro).
 
@@ -198,9 +198,9 @@ Hay margen para hacerlo con calma: cada VM tiene una concesión de 12 horas, la 
 
 **Quién hace el DHCP y quién el DNS.** OPNsense trae el mismo dnsmasq que `router-dev`, en Services → Dnsmasq DNS & DHCP, y es el que hace el DHCP: las reservas se trasladan una a una con la MAC, la IP y el nombre de `dev.conf`, y si cada rango lleva el dominio `dev.lab`, los nombres `<host>.dev.lab` salen solos de ellas. Pero en una instalación nueva el puerto 53, el del DNS, no lo atiende dnsmasq sino Unbound, el servidor DNS que OPNsense trae activado, y Unbound no sabe nada de las reservas. La documentación de OPNsense lo resuelve en su ejemplo "DHCPv4 with DNS registration": dnsmasq pasa a escuchar en el 53053 y Unbound le reenvía (Query Forwarding) las preguntas de los dominios locales. En el laboratorio basta un reenvío, el del dominio `lab`, que incluye `dev.lab` y los nombres de gestión (`mon01.lab` con sus alias, y los que añaden después las unidades de integración continua). El mismo ejemplo marca tres opciones de dnsmasq que el laboratorio necesita: "DHCP fqdn", que da a cada máquina su nombre con el dominio; "DHCP register firewall rules", que abre paso al DHCP en cada interfaz, porque si no lo cortaría la denegación por defecto; y "Do not forward to system defined DNS servers", para que la pregunta por un nombre del laboratorio que no existe termine en dnsmasq y no dé vueltas entre los dos servidores.
 
-**Lo que deja pasar el primer día: la regla 0.** En cuanto se activan las interfaces internas, se aplica la denegación por defecto: todo lo que entra por una interfaz sin reglas se descarta, y eso incluye las preguntas al propio cortafuegos. El DHCP tiene sus reglas automáticas, pero el DNS y la hora no, así que sin una regla ninguna VM resolvería un nombre. Por eso la primera regla del curso, la 0, se escribe en el mismo momento del relevo. Va en un **grupo de interfaces**, `ZONAS`, que reúne las cuatro zonas (y desde la sesión 17, las VLAN de los clientes), para escribirla una sola vez para todas; su destino es **This Firewall**, que en OPNsense quiere decir cualquier dirección del propio cortafuegos; y deja pasar el DNS (53) y la hora (123), más el ping, que es la primera herramienta de diagnóstico. Los dos puertos van en un alias, `p_infra` (un alias es un nombre que se da a una lista de puertos o de direcciones; la sesión 15 los explica). Lo que la regla 0 no deja pasar es la consola web: el 443 del cortafuegos no está en `p_infra`.
+**Lo que deja pasar el primer día: la regla 0.** En cuanto se activan las interfaces internas, se aplica la denegación por defecto: todo lo que entra por una interfaz sin reglas se descarta, y eso incluye las preguntas al propio cortafuegos. El DHCP tiene sus reglas automáticas, pero el DNS y la hora no, así que sin una regla ninguna VM resolvería un nombre. Por eso la primera regla del curso, la 0, se escribe en el mismo momento del relevo. Va en un **grupo de interfaces**, `ZONAS`, que reúne las cuatro zonas, para escribirla una sola vez para todas; su destino es **This Firewall**, que en OPNsense quiere decir cualquier dirección del propio cortafuegos; y deja pasar el DNS (53) y la hora (123), más el ping, que es la primera herramienta de diagnóstico. Los dos puertos van en un alias, `p_infra` (un alias es un nombre que se da a una lista de puertos o de direcciones). Lo que la regla 0 no deja pasar es la consola web: el 443 del cortafuegos no está en `p_infra`.
 
-**La excepción de estos días: gestión.** OPNsense crea al instalarse unas reglas que dejan salir de LAN (la futura MGMT) hacia cualquier sitio, y siguen ahí hasta que la sesión 15 las sustituye por las reglas propias de gestión. Por eso, entre el relevo y la sesión 15, desde el puesto de administración se sigue llegando a todo.
+**La excepción de estos días: gestión.** OPNsense crea al instalarse unas reglas que dejan salir de LAN (la futura MGMT) hacia cualquier sitio, y por eso, después del relevo, desde el puesto de administración se sigue llegando a todo. Esas reglas se sustituyen por las propias de gestión en la sesión siguiente, el 25 de noviembre.
 
 ### Alternativa: nftables en una VM Linux
 
@@ -208,11 +208,11 @@ Hay margen para hacerlo con calma: cada VM tiene una concesión de 12 horas, la 
 
 **Cuándo se elige cada uno.** Se elige nftables cuando el cortafuegos tiene que quedar descrito en código desde el primer día, cuando no compensa mantener una VM más con su propio sistema operativo, o cuando quien lo administra ya trabaja en la línea de comandos. Se elige OPNsense cuando lo van a tocar varias personas, cuando hacen falta las herramientas de diagnóstico integradas o cuando interesa tener en la misma caja el proxy inverso, la VPN y la detección de intrusos. En el curso se usa OPNsense, así que esta alternativa no se explica en clase.
 
-**Dónde está el material.** Cómo se lee un fichero de nftables (tablas, cadenas, hooks y políticas) está explicado en la [UT3 de Mantenimiento](https://victor-educ.github.io/apuntes-5169/ut/ut3-seguridad-monitorizacion/#nftables-por-host-el-fichero-completo), que pone uno en cada host del servicio. El fichero `/etc/nftables.conf` completo del router del laboratorio, el recorrido de un paquete por los puntos donde el kernel puede filtrar y el orden en que se evalúan las cadenas están en [nftables: el fichero de reglas completo](../ampliacion.md#nftables-el-fichero-de-reglas-completo). La A3.1 remite a ese material, desde su «Antes de empezar», para quien quiera montar esta variante.
+**Dónde está el material.** Cómo se lee un fichero de nftables (tablas, cadenas, hooks y políticas), el fichero `/etc/nftables.conf` completo del router del laboratorio, el recorrido de un paquete por los puntos donde el kernel puede filtrar y el orden en que se evalúan las cadenas están en [nftables: el fichero de reglas completo](../ampliacion.md#nftables-el-fichero-de-reglas-completo). La A3.1 remite a ese material, desde su «Antes de empezar», para quien quiera montar esta variante.
 
 ### A3.1 Instalar el firewall (sesión 14)
 
-<span class="et et-obj">Objetivo</span> Un OPNsense con una pata en cada una de las cinco zonas, con la IP .1 en cada red, cuya consola web solo responde desde MGMT, y web01 y db01 usándolo como puerta de enlace, como DNS y como servidor de hora. Es la pieza sobre la que se construye el resto de la unidad y la UT3 de Mantenimiento: desde hoy, todo lo que cruza de una zona a otra pasa por un sitio donde se puede filtrar y registrar. Lo difícil no es instalarlo, que se trae hecho de casa, sino el relevo: que ocupe el sitio de `router-dev` sin que ninguna VM note el cambio.
+<span class="et et-obj">Objetivo</span> Un OPNsense con una pata en cada una de las cinco zonas, con la IP .1 en cada red, cuya consola web solo responde desde MGMT, y web01 y db01 usándolo como puerta de enlace, como DNS y como servidor de hora. Es la pieza sobre la que se construye el resto de la unidad: desde hoy, todo lo que cruza de una zona a otra pasa por un sitio donde se puede filtrar y registrar. Lo difícil no es instalarlo, que se trae hecho de casa, sino el relevo: que ocupe el sitio de `router-dev` sin que ninguna VM note el cambio.
 
 <span class="et et-pre">Antes de empezar</span>
 
@@ -225,9 +225,9 @@ Hay margen para hacerlo con calma: cada VM tiene una concesión de 12 horas, la 
 !!! truco "Preparación antes de la sesión: la VM del firewall, instalada"
     Son unos veinte minutos de clics que no dependen de nadie: se traen hechos de casa.
 
-    1. Sube a Proxmox la ISO `dvd` de OPNsense 26.x (desde casa, como la de la [A1.1](ut1-virtualizacion.md#a11-instalar-proxmox-ve-sesion-1): treinta descargas a la vez saturan el aula) y crea la VM 109 con los recursos de [Instalación en Proxmox](#instalacion-en-proxmox) y sus cinco NIC VirtIO en el orden exacto de aquella tabla, porque FreeBSD las numera por orden de bus PCI. Apunta la MAC de cada NIC: va en la entrega.
+    1. Sube a Proxmox la ISO `dvd` de OPNsense 26.x (desde casa, como la de la [A1.1](ut1-virtualizacion.md#a11-instalar-proxmox-ve-sesion-1): treinta descargas a la vez saturan el aula) y crea la VM 109 con los recursos de [Instalación en Proxmox](#instalacion-en-proxmox) y sus cinco NIC VirtIO en el orden exacto de aquella tabla, porque FreeBSD las numera por orden de bus PCI. Apunta la MAC de cada NIC: es la única forma de saber qué `vtnet` es cada zona.
     2. Instala con las opciones por defecto (usuario `installer`, contraseña `opnsense`), cambia la contraseña de root, retira la ISO y reinicia.
-    3. Mientras `web01` y `db01` aún salen a Internet por `router-dev`, instala lo que usarán las sesiones 15 y 16, porque tras el relevo ya no salen: `nginx nmap netcat-openbsd` en `web01` y `postgresql prometheus-postgres-exporter nmap netcat-openbsd` en `db01`.
+    3. Mientras `web01` y `db01` aún salen a Internet por `router-dev`, instala lo que usarán las hojas del 25 y el 27 de noviembre, porque tras el relevo ya no salen: `nginx nmap netcat-openbsd` en `web01` y `postgresql prometheus-postgres-exporter nmap netcat-openbsd` en `db01`.
 
 <span class="et et-pas">Pasos</span>
 
@@ -239,9 +239,9 @@ Vas a sustituir `router-dev` por el cortafuegos en los tres tiempos del [relevo]
 
 2. **Asigna cada tarjeta a su zona.** Es el primer tiempo del [relevo](#el-relevo-de-router-dev): preparar sin aplicar. Desde la consola de la VM, deja solo lo imprescindible para llegar a la web: WAN en `vtnet0` por DHCP, y LAN en `vtnet4` con la dirección provisional `10.10.0.2/24` y sin DHCP, porque en gestión `router-dev` sigue repartiendo direcciones. Desde la consola web, asigna `vtnet1` a `vtnet3` como DMZEXT, DMZINT e INT, con el `.1/24` de su zona, sin gateway (la única puerta de enlace del cortafuegos es la de la WAN) y **sin marcar "Enable interface"**, y renombra LAN a MGMT. Las internas quedan con su dirección definitiva pero apagadas: activarlas ahora sería poner un segundo `.1` en cada red.
 
-    *Pista:* la 10.10.0.2 solo existe dentro de gestión: llega a ella con un túnel por el puesto de administración (`ssh -L 8443:10.10.0.2:443 ops@<IP de aula de admin01>`) y abre `https://localhost:8443`.
+    *Pista:* la 10.10.0.2 solo existe dentro de gestión: llega a ella con un túnel por el puesto de administración (`ssh -L 28443:10.10.0.2:443 ops@<IP de aula de admin01>`) y abre `https://localhost:28443`.
 
-3. **Cierra la consola a todo lo que no sea gestión.** Deja la consola web escuchando solo en MGMT, como dice [Instalación en Proxmox](#instalacion-en-proxmox): desde cualquier otra zona, la consola del cortafuegos no tiene que existir. No desactives la regla anti-lockout: es la que te garantiza el acceso a la consola hasta que la sesión 15 escriba las reglas propias de MGMT.
+3. **Cierra la consola a todo lo que no sea gestión.** Deja la consola web escuchando solo en MGMT, como dice [Instalación en Proxmox](#instalacion-en-proxmox): desde cualquier otra zona, la consola del cortafuegos no tiene que existir. No desactives la regla anti-lockout: es la que te garantiza el acceso a la consola hasta que escribas las reglas propias de MGMT, el 25 de noviembre.
 
 4. **Prepara el DHCP y el DNS sin aplicarlos.** Copia en el cortafuegos, con las interfaces internas aún apagadas, lo que hoy da `router-dev`: DHCP en las cuatro zonas, con el rango `.100` a `.199` y las cuatro reservas por MAC de tu `dev.conf` (`web01` 10.10.1.10, `app01` 10.10.2.10, `db01` 10.10.3.10 y `mon01` 10.10.0.20), y DNS con el dominio `dev.lab`, `api.dev.lab` en la 10.10.1.10 y `mon01.lab` (10.10.0.20) con los alias `grafana.lab`, `prometheus.lab` y `gitea.lab`. Las reservas de app01 y mon01 no se usan hasta el traslado del 27 de noviembre, pero tienen que estar ya, porque son las que les darán su IP en la VPC; y los nombres de `mon01.lab` son los que usa Mantenimiento desde ese día.
 
@@ -262,9 +262,9 @@ Vas a sustituir `router-dev` por el cortafuegos en los tres tiempos del [relevo]
 - En Interfaces → Assignments la MAC de cada vtnet coincide con la que apuntaste para cada bridge.
 - `ip route` en web01 y db01 muestra `default via 10.10.X.1`, y `timedatectl timesync-status` el `.1` de su zona como servidor.
 
-<span class="et et-ent">Entrega</span> En la carpeta `ut3/` de tu repositorio, captura de Interfaces → Assignments y la tabla de las cinco interfaces de [Instalación en Proxmox](#instalacion-en-proxmox), completada con la MAC real de cada NIC y la IP que le has puesto.
+<span class="et et-ent">Para practicar</span> Guarda en la carpeta `ut3/` de tu repositorio una captura de Interfaces → Assignments y la tabla de las cinco interfaces de [Instalación en Proxmox](#instalacion-en-proxmox), completada con la MAC real de cada NIC y la IP que le has puesto.
 
-<span class="et et-ext">Si te sobra tiempo</span> Añade ya la sexta NIC del firewall, en `vmbr1` y sin tag, que necesitarás en la sesión 17, y comprueba en Interfaces → Assignments que FreeBSD la ve como `vtnet5` después de reiniciar la VM.
+<span class="et et-ext">Si te sobra tiempo</span> Añade ya la sexta NIC del firewall, en `vmbr1` y sin tag, que necesitarás el 2 de diciembre para los clientes, y comprueba en Interfaces → Assignments que FreeBSD la ve como `vtnet5` después de reiniciar la VM.
 
 ## Sesión 15 · Reglas por zona y publicación de un servicio
 
@@ -274,7 +274,7 @@ La A3.1 dejó el cortafuegos en el sitio de `router-dev`, pero sin reglas de pas
 
 ### Aliases
 
-**El problema.** Una regla escrita con direcciones sueltas (de 10.10.1.10 a 10.10.2.10 en el 8080) obliga a saber de memoria qué máquina es cada IP para entenderla, y cuando una máquina cambia de dirección hay que buscar y cambiar cada regla donde aparece, con el riesgo de olvidarse una.
+**El problema.** Una regla escrita con direcciones sueltas (de 10.10.1.10 a 10.10.2.10 en el 28080) obliga a saber de memoria qué máquina es cada IP para entenderla, y cuando una máquina cambia de dirección hay que buscar y cambiar cada regla donde aparece, con el riesgo de olvidarse una.
 
 **Qué es un alias.** Un alias es un nombre para un conjunto de IPs, redes, puertos o URLs, que las reglas usan en lugar de los valores. Así la regla se lee sola ("permitir `srv_web` a `srv_app` en `p_app`") y, cuando app01 cambie de IP o haya dos app, se cambia el alias y no diez reglas. Hay varios tipos: Host (una o varias direcciones; admite también nombres DNS, que OPNsense resuelve periódicamente), Network (una red), Port (una lista de puertos) y URL Table (una lista que se descarga de una URL, por ejemplo los rangos de IP de un proveedor, y se actualiza sola). Se crean en Firewall → Aliases.
 
@@ -286,20 +286,20 @@ La A3.1 dejó el cortafuegos en el sitio de `router-dev`, pero sin reglas de pas
 | `srv_web`, `srv_app` y `srv_db` | Host | 10.10.1.10, 10.10.2.10 y 10.10.3.10 | Las tres máquinas del servicio | A3.2 |
 | `net_mgmt` | Network | 10.10.0.0/24 | Todo lo que vive en gestión | A3.2 |
 | `p_web` | Port | 80, 443 | La publicación de la web y la salida a Internet | A3.2 |
-| `p_app` | Port | 8080, y el 8090 desde la A3.3 | Lo que el proxy pide a app01 | A3.2 |
-| `srv_gitea` | Host | 10.10.0.20; la 10.10.0.11 desde la A6.4 | La Gitea a la que empuja app01 | A3.3 |
+| `p_app` | Port | 28080, y el 28090 desde la A3.3 | Lo que el proxy pide a app01 | A3.2 |
+| `srv_gitea` | Host | 10.10.0.20; la 10.10.0.11 desde el 12 de febrero | La Gitea a la que empuja app01 | A3.3 |
 | `net_cli_a` y `net_cli_b` | Network | 10.10.101.0/24 y 10.10.102.0/24 | Las redes de los dos clientes | A3.4 |
-| `srv_mon`, `p_mon_app` y `p_mon_db` | Host y Port | 10.10.0.20 y los puertos de cada exporter | El scrape y los logs de Mantenimiento | A3.1 de Mantenimiento |
+| `srv_mon`, `p_mon_app` y `p_mon_db` | Host y Port | 10.10.0.20 y los puertos de cada exporter | El scrape y los logs de la monitorización | A3.1 de Mantenimiento (26 nov) |
 
 ### Reglas y orden de evaluación
 
 **Las dos preguntas.** Con varias interfaces y varias reglas, cada paquete plantea dos preguntas: qué reglas se le aplican y, si varias coinciden, cuál decide.
 
-**Dónde va una regla: la interfaz por la que entra.** Las reglas se organizan por interfaz y se evalúan sobre el tráfico que **entra** por esa interfaz (dirección "in", que es la habitual casi siempre). Para permitir que web01 hable con app01:8080, la regla va en DMZEXT, porque es por donde entra el paquete al firewall, aunque el destino esté en DMZINT; las respuestas no necesitan regla en DMZINT, porque las deja pasar la tabla de estados. En la página de reglas de las versiones actuales de OPNsense se elige la interfaz en un filtro y se ven todas las reglas que deciden sobre ella; en la vista clásica cada interfaz era una pestaña, y por eso en el curso se sigue diciendo "la pestaña DMZEXT".
+**Dónde va una regla: la interfaz por la que entra.** Las reglas se organizan por interfaz y se evalúan sobre el tráfico que **entra** por esa interfaz (dirección "in", que es la habitual casi siempre). Para permitir que web01 hable con app01:28080, la regla va en DMZEXT, porque es por donde entra el paquete al firewall, aunque el destino esté en DMZINT; las respuestas no necesitan regla en DMZINT, porque las deja pasar la tabla de estados. En la página de reglas de las versiones actuales de OPNsense se elige la interfaz en un filtro y se ven todas las reglas que deciden sobre ella; en la vista clásica cada interfaz era una pestaña, y por eso en el curso se sigue diciendo "la pestaña DMZEXT".
 
 !!! truco "La pregunta que resuelve el 90 % de las dudas"
     «¿Por qué interfaz **llega** este paquete al cortafuegos?». Esa es la pestaña donde va la regla. Para que
-    `web01` hable con `app01:8080` la regla va en DMZEXT, que es por donde entra, aunque el destino esté en
+    `web01` hable con `app01:28080` la regla va en DMZEXT, que es por donde entra, aunque el destino esté en
     DMZINT.
 
 ```mermaid
@@ -335,13 +335,13 @@ flowchart TB
 
 **Qué lleva cada regla.** Cada regla lleva acción (Pass, Block, Reject), interfaz, dirección, familia IP, protocolo, origen (con puerto opcional), destino y puerto, opción de log y una descripción. La descripción conviene ponerla siempre, porque es lo que aparece en el log, no el número de regla; en el curso empieza por el número de fila de la [matriz de reglas](#matriz-de-reglas) ("3 Proxy a la API y a whoami"), y así cada línea del log lleva directamente a la justificación de su regla.
 
-**Block o Reject.** Block descarta en silencio (el origen espera hasta agotar el timeout) y Reject responde con un TCP RST o un ICMP unreachable (el origen sabe al instante que no hay servicio). Hacia Internet se usa Block, para no dar información; entre zonas internas, Reject ahorra esperas a los servicios propios. En el laboratorio, sin embargo, todas las denegaciones son Block, la de por defecto incluida, por una razón práctica: las pruebas de la sesión 18 leen un `filtered` de nmap como prueba de que el paquete murió en el cortafuegos, y un Reject daría `closed`, que es lo mismo que contesta una máquina a la que el paquete sí ha llegado.
+**Block o Reject.** Block descarta en silencio (el origen espera hasta agotar el timeout) y Reject responde con un TCP RST o un ICMP unreachable (el origen sabe al instante que no hay servicio). Hacia Internet se usa Block, para no dar información; entre zonas internas, Reject ahorra esperas a los servicios propios. En el laboratorio, sin embargo, todas las denegaciones son Block, la de por defecto incluida, por una razón práctica: las pruebas de seguridad de la unidad leen un `filtered` de nmap como prueba de que el paquete murió en el cortafuegos, y un Reject daría `closed`, que es lo mismo que contesta una máquina a la que el paquete sí ha llegado.
 
 **Aplicar, y lo que no cambia al aplicar.** Las reglas nuevas se guardan y no entran en vigor hasta pulsar Apply. Y al aplicar, los estados existentes que ya no encajan con la política se mantienen hasta que expiran, porque esas conexiones las decide la tabla de estados y no las reglas: para cortar una conexión ya establecida hay que borrar su estado en Firewall → Diagnostics → States (o "Reset state table", que las corta todas).
 
 ### NAT: port forward y outbound
 
-**El problema.** web01 tiene una dirección privada, la 10.10.1.10, y la red del aula no sabe llegar a 10.10.0.0/16; en Internet, además, las direcciones privadas no se enrutan, como se vio en la UT2. De las zonas del servicio, desde fuera solo se ve la dirección WAN del cortafuegos, así que para pedir la web desde fuera el cortafuegos tiene que recibir la conexión en su WAN y pasársela a web01. En sentido contrario pasa lo mismo: una máquina de las zonas que quiera salir a Internet necesita que alguien cambie su dirección privada por una que tenga vuelta. Las dos cosas son NAT, traducción de direcciones, que la UT2 ya usó para dar salida a las zonas con el masquerade de `router-dev` (en [Enrutar frente a hacer NAT](ut2-vpc.md#enrutar-frente-a-hacer-nat)). Hacen falta dos tipos.
+**El problema.** web01 tiene una dirección privada, la 10.10.1.10, y la red del aula no sabe llegar a 10.10.0.0/16; en Internet, además, las direcciones privadas no se enrutan. De las zonas del servicio, desde fuera solo se ve la dirección WAN del cortafuegos, así que para pedir la web desde fuera el cortafuegos tiene que recibir la conexión en su WAN y pasársela a web01. En sentido contrario pasa lo mismo: una máquina de las zonas que quiera salir a Internet necesita que alguien cambie su dirección privada por una que tenga vuelta. Las dos cosas son NAT, traducción de direcciones, como el masquerade con el que `router-dev` daba salida a las zonas (en [Enrutar frente a hacer NAT](ut2-vpc.md#enrutar-frente-a-hacer-nat)). Hacen falta dos tipos.
 
 **Port forward: hacia dentro.** El **port forward** (DNAT, NAT de destino: cambia la IP de destino del paquete) publica un servicio interno en la IP WAN: WAN:443 → srv_web:443. En OPNsense se configura en Firewall → NAT → Destination NAT (en las versiones anteriores a la 26.1 se llamaba Port Forward), y su campo "Filter rule association" decide qué pasa con la regla de filtro que tiene que dejar pasar el paquete ya traducido. La opción del curso es **Register rule**: crea una regla de filtro enlazada en la interfaz WAN y la actualiza sola si cambia el NAT, así que aparece en la lista como cualquier otra, puede llevar log y entra en la matriz de reglas. "Pass" deja pasar el tráfico en la propia regla de NAT, sin regla de filtro visible, y "Manual" no crea ninguna.
 
@@ -403,11 +403,11 @@ flowchart TB
 
 **El problema.** Publicar la web por HTTPS exige que el cliente pueda comprobar que habla con el servidor de verdad. Se puede pedir saltándose esa comprobación (`curl -k`, que es lo que hace la primera prueba de la hoja), pero entonces el cifrado no protege de casi nada: cualquiera que se ponga en medio presenta su propio certificado y el cliente lo acepta igual. Sirve para el primer minuto, para saber si el camino funciona, pero no es la forma de trabajar.
 
-**TLS, certificado y CA, lo justo.** HTTPS es HTTP dentro de TLS, el protocolo que cifra la conexión y permite al cliente comprobar con quién habla. Al abrir la conexión, el servidor presenta su **certificado**: un documento que dice "esta clave pública es de `api.dev.lab`" y que lleva la firma de una **CA** (autoridad de certificación), alguien en quien el cliente ya confía. El cliente comprueba la firma con el certificado de la CA, que tiene guardado, y comprueba que el nombre al que se ha conectado está en el certificado. Cómo es el saludo inicial (el handshake) y qué resuelve TLS frente a qué resuelve la autenticación está explicado a fondo en la [UT3 de Mantenimiento](https://victor-educ.github.io/apuntes-5169/ut/ut3-seguridad-monitorizacion/#que-resuelve-tls-y-que-resuelve-la-autenticacion). Aquí basta con eso y con que hay dos escenarios: una CA propia para lo que no ve Internet y Let's Encrypt para lo que tiene nombre público.
+**TLS, certificado y CA, lo justo.** HTTPS es HTTP dentro de TLS, el protocolo que cifra la conexión y permite al cliente comprobar con quién habla. Al abrir la conexión, el servidor presenta su **certificado**: un documento que dice "esta clave pública es de `api.dev.lab`" y que lleva la firma de una **CA** (autoridad de certificación), alguien en quien el cliente ya confía. El cliente comprueba la firma con el certificado de la CA, que tiene guardado, y comprueba que el nombre al que se ha conectado está en el certificado. Aquí basta con eso y con que hay dos escenarios: una CA propia para lo que no ve Internet y Let's Encrypt para lo que tiene nombre público.
 
-**Por qué una CA propia, y una sola.** Para nombres internos como `api.dev.lab` no sirve una CA pública, que solo firma nombres que puede comprobar desde Internet. Se podría poner en cada servicio un certificado autofirmado, pero entonces cada cliente tendría que confiar en cada certificado uno por uno. Con una CA propia, cada cliente confía en un solo fichero, `ca.crt`, y con él en todo lo que esa CA firme. El laboratorio tiene una sola, `Lab 5166 CA`, que nace hoy en el puesto de administración y firma todo lo que se cifra después en las dos asignaturas: el proxy de hoy, los exporters y Loki de Mantenimiento y Jenkins en la UT6.
+**Por qué una CA propia, y una sola.** Para nombres internos como `api.dev.lab` no sirve una CA pública, que solo firma nombres que puede comprobar desde Internet. Se podría poner en cada servicio un certificado autofirmado, pero entonces cada cliente tendría que confiar en cada certificado uno por uno. Con una CA propia, cada cliente confía en un solo fichero, `ca.crt`, y con él en todo lo que esa CA firme. El laboratorio tiene una sola, `Lab 5166 CA`, que nace hoy en el puesto de administración y firma todo lo que se cifra después en las dos asignaturas, empezando por el proxy de hoy.
 
-**Con openssl ca, no con el atajo.** Se hace con `openssl ca` y no con el atajo de `openssl x509 -req`, porque `openssl ca` lleva el registro de lo emitido: `index.txt` apunta cada certificado con su número de serie, y eso es lo que permite revocar uno más adelante y publicar la lista de revocados. Todo vive en `~/ca/` del puesto de administración, y `ca.key` no sale nunca de ahí: con esa clave se puede firmar un certificado para cualquier nombre del laboratorio, y todos los clientes lo aceptarían.
+**Con openssl ca, no con el atajo.** Se hace con `openssl ca` y no con el atajo de `openssl x509 -req`, porque `openssl ca` lleva el registro de lo emitido: `index.txt` apunta cada certificado con su número de serie, y eso es lo que permite revocar uno cuando haga falta y publicar la lista de revocados. Todo vive en `~/ca/` del puesto de administración, y `ca.key` no sale nunca de ahí: con esa clave se puede firmar un certificado para cualquier nombre del laboratorio, y todos los clientes lo aceptarían.
 
 ```bash
 mkdir -p ~/ca/emitidos && chmod 700 ~/ca && cd ~/ca
@@ -457,7 +457,7 @@ authorityKeyIdentifier = keyid,issuer
 
 Del fichero, las decisiones que importan:
 
-- **Dos clases de certificado.** `server_cert` pone `serverAuth`, que solo vale para que un servidor se identifique, y `client_cert` pone `clientAuth`, para un cliente que se identifica ante un servidor (el Promtail de Mantenimiento ante Loki, por ejemplo). Separarlas evita que un certificado de cliente robado sirva para hacerse pasar por un servidor.
+- **Dos clases de certificado.** `server_cert` pone `serverAuth`, que solo vale para que un servidor se identifique, y `client_cert` pone `clientAuth`, para un cliente que se identifica ante un servidor (Promtail ante Loki, por ejemplo). Separarlas evita que un certificado de cliente robado sirva para hacerse pasar por un servidor.
 - **`copy_extensions = copy`.** Los nombres del certificado (el SAN, que se explica más abajo) van en la petición, y sin esta línea `openssl ca` los descartaría al firmar.
 - **`unique_subject = no`.** Permite emitir otra vez un certificado con el mismo nombre, por ejemplo al renovarlo, sin revocar antes el anterior.
 - **`default_days = 365`.** Un año por certificado, lo que dura el curso.
@@ -490,13 +490,13 @@ openssl ca -config ~/ca/ca.cnf -extensions server_cert \
 
 ### A3.2 Publicar la web (sesión 15)
 
-<span class="et et-obj">Objetivo</span> `https://api.dev.lab` responde desde el aula con la web de web01, con un certificado firmado por la CA del curso, y un nmap desde el aula solo ve el 443 (y el 80). Es la primera vez que algo del laboratorio se publica hacia fuera, y la hoja lo demuestra desde los dos lados: lo publicado funciona y se valida sin saltarse nada, y lo demás no se ve. De paso nace la CA del curso, con la que Mantenimiento empieza a firmar mañana.
+<span class="et et-obj">Objetivo</span> `https://api.dev.lab` responde desde el aula con la web de web01, con un certificado firmado por la CA del curso, y un nmap desde el aula solo ve el 443 (y el 80). Es la primera vez que algo del laboratorio se publica hacia fuera, y la hoja lo demuestra desde los dos lados: lo publicado funciona y se valida sin saltarse nada, y lo demás no se ve. De paso nace la CA del curso, la que usan las dos asignaturas.
 
 <span class="et et-pre">Antes de empezar</span>
 
 - El firewall de la A3.1 con la regla 0, y web01 y db01 apuntando a él.
 - nginx, nmap y netcat-openbsd en web01, de la preparación de la A3.1. Si falta alguno, ábrele una fila temporal en DMZEXT como dice [NAT: port forward y outbound](#nat-port-forward-y-outbound), con la descripción `TEMPORAL alta 25-11 baja 25-11 apt en web01`, y bórrala al terminar el `apt`.
-- Explicado en clase: [Aliases](#aliases), [Reglas y orden de evaluación](#reglas-y-orden-de-evaluacion), [NAT: port forward y outbound](#nat-port-forward-y-outbound) y [Certificados](#certificados). De consulta, para el paso 1: [Logs](#logs). Para el paso 3, el fichero de nginx de [El proxy inverso](#el-proxy-inverso), que se explica en la sesión 16.
+- Explicado en clase: [Aliases](#aliases), [Reglas y orden de evaluación](#reglas-y-orden-de-evaluacion), [NAT: port forward y outbound](#nat-port-forward-y-outbound) y [Certificados](#certificados). De consulta, para el paso 1: [Logs](#logs). Para el paso 3, el fichero de nginx de [El proxy inverso](#el-proxy-inverso), que se explica el 27 de noviembre.
 
 <span class="et et-pas">Pasos</span>
 
@@ -518,17 +518,17 @@ Vas a abrir la primera puerta del cortafuegos en un orden pensado para que cada 
 
     *Pista:* `ca.crt` está en `~/ca/` del puesto de administración. Contra la IP WAN no valida nunca: el certificado solo vale para su SAN, `api.dev.lab`.
 
-6. **Mira el cortafuegos como lo vería un atacante.** Escanea desde el aula los puertos 22, 80, 443 y 8080 de la IP WAN con un escaneo SYN y sin ping previo (nmap se vio en [Cómo se prueba una red](ut2-vpc.md#como-se-prueba-una-red), en la sesión 10). El 80 y el 443 tienen que salir abiertos y los otros dos `filtered`, no `closed`: es la diferencia entre un puerto que el cortafuegos esconde y uno al que alguien contesta. La matriz de pruebas de la sesión 18 reutiliza esta salida.
+6. **Mira el cortafuegos como lo vería un atacante.** Escanea desde el aula los puertos 22, 80, 443 y 28080 de la IP WAN con un escaneo SYN y sin ping previo (nmap se vio en [Cómo se prueba una red](ut2-vpc.md#como-se-prueba-una-red)). El 80 y el 443 tienen que salir abiertos y los otros dos `filtered`, no `closed`: es la diferencia entre un puerto que el cortafuegos esconde y uno al que alguien contesta.
 
     *Pista:* son `-sS` y `-Pn`. El firewall no contesta al ping, y sin `-Pn` nmap da el host por caído y no escanea nada.
 
 <span class="et et-com">Comprobación</span>
 
 - El `curl -v` sin `-k` termina con `SSL certificate verify ok` y un 200 con la página por defecto de nginx; `curl -v http://api.dev.lab` devuelve un 301 a `https://api.dev.lab/`.
-- El nmap muestra 443 y 80 `open`; 22 y 8080 `filtered`. Si alguno sale `closed`, revisa las reglas de WAN antes de seguir.
-- En el log, con filtro por interfaz WAN, ves los SYN al 22 y al 8080 denegados por la regla por defecto.
+- El nmap muestra 443 y 80 `open`; 22 y 28080 `filtered`. Si alguno sale `closed`, revisa las reglas de WAN antes de seguir.
+- En el log, con filtro por interfaz WAN, ves los SYN al 22 y al 28080 denegados por la regla por defecto.
 
-<span class="et et-ent">Entrega</span> En `ut3/`: captura de Firewall → Rules (WAN y MGMT) y de NAT → Destination NAT, la salida del `curl -v` sin `-k` y la del nmap, cada una encabezada con `date; hostname` porque la A3.5 las reutiliza como evidencia. Guarda también `ca.crt` (nunca `ca.key`): Mantenimiento firma con esta misma CA desde mañana.
+<span class="et et-ent">Para practicar</span> Guarda en `ut3/` una captura de Firewall → Rules (WAN y MGMT) y otra de NAT → Destination NAT, y la salida del `curl -v` sin `-k` y la del nmap, cada una encabezada con `date; hostname`, porque la matriz de pruebas de la A3.5 las reutiliza como evidencia. Guarda también `ca.crt`, nunca `ca.key`.
 
 <span class="et et-ext">Si te sobra tiempo</span> Mira en la salida del curl la cabecera `Server` y añade `server_tokens off;` en `/etc/nginx/nginx.conf` para dejar de regalar la versión.
 
@@ -536,7 +536,7 @@ Vas a abrir la primera puerta del cortafuegos en un orden pensado para que cada 
 
 <p class="ut-meta" markdown>27 de noviembre · Teoría y práctica · <span class="dur" tabindex="0" aria-label="Publicar un servicio · 10 min&#10;Documentación operativa · 5 min&#10;A3.3 Aplicación y datos · 95 min" data-dur="Publicar un servicio · 10 min&#10;Documentación operativa · 5 min&#10;A3.3 Aplicación y datos · 95 min">:material-school:<i class="dur-barra" style="--teoria:14%"></i>:material-flask:</span></p>
 
-Después de la A3.2, web01 está publicada pero sirve una página estática, y el servicio de verdad sigue donde estaba: el compose de app01, con su base de datos y su nginx dentro, en la red del aula y fuera de la VPC. Hoy el servicio toma la forma por capas del modelo de la sesión 14: el proxy en la DMZ externa, la API en la DMZ interna y la base de datos en la zona interna, con una sola regla por salto. Es también el día del traslado: app01 y mon01 pasan del aula a la VPC, y con ellas la pila de Mantenimiento, que el 26 de noviembre dejó en OPNsense sus filas 11 a 13 para que la monitorización siga pasando. La teoría sigue el recorrido de una petición: primero el patrón de publicación, que dice por qué cada pieza va en su zona y qué regla necesita cada salto, y cómo se abre la base de datos solo a la aplicación; después el proxy inverso, la pieza que da la cara a Internet; y al final la documentación, porque con las reglas de hoy ya hay bastantes para que, sin un documento, nadie sepa dentro de un año por qué existe cada una. La hoja monta la cadena de abajo arriba (base de datos, reglas, API y proxy), la recorre desde el aula, demuestra que el proxy no llega a la base de datos y empieza la matriz de reglas.
+Después de la A3.2, web01 está publicada pero sirve una página estática, y el servicio de verdad sigue donde estaba: el compose de app01, con su base de datos y su nginx dentro, en la red del aula y fuera de la VPC. Hoy el servicio toma la forma del modelo por capas: el proxy en la DMZ externa, la API en la DMZ interna y la base de datos en la zona interna, con una sola regla por salto. Es también el día del traslado: app01 y mon01 pasan del aula a la VPC, y con ellas la pila de Mantenimiento, que el 26 de noviembre dejó en OPNsense sus filas 11 a 13 para que la monitorización siga pasando. La teoría sigue el recorrido de una petición: primero el patrón de publicación, que dice por qué cada pieza va en su zona y qué regla necesita cada salto, y cómo se abre la base de datos solo a la aplicación; después el proxy inverso, la pieza que da la cara a Internet; y al final la documentación, porque con las reglas de hoy ya hay bastantes para que, sin un documento, nadie sepa dentro de un año por qué existe cada una. La hoja monta la cadena de abajo arriba (base de datos, reglas, API y proxy), la recorre desde el aula, demuestra que el proxy no llega a la base de datos y empieza la matriz de reglas.
 
 ### Publicar un servicio
 
@@ -554,7 +554,7 @@ sequenceDiagram
     U->>FW: TLS a IP_WAN:443
     FW->>P: DNAT a 10.10.1.10:443 (fila 1, en WAN)
     P->>P: Termina TLS, añade X-Forwarded-For
-    P->>A: HTTP a 10.10.2.10:8080 (fila 3, en DMZEXT)
+    P->>A: HTTP a 10.10.2.10:28080 (fila 3, en DMZEXT)
     A->>D: SQL a 10.10.3.10:5432 (fila 4, en DMZINT)
     D-->>A: Filas
     A-->>P: JSON
@@ -563,7 +563,7 @@ sequenceDiagram
 
 <p class="pie" markdown>Cada flecha cruza una zona y necesita su regla. El TLS termina en el proxy: de ahí hacia dentro el tráfico va en claro por la red interna.</p>
 
-**Una regla por salto.** Cada salto del diagrama entra al cortafuegos por una interfaz distinta, así que cada uno necesita su regla, en la interfaz por la que entra, y ninguna más: la fila 1 en WAN (Internet al proxy, que se escribió en la A3.2), la 3 en DMZEXT (el proxy a la API) y la 4 en DMZINT (la API a la base de datos). Las respuestas vuelven por la tabla de estados. Con eso, si alguien compromete el proxy, lo único que alcanza son los dos puertos de app01 de la fila 3; si compromete la API, el 5432 de db01, y con un usuario que solo puede tocar la base `servicio`. Hay una cuarta regla que no está en el camino de la petición, la fila 6: app01 trae y sube el código del servicio a la Gitea provisional de Mantenimiento, que vive en mon01, en gestión.
+**Una regla por salto.** Cada salto del diagrama entra al cortafuegos por una interfaz distinta, así que cada uno necesita su regla, en la interfaz por la que entra, y ninguna más: la fila 1 en WAN (Internet al proxy, que se escribió en la A3.2), la 3 en DMZEXT (el proxy a la API) y la 4 en DMZINT (la API a la base de datos). Las respuestas vuelven por la tabla de estados. Con eso, si alguien compromete el proxy, lo único que alcanza son los dos puertos de app01 de la fila 3; si compromete la API, el 5432 de db01, y con un usuario que solo puede tocar la base `servicio`. Hay una cuarta regla que no está en el camino de la petición, la fila 6: app01 trae y sube el código del servicio a la Gitea provisional, que vive en mon01, en gestión.
 
 #### La base de datos, abierta solo a la aplicación
 
@@ -579,9 +579,9 @@ host    servicio    app    10.10.2.0/24    scram-sha-256
 
 `scram-sha-256` es el método de contraseña actual de PostgreSQL: el cliente demuestra que conoce la contraseña sin enviarla, de modo que quien capture el tráfico, que dentro de la red viaja sin cifrar, no se la lleva.
 
-**Un usuario para la aplicación y otro para la monitorización.** La API se conecta con `app`, dueño de la base `servicio` y de nada más, y no con `postgres`, que es el superusuario: si alguien compromete la API, se lleva lo que puede hacer `app`. Con la misma lógica, postgres_exporter (el programa que publica en el 9187 las métricas de la base de datos para el Prometheus de Mantenimiento) entra con un usuario propio, `monitor`, que solo tiene `pg_monitor`, un rol que trae PostgreSQL para leer estadísticas sin poder tocar los datos.
+**Un usuario para la aplicación y otro para la monitorización.** La API se conecta con `app`, dueño de la base `servicio` y de nada más, y no con `postgres`, que es el superusuario: si alguien compromete la API, se lleva lo que puede hacer `app`. Con la misma lógica, postgres_exporter (el programa que publica en el 29187 las métricas de la base de datos para el Prometheus de mon01) entra con un usuario propio, `monitor`, que solo tiene `pg_monitor`, un rol que trae PostgreSQL para leer estadísticas sin poder tocar los datos.
 
-**Los datos, en su propio disco.** El clúster de PostgreSQL vive en un disco aparte montado en `/data`, no en el disco del sistema. Así un disco de sistema lleno de logs no para la base de datos, el de datos se puede ampliar o mover sin tocar lo demás, y Mantenimiento mide su capacidad por separado en sus indicadores de la UT4.
+**Los datos, en su propio disco.** El clúster de PostgreSQL vive en un disco aparte montado en `/data`, no en el disco del sistema. Así un disco de sistema lleno de logs no para la base de datos, y el de datos se puede ampliar, mover o medir sin tocar lo demás.
 
 #### El proxy inverso
 
@@ -594,7 +594,7 @@ host    servicio    app    10.10.2.0/24    scram-sha-256
 
 - **Termina TLS**. El certificado y la clave privada viven en el proxy; la aplicación puede hablar HTTP plano dentro de la DMZ interna (o TLS con certificado interno si la política lo exige). Renovar un certificado no toca la aplicación.
 - **Oculta la topología**. El cliente ve una IP y un puerto. No sabe si detrás hay una máquina o veinte, ni en qué red están, ni qué servidor de aplicaciones usan. Las cabeceras `Server` y los mensajes de error del backend se pueden reescribir.
-- **Filtra rutas**. Se puede publicar `/api` y `/` y dejar `/admin` o `/metrics` solo accesibles desde MGMT, con un `location` y un `allow`/`deny` (directivas de nginx: una ruta y quién puede pedirla). En el laboratorio no hace falta: las métricas de la API están en su propio puerto, el 9102, que el proxy no publica y que solo lee Prometheus.
+- **Filtra rutas**. Se puede publicar `/api` y `/` y dejar `/admin` o `/metrics` solo accesibles desde MGMT, con un `location` y un `allow`/`deny` (directivas de nginx: una ruta y quién puede pedirla). En el laboratorio no hace falta: las métricas de la API están en su propio puerto, el 29102, que el proxy no publica y que solo lee Prometheus.
 - **Pierde la IP del cliente**, salvo que se la pase a la aplicación. Como la segunda conexión sale desde 10.10.1.10, la aplicación vería siempre esa IP. Por eso el proxy añade la cabecera `X-Forwarded-For` con la IP original (y `X-Forwarded-Proto` con `https`, para que la aplicación genere enlaces correctos). La aplicación debe confiar en esas cabeceras **solo** si vienen del proxy; si acepta `X-Forwarded-For` de cualquiera, un cliente puede falsificar su IP. El RFC 7239 estandariza esto como cabecera `Forwarded`, pero en la práctica todo el mundo sigue usando las `X-Forwarded-*`.
 
 **El fichero de web01.** En Debian, cada sitio de nginx va en un fichero de `/etc/nginx/sites-available/` y se activa con un enlace en `sites-enabled/`, que es lo único que lee nginx: así un sitio se desactiva quitando el enlace, sin borrar su configuración. Este es el de `api.dev.lab` en web01, tal como queda al terminar la A3.3. Son dos bloques `server`: el del puerto 80 solo redirige a HTTPS, y el del 443 termina TLS y reenvía a app01.
@@ -621,11 +621,11 @@ server {
     proxy_set_header X-Real-IP $remote_addr;
 
     location / {
-        proxy_pass http://10.10.2.10:8080;    # la API del curso
+        proxy_pass http://10.10.2.10:28080;    # la API del curso
     }
 
     location /cabeceras/ {
-        proxy_pass http://10.10.2.10:8090;    # whoami: enseña lo que le llega
+        proxy_pass http://10.10.2.10:28090;    # whoami: enseña lo que le llega
     }
 }
 ```
@@ -635,7 +635,7 @@ Del fichero, las decisiones que importan:
 - **El 80 solo redirige.** Quien escriba `http://api.dev.lab` acaba en HTTPS sin recibir nunca una página en claro, y por eso la regla de WAN publica el 80 además del 443.
 - **`ssl_protocols TLSv1.2 TLSv1.3`.** Son las dos versiones vigentes de TLS; las anteriores están retiradas por inseguras, y ningún cliente actual las necesita.
 - **Las cuatro cabeceras `proxy_set_header`**, que valen para todos los `location` del bloque. `Host` conserva el nombre que pidió el cliente, que si no sería la IP de app01; `X-Forwarded-For` añade la IP del cliente a la lista de direcciones por las que ha pasado la petición; `X-Forwarded-Proto` dice si el cliente llegó por `https`; y `X-Real-IP` lleva solo la IP del cliente, para las aplicaciones que no saben leer la lista.
-- **Dos destinos.** `/` va a la API del curso en el 8080, y `/cabeceras/` a un contenedor de pruebas, `whoami`, en el 8090, que contesta con todas las cabeceras que recibe: es la forma de ver qué le añade el proxy a la petición antes de que llegue a la aplicación.
+- **Dos destinos.** `/` va a la API del curso en el 28080, y `/cabeceras/` a un contenedor de pruebas, `whoami`, en el 28090, que contesta con todas las cabeceras que recibe: es la forma de ver qué le añade el proxy a la petición antes de que llegue a la aplicación.
 
 Con esto cargado (`nginx -t` valida, `systemctl reload nginx` aplica), `curl https://api.dev.lab/health` desde el aula devuelve la respuesta de la API, y `curl https://api.dev.lab/cabeceras/`, la de whoami con las cabeceras que ha añadido el proxy.
 
@@ -651,7 +651,7 @@ El criterio, en una línea: nginx para aprender, Traefik para producción con co
 
 ### Documentación operativa
 
-**El problema.** Con las reglas de hoy, el cortafuegos ya pasa de diez, y dentro de un año nadie recordará por qué existe cada una. Una regla de la que nadie sabe el motivo no se atreve a borrarla nadie, y así, regla a regla, un cortafuegos acaba dejándolo pasar todo. Por eso una red pasa a producción con los cuatro documentos que pide cualquier auditoría: el diagrama de zonas, la matriz de pruebas con evidencias (las dos, en la sesión 18) y los dos que siguen, que se empiezan hoy.
+**El problema.** Con las reglas de hoy, el cortafuegos ya pasa de diez, y dentro de un año nadie recordará por qué existe cada una. Una regla de la que nadie sabe el motivo no se atreve a borrarla nadie, y así, regla a regla, un cortafuegos acaba dejándolo pasar todo. Por eso una red pasa a producción con los cuatro documentos que pide cualquier auditoría: el diagrama de zonas, la matriz de pruebas con evidencias y los dos que siguen. Estos dos se empiezan hoy; el diagrama y la matriz de pruebas, el 4 de diciembre.
 
 #### Matriz de reglas
 
@@ -662,10 +662,10 @@ El criterio, en una línea: nginx para aprender, Traefik para producción con co
 | 0 | ZONAS | any | This Firewall | p_infra (53, 123) e ICMP echo | Pass | no | DNS, hora y ping al propio cortafuegos | Sistemas | Sistemas | 2027-03 |
 | 1 | WAN | any | srv_web | p_web (80, 443) | Pass | no | Publicación de api.dev.lab (el 80 solo redirige a HTTPS) | Desarrollo | Sistemas | 2027-03 |
 | 2 | MGMT | net_mgmt | any | p_web (80, 443) | Pass | no | Gestión: consola del cortafuegos y salida a Internet | Sistemas | Sistemas | 2027-03 |
-| 3 | DMZEXT | srv_web | srv_app | p_app (8080, 8090) | Pass | no | El proxy reenvía a la API y al contenedor de pruebas de cabeceras | Desarrollo | Sistemas | 2027-03 |
+| 3 | DMZEXT | srv_web | srv_app | p_app (28080, 28090) | Pass | no | El proxy reenvía a la API y al contenedor de pruebas de cabeceras | Desarrollo | Sistemas | 2027-03 |
 | 4 | DMZINT | srv_app | srv_db | 5432 | Pass | sí | La API consulta PostgreSQL | Desarrollo | Sistemas | 2027-03 |
 | 5 | MGMT | net_mgmt | any | 22 | Pass | sí | Administración por SSH | Sistemas | Sistemas | 2027-03 |
-| 6 | DMZINT | srv_app | srv_gitea | 3001 | Pass | no | app01 trae y sube el repositorio `servicio` (Gitea en mon01) | Desarrollo | Sistemas | 2027-02 |
+| 6 | DMZINT | srv_app | srv_gitea | 23001 | Pass | no | app01 trae y sube el repositorio `servicio` (Gitea en mon01) | Desarrollo | Sistemas | 2027-02 |
 | 99 | todas | any | any | any | Block | sí | Denegación por defecto | | | |
 
 En «Solicitó» y «Aprobó» va el equipo, no una persona: el documento tiene que sobrevivir a quien lo firma.
@@ -699,7 +699,7 @@ Cada paso evita un fallo concreto: sin petición escrita, nadie sabe después po
 !!! truco "Preparación antes de la sesión: el disco de db01 y el traslado"
     Son unos veinte minutos de órdenes que no dependen de nadie. Lo de db01 vale cualquier día desde el 20 de noviembre; el traslado, solo después de la clase de Mantenimiento del 26, que todavía usa las dos VM en el bridge del aula. Si no llegas, empieza la sesión por aquí.
 
-    **El disco de datos de db01.** Añade en caliente a db01 (VM 130) un disco de 5 GB, formatéalo en ext4 sin particionar con la etiqueta `datos` y móntalo en `/data` desde `fstab` por esa etiqueta. Después lleva el clúster de PostgreSQL, todavía vacío, a `/data/postgresql/17/main`: es el punto de montaje que miden los indicadores de capacidad de la [UT4 de Mantenimiento](https://victor-educ.github.io/apuntes-5169/ut/ut4-kpi-pruebas/).
+    **El disco de datos de db01.** Añade en caliente a db01 (VM 130) un disco de 5 GB, formatéalo en ext4 sin particionar con la etiqueta `datos` y móntalo en `/data` desde `fstab` por esa etiqueta. Después lleva el clúster de PostgreSQL, todavía vacío, a `/data/postgresql/17/main`. Desde diciembre, Mantenimiento mide ese disco en sus [indicadores de capacidad](https://victor-educ.github.io/apuntes-5169/ut/ut4-kpi-pruebas/).
 
     *Pista:* el disco se añade desde el nodo con `qm set 130 --scsi1 local-lvm:5`, y se monta por etiqueta porque `/dev/sdb` puede cambiar de orden entre arranques. El clúster se mueve con `pg_dropcluster --stop 17 main` y `pg_createcluster -d <ruta> --start 17 main`; el primero borra lo que haya, así que si habías probado algo, sácalo antes con `pg_dumpall`.
 
@@ -707,23 +707,23 @@ Cada paso evita un fallo concreto: sin petición escrita, nadie sabe después po
 
     *Pista:* `qm config <ID> | grep net0` da la MAC, y `qm set <ID> --net0 virtio=<MAC>,bridge=<VNet> --ipconfig0 ip=dhcp`, con la VM apagada, la conserva.
 
-    Hasta el 1 de diciembre, los targets de app01 y de PostgreSQL de Mantenimiento estarán en DOWN, y es lo esperado: la [A3.2 de Mantenimiento](https://victor-educ.github.io/apuntes-5169/ut/ut3-seguridad-monitorizacion/#a32-red-firewall-y-tls-sesion-17) los lleva ese día a las direcciones de la VPC.
+    Hasta el 1 de diciembre, los targets de app01 y de PostgreSQL de la monitorización estarán en DOWN, y es lo esperado: la [A3.2 de Mantenimiento](https://victor-educ.github.io/apuntes-5169/ut/ut3-seguridad-monitorizacion/#a32-red-firewall-y-tls-sesion-17) los lleva ese día a las direcciones de la VPC.
 
 <span class="et et-pas">Pasos</span>
 
 Vas a montar la cadena de abajo arriba, cada pieza antes de la que depende de ella, y a recorrerla al final de punta a punta. Primero la base de datos en db01, porque la API no arranca sin ella; después las reglas entre capas, porque sin ellas app01 no llega ni a db01 ni a Gitea; luego la API, apuntando a db01, y el proxy de web01, apuntando a la API. Con todo en su sitio, pides el servicio desde el aula y compruebas el salto que no tiene que darse, el del proxy a la base de datos. Y al final escribes la matriz de reglas, que documenta lo que acabas de dejar funcionando.
 
-1. **Abre la base de datos solo a la aplicación.** Deja PostgreSQL en db01 escuchando en todas sus direcciones, con el usuario `app` (con la contraseña del `.env` del servicio, que es de donde la lee la API) como dueño de la base `servicio`, y en `pg_hba.conf` una línea que solo lo admita en esa base desde 10.10.2.0/24, con `scram-sha-256`, como en [La base de datos, abierta solo a la aplicación](#la-base-de-datos-abierta-solo-a-la-aplicacion). Después pon a postgres_exporter a leerla con un usuario `monitor` que solo tenga el rol `pg_monitor`: es el exporter que Mantenimiento recoge desde el 1 de diciembre.
+1. **Abre la base de datos solo a la aplicación.** Deja PostgreSQL en db01 escuchando en todas sus direcciones, con el usuario `app` (con la contraseña del `.env` del servicio, que es de donde la lee la API) como dueño de la base `servicio`, y en `pg_hba.conf` una línea que solo lo admita en esa base desde 10.10.2.0/24, con `scram-sha-256`, como en [La base de datos, abierta solo a la aplicación](#la-base-de-datos-abierta-solo-a-la-aplicacion). Después pon a postgres_exporter a leerla con un usuario `monitor` que solo tenga el rol `pg_monitor`, y a escuchar en el 29187, el puerto del curso: es el exporter que Mantenimiento recoge desde el 1 de diciembre, y lo busca ahí.
 
-    *Pista:* el exporter del paquete toma la conexión de la variable `DATA_SOURCE_NAME` en `/etc/default/prometheus-postgres-exporter`, contra `127.0.0.1:5432` y con `sslmode=disable`.
+    *Pista:* el exporter del paquete lo toma todo de `/etc/default/prometheus-postgres-exporter`: la conexión, de la variable `DATA_SOURCE_NAME`, contra `127.0.0.1:5432` y con `sslmode=disable`; el puerto, de la línea `ARGS`, con `--web.listen-address`, como el node_exporter de la plantilla.
 
-2. **Escribe las reglas entre capas.** Escribe las filas 3, 4 y 6 de la [Matriz de reglas](#matriz-de-reglas), cada una en la pestaña por la que entra el tráfico: la 3 en DMZEXT, y la 4 y la 6 en DMZINT. Antes, añade el 8090 al alias `p_app`, para que la regla 3 cubra también el contenedor de pruebas, y crea `srv_gitea` (Host, 10.10.0.20, la de mon01, donde vive Gitea hasta el 12 de febrero): cuando Gitea se mude, cambiará el alias y no la regla.
+2. **Escribe las reglas entre capas.** Escribe las filas 3, 4 y 6 de la [Matriz de reglas](#matriz-de-reglas), cada una en la pestaña por la que entra el tráfico: la 3 en DMZEXT, y la 4 y la 6 en DMZINT. Antes, añade el 28090 al alias `p_app`, para que la regla 3 cubra también el contenedor de pruebas, y crea `srv_gitea` (Host, 10.10.0.20, la de mon01, donde vive Gitea hasta el 12 de febrero): cuando Gitea se mude, cambiará el alias y no la regla.
 
-3. **Lleva la API a su zona, contra db01.** Arranca en app01 el contenedor de pruebas `whoami` (imagen `traefik/whoami`, que escucha en su 80) publicado en el **8090** y con `--restart unless-stopped`: el 8080 es de la API y el 8081, de cAdvisor. Después quita del servicio lo que ya vive en otra máquina, para que en app01 quede solo la API, como dice [el patrón](#publicar-un-servicio): `DB_HOST=10.10.3.10` en `/opt/servicio/.env` y fuera de `/opt/servicio/compose.yml` los servicios `db`, `nginx` y `postgres_exporter`, con `app` publicando todavía el 8080, que es el que pide el proxy. Sube el cambio al repositorio `servicio`: el compose lo usan las dos asignaturas, y en Gitea tiene que estar como está de verdad.
+3. **Lleva la API a su zona, contra db01.** Arranca en app01 el contenedor de pruebas `whoami` (imagen `traefik/whoami`) escuchando y publicado en el **28090**, con `--restart unless-stopped`: el 20080, que le daría la regla de la franja, es el del nginx del compose del servicio, el 28080 es de la API y el 28081, de cAdvisor. Después quita del servicio lo que ya vive en otra máquina, para que en app01 quede solo la API, como dice [el patrón](#publicar-un-servicio): `DB_HOST=10.10.3.10` en `/opt/servicio/.env` y fuera de `/opt/servicio/compose.yml` los servicios `db`, `nginx` y `postgres_exporter`, con `app` publicando todavía el 28080, que es el que pide el proxy. Sube el cambio al repositorio `servicio`: el compose lo usan las dos asignaturas, y en Gitea tiene que estar como está de verdad.
 
-    *Pista:* quita también el `depends_on` de `app` y levanta con `--remove-orphans`. El push sale por la regla 6 hacia `gitea.lab`, que ahora resuelve el cortafuegos: borra antes la línea de ese nombre que la A2.6 de Mantenimiento dejó en el `/etc/hosts` de app01.
+    *Pista:* publicar el 28090 no basta: whoami escucha en su 80 de fábrica mientras su opción `--port`, que va detrás del nombre de la imagen, no diga otro. En el compose, quita también el `depends_on` de `app` y levanta con `--remove-orphans`. El push sale por la regla 6 hacia `gitea.lab`, que ahora resuelve el cortafuegos: borra antes la línea de ese nombre que la A2.6 de Mantenimiento dejó en el `/etc/hosts` de app01.
 
-4. **Convierte web01 en proxy inverso.** Cambia en el nginx de web01 la página estática de la A3.2 por el reenvío: el bloque 443 de `api.dev.lab` queda como en [El proxy inverso](#el-proxy-inverso), con `/` hacia la API del 8080, `/cabeceras/` hacia whoami en el 8090 y las cuatro cabeceras que le dicen a la aplicación quién es el cliente de verdad.
+4. **Convierte web01 en proxy inverso.** Cambia en el nginx de web01 la página estática de la A3.2 por el reenvío: el bloque 443 de `api.dev.lab` queda como en [El proxy inverso](#el-proxy-inverso), con `/` hacia la API del 28080, `/cabeceras/` hacia whoami en el 28090 y las cuatro cabeceras que le dicen a la aplicación quién es el cliente de verdad.
 
 5. **Recorre la cadena y demuestra el salto prohibido.** Desde tu equipo del aula, pide `/items` y `/cabeceras/` a `https://api.dev.lab`: si contestan, los tres saltos funcionan, y en la respuesta de whoami ves tu IP en `X-Forwarded-For`. Después demuestra desde web01 lo que [el patrón](#publicar-un-servicio) prohíbe: un intento al 5432 de db01 tiene que acabar por timeout, con su denegación en Live View, en la interfaz DMZEXT. Las dos mitades juntas son la prueba de las capas: llega lo que tiene que llegar, y nada más.
 
@@ -736,9 +736,9 @@ Vas a montar la cadena de abajo arriba, cada pieza antes de la que depende de el
 - Desde el aula, `curl https://api.dev.lab/items` devuelve la respuesta de la API y `/cabeceras/` la de whoami, con tu IP en `X-Forwarded-For`.
 - En app01, `docker compose -f /opt/servicio/compose.yml ps` solo muestra `app`. app01 y mon01 tienen la IP de su reserva, señal de que el traslado conservó la MAC.
 - Desde web01, el nc al 5432 termina por timeout (no "refused") y la línea está en el log en la interfaz DMZEXT.
-- En db01, `df -h /data` muestra el disco de 5 GB, `show data_directory` devuelve `/data/postgresql/17/main` y `curl -s localhost:9187/metrics` da `pg_up 1`.
+- En db01, `df -h /data` muestra el disco de 5 GB, `show data_directory` devuelve `/data/postgresql/17/main` y `curl -s localhost:29187/metrics` da `pg_up 1`.
 
-<span class="et et-ent">Entrega</span> En `ut3/`, `matriz-reglas.md` con la matriz justificada (las reglas actuales más la denegación por defecto), la salida de los dos `curl` y la del `nc` del paso 5, encabezadas con `date; hostname`, y la captura de la línea del log del `nc`.
+<span class="et et-ent">Para practicar</span> Guarda en `ut3/` `matriz-reglas.md` con la matriz justificada (las reglas actuales más la denegación por defecto), la salida de los dos `curl` y la del `nc` del paso 5, encabezadas con `date; hostname`, y la captura de la línea del log del `nc`. La evaluable parte de esta matriz.
 
 <span class="et et-ext">Si te sobra tiempo</span> Pon en web01, dentro de `location /cabeceras/`, `proxy_set_header X-Forwarded-For "1.2.3.4";` y observa que whoami se lo cree: por eso la aplicación solo debe confiar en la cabecera si viene del proxy.
 
@@ -754,16 +754,16 @@ Hasta aquí la red tiene un solo dueño. Pero un proveedor no monta una infraest
 
 1. **Separación lógica en la aplicación**: un campo `cliente_id` en cada tabla y un `WHERE` en cada consulta. Barata; un fallo de código lo expone todo, y los ha habido en empresas grandes.
 2. **VLAN o VNet por cliente** con reglas de firewall que solo permiten tráfico cliente → servicios compartidos. Es lo habitual en proveedores medianos y lo que se hace en el módulo.
-3. **VPC completa por cliente**, con sus propias zonas y su propio firewall. Máximo aislamiento a nivel de red, más coste y más cosas que mantener. Es lo que dan AWS o Azure por defecto (UT4).
+3. **VPC completa por cliente**, con sus propias zonas y su propio firewall. Máximo aislamiento a nivel de red, más coste y más cosas que mantener. Es lo que dan AWS o Azure por defecto.
 4. **Hardware dedicado**: hosts de Proxmox separados por cliente. Solo lo justifica un contrato que lo exija.
 
 **La elección del curso.** En la práctica del módulo se usa la opción 2: dos clientes en VLAN distintas que comparten el proxy y el firewall pero no se alcanzan. Es la que pide el criterio de evaluación, la habitual en proveedores medianos y la más barata que separa de verdad en la red: por cada cliente, una interfaz en el cortafuegos y dos reglas.
 
 #### VLAN en Proxmox y en OPNsense
 
-**Qué es una VLAN, en una frase.** Una VLAN separa redes lógicas sobre el mismo cable o el mismo bridge con una etiqueta numérica en cada trama Ethernet. Lo define el estándar IEEE 802.1Q, de 1998, y la etiqueta tiene 12 bits, de ahí que los números válidos vayan del 1 al 4094. Ya se usó en la [A1.5](ut1-virtualizacion.md#a15-redes-vlan-sesion-5), con las VLAN 10 y 20 sobre `vmbr1`, y la UT2 la comparó con VXLAN.
+**Qué es una VLAN, en una frase.** Una VLAN separa redes lógicas sobre el mismo cable o el mismo bridge con una etiqueta numérica en cada trama Ethernet. Lo define el estándar IEEE 802.1Q, de 1998, y la etiqueta tiene 12 bits, de ahí que los números válidos vayan del 1 al 4094. Ya se usó en la [A1.5](ut1-virtualizacion.md#a15-redes-vlan-sesion-5), con las VLAN 10 y 20 sobre `vmbr1`.
 
-**En Proxmox.** Un bridge marcado como **VLAN aware** deja pasar tramas etiquetadas; a cada VM se le asigna su etiqueta en la configuración de la NIC (`tag=101`), y el bridge la pone y la quita de forma transparente, así que la VM no sabe nada de VLAN: para ella, su tarjeta es una red normal. Los clientes van en `vmbr1`, que es VLAN aware desde la A1.5. Con el SDN de la UT2 se podría hacer lo mismo con más orden, con una VNet de tipo VLAN, pero eso exige una zona del SDN de tipo VLAN, y la del laboratorio, `lab`, es de tipo Simple.
+**En Proxmox.** Un bridge marcado como **VLAN aware** deja pasar tramas etiquetadas; a cada VM se le asigna su etiqueta en la configuración de la NIC (`tag=101`), y el bridge la pone y la quita de forma transparente, así que la VM no sabe nada de VLAN: para ella, su tarjeta es una red normal. Los clientes van en `vmbr1`, que es VLAN aware desde la A1.5. Con el SDN se podría hacer lo mismo con más orden, con una VNet de tipo VLAN, pero eso exige una zona del SDN de tipo VLAN, y la del laboratorio, `lab`, es de tipo Simple.
 
 **El cortafuegos, en modo trunk.** El cortafuegos tiene que estar en las dos VLAN a la vez, porque es el `.1` de las dos y el único camino entre ellas y el resto. En vez de una tarjeta por VLAN, lleva una sola que transporta las dos con su etiqueta puesta, que es lo que se llama un **trunk**. En Proxmox, su NIC en `vmbr1` va **sin** tag, y así el bridge le pasa las tramas de todas las VLAN etiquetadas; en OPNsense se crean dos interfaces VLAN (Interfaces → Devices → VLAN) sobre el padre `vtnet5`, con tags 101 y 102, y se les asignan las IP 10.10.101.1/24 y 10.10.102.1/24. Cada VLAN es una interfaz más a efectos de reglas, con su propia pestaña, y por defecto nada pasa entre ellas porque la denegación implícita se aplica igual.
 
@@ -796,7 +796,7 @@ La regla explícita de Block al final de cada pestaña es redundante con la dene
 
 Vas a construir la separación de fuera adentro. Primero los clientes, que necesitan sus herramientas instaladas mientras todavía salen a Internet; después su lado del cortafuegos, las dos VLAN; luego las reglas, que deciden a qué llega cada uno; y al final la prueba, desde el cliente A, de que no llega al B pero sí al servicio. La matriz se actualiza al terminar, con las reglas ya probadas.
 
-1. **Crea los dos clientes y llévalos a su VLAN.** Crea `cli-a` (180) y `cli-b` (181), los clientes de la tabla de VM de prueba del [laboratorio](../laboratorio.md#maquinas-ids-de-vm-y-direcciones), como clones de la plantilla con 512 MB. Mientras siguen en `vmbr0`, instálales `nmap`, `netcat-openbsd` y `curl`: en su VLAN no tendrán salida a Internet, y son las herramientas de las pruebas del paso 4 y de la sesión 18. Después pásalos a `vmbr1`, como en [VLAN en Proxmox y en OPNsense](#vlan-en-proxmox-y-en-opnsense): `cli-a` en la VLAN 101 con la 10.10.101.10/24 y `cli-b` en la 102 con la 10.10.102.10/24, cada uno con el `.1` de su red como gateway.
+1. **Crea los dos clientes y llévalos a su VLAN.** Crea `cli-a` (180) y `cli-b` (181), los clientes de la tabla de VM de prueba del [laboratorio](../laboratorio.md#maquinas-ids-de-vm-y-direcciones), como clones de la plantilla con 512 MB. Mientras siguen en `vmbr0`, instálales `nmap`, `netcat-openbsd` y `curl`: en su VLAN no tendrán salida a Internet, y son las herramientas de las pruebas del paso 4 y de la hoja del 4 de diciembre. Después pásalos a `vmbr1`, como en [VLAN en Proxmox y en OPNsense](#vlan-en-proxmox-y-en-opnsense): `cli-a` en la VLAN 101 con la 10.10.101.10/24 y `cli-b` en la 102 con la 10.10.102.10/24, cada uno con el `.1` de su red como gateway.
 
     *Pista:* la VLAN la pone el bridge, no la VM: `tag=101` en su `--net0`. La IP fija va en `--ipconfig0`, con `gw=`.
 
@@ -817,7 +817,7 @@ Vas a construir la separación de fuera adentro. Primero los clientes, que neces
 - En Live View, filtrando por CLI_A, cada intento contra B aparece con la descripción "8 Cliente A: resto denegado".
 - `bridge vlan show` en el host de Proxmox muestra cada VM de cliente con su VLAN y el firewall con las dos.
 
-<span class="et et-ent">Entrega</span> En `ut3/`: capturas de Firewall → Rules (CLI_A y CLI_B), la salida de las pruebas contra el cliente B del paso 4 encabezada con `date; hostname` y su línea del log, y `matriz-reglas.md` actualizado.
+<span class="et et-ent">Para practicar</span> Guarda en `ut3/` capturas de Firewall → Rules (CLI_A y CLI_B), la salida de las pruebas contra el cliente B del paso 4, encabezada con `date; hostname`, con su línea del log, y `matriz-reglas.md` actualizado.
 
 <span class="et et-ext">Si te sobra tiempo</span> Quita el tag de la NIC del cliente B y repite las pruebas contra él del paso 4: es el error más frecuente de la unidad y conviene haberlo visto antes de que ocurra por accidente. Vuelve a ponerlo.
 
@@ -825,18 +825,18 @@ Vas a construir la separación de fuera adentro. Primero los clientes, que neces
 
 <p class="ut-meta" markdown>4 de diciembre · Práctica · <span class="dur" tabindex="0" aria-label="Pruebas de seguridad · 10 min&#10;A3.5 Pruebas y evidencias · 100 min" data-dur="Pruebas de seguridad · 10 min&#10;A3.5 Pruebas y evidencias · 100 min">:material-school:<i class="dur-barra" style="--teoria:9%"></i>:material-flask:</span></p>
 
-La red está montada: cortafuegos, zonas, servicio publicado y clientes separados. Pero una configuración, por bien hecha que esté, solo dice lo que se quería hacer; lo que demuestra que el aislamiento funciona es probarlo desde el punto de vista del atacante y dejar una evidencia fechada de cada prueba, que es además lo que pide el criterio de evaluación. nmap, nc y tcpdump se explicaron en la sesión 10, así que los diez minutos de hoy repasan lo justo y van a lo nuevo: por qué detrás de un cortafuegos lo que prueba el aislamiento es `filtered` y no `closed`, cómo se localiza con dos capturas dónde muere un paquete y cómo se ordena todo en la matriz de pruebas. Es una sesión casi entera de laboratorio: la hoja ejecuta la matriz desde cada zona, demuestra dos denegaciones con tcpdump en las dos interfaces del cortafuegos, tramita con el procedimiento de cambios lo que no salga como se esperaba y dibuja el diagrama de zonas. Con eso queda casi todo el material de la práctica evaluable.
+La red está montada: cortafuegos, zonas, servicio publicado y clientes separados. Pero una configuración, por bien hecha que esté, solo dice lo que se quería hacer; lo que demuestra que el aislamiento funciona es probarlo desde el punto de vista del atacante y dejar una evidencia fechada de cada prueba, que es además lo que pide el criterio de evaluación. nmap, nc y tcpdump ya se explicaron al probar la VPC, así que los diez minutos de hoy repasan lo justo y van a lo nuevo: por qué detrás de un cortafuegos lo que prueba el aislamiento es `filtered` y no `closed`, cómo se localiza con dos capturas dónde muere un paquete y cómo se ordena todo en la matriz de pruebas. Es una sesión casi entera de laboratorio: la hoja ejecuta la matriz desde cada zona, demuestra dos denegaciones con tcpdump en las dos interfaces del cortafuegos, tramita con el procedimiento de cambios lo que no salga como se esperaba y dibuja el diagrama de zonas. Con eso queda casi todo el material de la práctica evaluable.
 
 ### Pruebas de seguridad
 
-!!! otra "Repaso"
-    nmap, nc y tcpdump, con los estados `open`, `closed` y `filtered`, se explicaron a fondo en [Cómo se prueba una red](ut2-vpc.md#como-se-prueba-una-red), en la sesión 10. Aquí solo se repasa lo que hace falta para leer las pruebas con un cortafuegos delante.
+!!! consulta "Repaso"
+    nmap, nc y tcpdump, con los estados `open`, `closed` y `filtered`, se explicaron a fondo en [Cómo se prueba una red](ut2-vpc.md#como-se-prueba-una-red). Aquí solo se repasa lo que hace falta para leer las pruebas con un cortafuegos delante.
 
 **Desde dónde se prueba.** No basta con configurar: hay que demostrar que el aislamiento funciona, y demostrarlo desde el punto de vista del atacante, es decir, desde fuera de cada zona. Las pruebas se hacen desde la máquina que representa cada origen (el equipo del aula para Internet, web01 para la DMZ externa, la VM del cliente A para el cliente A), no desde el firewall: lo que sale del propio cortafuegos no entra por ninguna de sus interfaces, así que no pasa por las reglas que se quieren probar y no dice nada de lo que puede hacer cada zona.
 
 #### nmap
 
-nmap envía paquetes y clasifica cada puerto según la respuesta. De la sesión 10 vienen `-sT` (escaneo connect, el que hace nmap sin root) y `-sn` (descubrir hosts sin escanear puertos). Detrás de un cortafuegos hacen falta dos opciones más:
+nmap envía paquetes y clasifica cada puerto según la respuesta. Ya se conocen `-sT` (escaneo connect, el que hace nmap sin root) y `-sn` (descubrir hosts sin escanear puertos). Detrás de un cortafuegos hacen falta dos opciones más:
 
 - `-sS`: escaneo SYN (half-open). Envía un SYN y mira qué vuelve, sin completar la conexión, así que muchos servicios ni lo registran. Necesita root, y es el que usan las hojas de la unidad.
 - `-Pn`: no hacer ping previo. Imprescindible cuando el firewall bloquea ICMP, porque si no nmap concluye que el host está caído y no escanea nada.
@@ -852,7 +852,7 @@ Con `-p-` se recorren los 65535 puertos TCP y `-T4` lo acelera en una red de lab
 | `filtered` | Nada, o ICMP unreachable de tipo administrativo | Algo en medio descarta el paquete. Es lo que debe salir en todo lo que no está publicado. |
 | `open\|filtered` | Nada (solo en UDP y algunos escaneos) | nmap no puede distinguir; hay que probar con nc o con tcpdump en el destino. |
 
-**Por qué `filtered` y no `closed`.** Detrás de un cortafuegos con denegación en silencio, todo lo que no está publicado tiene que salir `filtered`: nadie contestó, y el log dice qué regla tiró el paquete. Un `closed` quiere decir que alguien respondió con un RST, y eso pide explicación aunque no haya servicio detrás. Si un escaneo desde fuera contra el 8080 de la WAN devuelve `closed`, o el paquete pasó el filtro y fue la máquina de destino quien contestó, porque alguna regla deja pasar más de lo que parece, o hay un Reject donde la política del laboratorio pone Block. Ese es justo el tipo de hallazgo que se pide en la práctica.
+**Por qué `filtered` y no `closed`.** Detrás de un cortafuegos con denegación en silencio, todo lo que no está publicado tiene que salir `filtered`: nadie contestó, y el log dice qué regla tiró el paquete. Un `closed` quiere decir que alguien respondió con un RST, y eso pide explicación aunque no haya servicio detrás. Si un escaneo desde fuera contra el 28080 de la WAN devuelve `closed`, o el paquete pasó el filtro y fue la máquina de destino quien contestó, porque alguna regla deja pasar más de lo que parece, o hay un Reject donde la política del laboratorio pone Block. Ese es justo el tipo de hallazgo que se pide en la práctica.
 
 #### nc, curl y tcpdump
 
@@ -862,8 +862,8 @@ Con `-p-` se recorren los 65535 puertos TCP y `-T4` lo acelera en una red de lab
 
 ```bash
 # En el firewall (OPNsense tiene tcpdump; en el Debian también)
-tcpdump -ni vtnet1 host 10.10.1.10 and port 8080     # entrada desde DMZEXT
-tcpdump -ni vtnet2 host 10.10.1.10 and port 8080     # salida hacia DMZINT
+tcpdump -ni vtnet1 host 10.10.1.10 and port 28080     # entrada desde DMZEXT
+tcpdump -ni vtnet2 host 10.10.1.10 and port 28080     # salida hacia DMZINT
 ```
 
 Si el SYN aparece en la primera captura y no en la segunda, el firewall lo ha descartado y la línea correspondiente estará en el log. Si aparece en las dos y no hay respuesta, el problema está en app01 (servicio caído, escuchando solo en localhost, firewall local). Si ni siquiera aparece en la primera, el paquete no ha llegado al firewall: hay que revisar la ruta por defecto de la máquina origen. `-n` evita resoluciones DNS que ralentizan y confunden; `-w captura.pcap` guarda para abrir en Wireshark (el analizador gráfico de capturas), y `-c 20` corta tras 20 paquetes para no llenar el disco.
@@ -878,8 +878,8 @@ En OPNsense, qué `vtnet` es cada zona está en la tabla de [Instalación en Pro
 |----|----|----|----|----|----|
 | Internet | proxy DMZ ext | 443 | Permitido | | captura curl |
 | Internet | proxy DMZ ext | 22 | Bloqueado | | nmap (filtered) |
-| Internet | app DMZ int | 8080 | Bloqueado | | nmap (filtered) |
-| proxy | app | 8080 y 8090 | Permitido | | nc |
+| Internet | app DMZ int | 28080 | Bloqueado | | nmap (filtered) |
+| proxy | app | 28080 y 28090 | Permitido | | nc |
 | proxy | db | 5432 | Bloqueado | | nc + log del firewall |
 | proxy | Internet | 443 | Bloqueado | | curl con timeout |
 | app | db | 5432 | Permitido | | nc / psql |
@@ -887,18 +887,18 @@ En OPNsense, qué `vtnet` es cada zona está en la tabla de [Instalación en Pro
 | db | cualquiera | cualquiera | Bloqueado | | nmap desde db01 |
 | cliente A | cliente B | cualquiera | Bloqueado | | nmap -sn + tcpdump |
 | cliente A | proxy | 443 | Permitido | | curl |
-| cliente A | app | 8080 | Bloqueado | | nc |
+| cliente A | app | 28080 | Bloqueado | | nc |
 | Internet | consola del firewall | 443 | Bloqueado | | curl -v a IP_WAN: el certificado es el de web01 |
 
 La columna Evidencia dice con qué se demuestra cada fila: un `curl` que responde para lo permitido, un `filtered` o un timeout para lo bloqueado, y para las filas que más importan, además, la línea del log que dice qué regla lo decidió.
 
 ### A3.5 Pruebas y evidencias (sesión 18)
 
-<span class="et et-obj">Objetivo</span> La matriz de pruebas completa, con evidencias fechadas desde las máquinas de origen, dos denegaciones demostradas con tcpdump en las dos interfaces del firewall, un hallazgo tramitado con el procedimiento de cambios y el diagrama de zonas del entorno. Con esto, lo construido en la unidad deja de ser una configuración y pasa a estar demostrado: es el material del informe de la sesión 19.
+<span class="et et-obj">Objetivo</span> La matriz de pruebas completa, con evidencias fechadas desde las máquinas de origen, dos denegaciones demostradas con tcpdump en las dos interfaces del firewall, un hallazgo tramitado con el procedimiento de cambios y el diagrama de zonas del entorno. Con esto, lo construido en la unidad deja de ser una configuración y pasa a estar demostrado: es el material del informe de la práctica evaluable.
 
 <span class="et et-pre">Antes de empezar</span>
 
-- Todo lo de las sesiones 14 a 17 funcionando, y en `ut3/` las evidencias de los pasos 5 y 6 de la A3.2, del paso 5 de la A3.3 y del paso 4 de la A3.4, que hoy se reutilizan.
+- Todo lo de las hojas A3.1 a A3.4 funcionando, y en `ut3/` las evidencias de los pasos 5 y 6 de la A3.2, del paso 5 de la A3.3 y del paso 4 de la A3.4, que hoy se reutilizan.
 - Las herramientas, donde las dejaron las hojas anteriores: nmap y curl en tu equipo del aula, nmap y netcat-openbsd en web01 y db01, netcat-openbsd en app01 y los tres en los clientes. `tcpdump` se lanza en la consola del firewall.
 - Explicado en clase: [Pruebas de seguridad](#pruebas-de-seguridad), con el repaso de nmap y lo nuevo de hoy: `filtered` frente a `closed` detrás del cortafuegos, las dos capturas y la matriz de pruebas.
 
@@ -916,9 +916,9 @@ Vas a ir de lo general a lo concreto. Primero la matriz entera, que dice qué fu
 
     *Pista:* el hallazgo típico es un `closed` donde debía haber `filtered`. Si no aparece ninguno, prueba filas que no están en la tabla: gestión desde un cliente o el 22 de web01 desde app01.
 
-4. **Deja el cortafuegos sin reglas temporales.** Deja Firewall → Rules sin ninguna regla con `TEMPORAL` en la descripción: si queda alguna de las filas temporales de [NAT: port forward y outbound](#nat-port-forward-y-outbound), bórrala por el mismo procedimiento y anota la baja en `matriz-reglas.md`. Una regla temporal olvidada es la forma más común de que un cortafuegos acabe dejándolo pasar todo, y es parte de lo que se evalúa de la matriz de reglas.
+4. **Deja el cortafuegos sin reglas temporales.** Deja Firewall → Rules sin ninguna regla con `TEMPORAL` en la descripción: si queda alguna de las filas temporales de [NAT: port forward y outbound](#nat-port-forward-y-outbound), bórrala por el mismo procedimiento y anota la baja en `matriz-reglas.md`. Una regla temporal olvidada es la forma más común de que un cortafuegos acabe dejándolo pasar todo, y la evaluable lo comprueba en la matriz de reglas.
 
-5. **Dibuja el diagrama de zonas.** Dibuja el diagrama de zonas de dev a partir del de [Mapa sobre la VPC de la UT2](#mapa-sobre-la-vpc-de-la-ut2), con las máquinas de gestión, los dos clientes con su VLAN, y la subred y el `.1` de cada red. Es lo primero que mira quien lee el informe, así que tiene que mostrar el entorno como está hoy y no como empezó. Vale en Mermaid o a mano y fotografiado.
+5. **Dibuja el diagrama de zonas.** Dibuja el diagrama de zonas de dev a partir del de [Mapa sobre la VPC](#mapa-sobre-la-vpc-de-la-ut2), con las máquinas de gestión, los dos clientes con su VLAN, y la subred y el `.1` de cada red. Es lo primero que mira quien lee el informe, así que tiene que mostrar el entorno como está hoy y no como empezó. Vale en Mermaid o a mano y fotografiado.
 
 <span class="et et-com">Comprobación</span>
 
@@ -927,7 +927,7 @@ Vas a ir de lo general a lo concreto. Primero la matriz entera, que dice qué fu
 - Las dos capturas de tcpdump muestran el SYN en la entrada y nada en la salida, y en el log está la línea que lo explica.
 - `procedimiento.md` existe y, si hubo hallazgo, `hallazgos.md` y `matriz-reglas.md` citan la misma petición.
 
-<span class="et et-ent">Entrega</span> En `ut3/`: `matriz-pruebas.md`, la carpeta `evidencias/`, `hallazgos.md`, `procedimiento.md` y el diagrama. Es el material del informe de la sesión 19.
+<span class="et et-ent">Para practicar</span> Guarda en `ut3/` `matriz-pruebas.md`, la carpeta `evidencias/`, `hallazgos.md`, `procedimiento.md` y el diagrama.
 
 ## Sesión 19 · Práctica evaluable
 
@@ -961,13 +961,13 @@ Checklist antes de entregar:
 Cuando hayas entregado, destruye desde el nodo, con `--purge`, lo que ya no hace falta: `router-dev` (100), apagada desde el 20 de noviembre por si había que deshacer el relevo, y los dos clientes (180 y 181), que solo servían para esta unidad. Son 1,5 GB de memoria que quedan libres para lo que viene. Desde hoy el `.1` de dev es solo el cortafuegos.
 
 !!! examen "Lo que viene después no es una unidad nueva"
-    Esta entrega cierra la UT3 y con ella la primera evaluación. El 11 de diciembre hay examen: una prueba teórico-práctica en el laboratorio sobre la UT1, la UT2 y la UT3, que pesa el 60 % de la nota de la evaluación. Entra todo lo que se ha montado a mano hasta hoy: hipervisor y plantilla cloud-init, VPC con SDN y direccionamiento, DHCP y DNS propios, cortafuegos por zonas, publicación con proxy inverso y TLS, separación de clientes y pruebas de aislamiento. Repasa con las tres unidades y con las prácticas evaluables ya entregadas. La UT5, infraestructura como código, no empieza hasta el 16 de diciembre.
+    Esta entrega cierra la unidad y con ella la primera evaluación. El 11 de diciembre hay examen: una prueba teórico-práctica en el laboratorio sobre la UT1, la UT2 y la UT3, que pesa el 60 % de la nota de la evaluación. Entra todo lo que se ha montado a mano hasta hoy: hipervisor y plantilla cloud-init, VPC con SDN y direccionamiento, DHCP y DNS propios, cortafuegos por zonas, publicación con proxy inverso y TLS, separación de clientes y pruebas de aislamiento. Repasa con las tres unidades y con las prácticas evaluables ya entregadas. La UT5, infraestructura como código, no empieza hasta el 16 de diciembre.
 
 ## Errores frecuentes en el laboratorio
 
 **Las interfaces de OPNsense no corresponden a los bridges esperados.** Síntoma: se asigna 10.10.1.1 a DMZEXT y web01 no hace ping al gateway. Causa: `vtnet1` no está en `devfront`. Diagnóstico: en Interfaces → Assignments, comparar la MAC de cada vtnet con la que muestra Proxmox en el hardware de la VM. Se corrige reasignando, sin reinstalar.
 
-**La regla existe, pero está en la interfaz equivocada.** La regla "permitir srv_web → srv_app:8080" está en la pestaña DMZINT porque el destino está ahí. Las reglas se evalúan a la entrada: va en DMZEXT. En el log aparece la denegación por defecto en la interfaz DMZEXT, que es la pista.
+**La regla existe, pero está en la interfaz equivocada.** La regla "permitir srv_web → srv_app:28080" está en la pestaña DMZINT porque el destino está ahí. Las reglas se evalúan a la entrada: va en DMZEXT. En el log aparece la denegación por defecto en la interfaz DMZEXT, que es la pista.
 
 **Port forward sin regla de filtro.** El Destination NAT se creó con "Manual" en "Filter rule association": el DNAT traduce, pero la interfaz WAN bloquea el paquete traducido. nmap desde el aula muestra 443 filtered. Solución: "Register rule", o una regla manual en WAN con destino srv_web:443 (destino traducido, no IP WAN).
 
@@ -979,6 +979,8 @@ Cuando hayas entregado, destruye desde el nodo, con `--purge`, lo que ya no hace
 
 **db01 rechaza a app01 aunque el firewall lo permite.** `nc` dice "Connection refused": el paquete llega. PostgreSQL escucha solo en localhost (`listen_addresses` en postgresql.conf) o `pg_hba.conf` no incluye 10.10.2.0/24. El firewall no tiene la culpa; el estado closed de nmap ya lo decía.
 
+**`/cabeceras/` devuelve 502 aunque `docker ps` enseña whoami en `0.0.0.0:28090->28090/tcp`.** whoami se arrancó publicando el 28090 pero sin su opción `--port`, así que dentro del contenedor sigue escuchando en su 80 de fábrica y en el 28090 no contesta nadie. Desde web01, `nc -zv 10.10.2.10 28090` da "Connection refused"; en app01, `curl localhost:28090` se corta con `Empty reply from server` o `Connection reset by peer`, y `docker logs` dice en qué puerto arrancó. Se borra el contenedor y se vuelve a crear con `--port 28090` detrás del nombre de la imagen.
+
 **nmap dice que el host está caído y no escanea.** El firewall bloquea ICMP y nmap concluye que no hay nadie. `-Pn`.
 
 **Las VM de los clientes A y B se ven entre sí.** Las dos NIC están en el bridge sin tag, o el bridge no es VLAN aware, o el tag se puso en el firewall y no en las VM. `bridge vlan show` en el host de Proxmox muestra qué puerto lleva qué VLAN.
@@ -989,9 +991,9 @@ Cuando hayas entregado, destruye desde el nodo, con `--purge`, lo que ya no hace
 
 **El log del firewall no muestra la denegación buscada.** "Log packets matched by the default deny rule" está desactivado, o la regla de Block creada no tiene log marcado. Hay que activarlo y repetir la prueba; el log no es retroactivo.
 
-**Las VM se quedan sin IP y sin DNS a mitad de la sesión 14.** Se apagó `router-dev` antes de que OPNsense tuviera configurado el DHCP y el DNS de las cuatro zonas. El orden de los pasos 4 y 5 de la A3.1 no es un capricho: primero se prepara el firewall, después se retira el router. Mientras tanto, cada VM sigue teniendo su concesión de 12 horas, así que hay margen para volver a levantar `router-dev` y rehacer el relevo con calma.
+**Las VM se quedan sin IP y sin DNS a mitad del relevo.** Se apagó `router-dev` antes de que OPNsense tuviera configurado el DHCP y el DNS de las cuatro zonas. El orden de los pasos 4 y 5 de la A3.1 no es un capricho: primero se prepara el firewall, después se retira el router. Mientras tanto, cada VM sigue teniendo su concesión de 12 horas, así que hay margen para volver a levantar `router-dev` y rehacer el relevo con calma.
 
-**Dos máquinas con la misma `.1`.** Ocurre si se activan las interfaces internas del firewall con `router-dev` todavía en marcha, o si alguna subnet del SDN conserva el gateway que se le puso en la sesión 8. El síntoma es que el `ping` al `.1` responde unas veces sí y otras no, o que el ARP del `.1` cambia de MAC. Se comprueba con `ip neigh` en una VM de la zona y se arregla dejando un solo `.1`.
+**Dos máquinas con la misma `.1`.** Ocurre si se activan las interfaces internas del firewall con `router-dev` todavía en marcha, o si alguna subnet del SDN conserva el gateway que se le puso al crearla. El síntoma es que el `ping` al `.1` responde unas veces sí y otras no, o que el ARP del `.1` cambia de MAC. Se comprueba con `ip neigh` en una VM de la zona y se arregla dejando un solo `.1`.
 
 **Tras el relevo, las VM no resuelven los nombres del laboratorio.** `dig db01.dev.lab` desde web01 devuelve NXDOMAIN aunque los nombres de Internet resuelven. El 53 del cortafuegos lo atiende Unbound, que no conoce las reservas de dnsmasq: falta el reenvío del dominio `lab` a dnsmasq, dnsmasq no escucha en el puerto al que se reenvía, o Unbound tira la respuesta porque lleva una dirección privada (su protección contra el DNS rebinding) y hay que añadir `lab` a sus dominios privados (Private Domains). El reparto entre los dos está en [El relevo de router-dev](#el-relevo-de-router-dev).
 
