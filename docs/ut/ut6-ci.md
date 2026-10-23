@@ -148,11 +148,11 @@ Primero preparas la máquina que alojará Jenkins el resto del curso. Después m
 
 1. **Prepara `jenkins01`.** Crea `jenkins01`, la VM 101 de la [tabla del laboratorio](../laboratorio.md#maquinas-ids-de-vm-y-direcciones) (`devmgmt`, 10.10.0.10, 2 GB), con Docker y compose, y da de alta en OPNsense sus nombres `jenkins.lab` y `jenkins01.lab`. Es la máquina de Jenkins para todo el curso: hoy aloja la demo y, desde el 5 de febrero, el Jenkins definitivo.
 
-    *Pista:* la IP y el DNS (`--nameserver 10.10.0.1 --searchdomain lab`) van en el `qm set`; los nombres, en Services → Dnsmasq DNS & DHCP → Hosts. Docker, con el script de `get.docker.com`, como en la A1.3.
+    *Pista:* la IP y el DNS van en la pestaña Cloud-Init de la VM (IP Config, DNS servers `10.10.0.1` y DNS domain `lab`); los nombres, en Services → Dnsmasq DNS & DHCP → Hosts. Docker, con el script de `get.docker.com`, como en la A1.3.
 
-2. **Haz el hola mundo en Jenkins.** Levanta en `~/demo` un Jenkins de usar y tirar, sin TLS ni roles, con la imagen `jenkins/jenkins:lts-jdk21` y el 8080 publicado (solo en esta demo). Ábrelo desde tu puesto por un túnel, como los de [Nombres DNS y acceso](../laboratorio.md#nombres-dns-y-acceso), completa el asistente del primer arranque y crea un job Pipeline que haga `echo 'hola desde Jenkins'`. Fíjate en todo lo que te pide antes de dejarte ejecutar nada: es una de las columnas de tu tabla.
+2. **Haz el hola mundo en Jenkins.** Levanta en `~/demo` un Jenkins de usar y tirar, sin TLS ni roles, con la imagen `jenkins/jenkins:lts-jdk21` y el 8080 publicado (solo en esta demo). Ábrelo desde el puesto por un túnel, como los de [Nombres DNS y acceso](../laboratorio.md#nombres-dns-y-acceso), completa el asistente del primer arranque y crea un job Pipeline que haga `echo 'hola desde Jenkins'`. Fíjate en todo lo que te pide antes de dejarte ejecutar nada: es una de las columnas de tu tabla.
 
-    *Pista:* la contraseña inicial está en `/var/jenkins_home/secrets/initialAdminPassword` del contenedor, y el desplegable *try sample Pipeline* del job trae un «Hello World». En tu puesto, el túnel puede escuchar en cualquier puerto libre de la [franja del curso](../laboratorio.md#puertos); el 8080 suele estar ocupado.
+    *Pista:* la contraseña inicial está en `/var/jenkins_home/secrets/initialAdminPassword` del contenedor, y el desplegable *try sample Pipeline* del job trae un «Hello World». En el puesto, el túnel puede escuchar en cualquier puerto libre de la [franja del curso](../laboratorio.md#puertos); el 8080 suele estar ocupado.
 
 3. **Haz lo mismo en Gitea Actions.** En un repositorio de prueba `hola-ci` de tu Gitea, con Actions activado, escribe un workflow que haga el mismo `echo`, y pon su runner en `~/runner` de `jenkins01`. Levanta el runner antes de escribir el workflow, para que baje su imagen mientras tanto.
 
@@ -284,7 +284,7 @@ server {
 
 **De dónde sale el certificado.** Para que el navegador ponga el candado, el certificado de `jenkins.lab` tiene que estar firmado por una CA en la que confíe. Una CA pública no sirve: Let's Encrypt solo firma nombres de dominios públicos, y `jenkins.lab` no lo es. En el laboratorio tampoco se crea ninguna CA nueva: se usa **la CA del curso**, la que se montó con `openssl ca` en la [A3.2](ut3-seguridad-por-capas.md#a32-publicar-la-web-sesion-15) y vive en `~/ca/` del puesto de administración, con su `ca.cnf` y su registro de certificados emitidos. En una empresa, ese papel lo hace la CA corporativa.
 
-**Quién tiene que confiar en ella.** Su `ca.crt` se instala en los navegadores del aula y en el almacén del sistema de cada máquina que va a hablar con Jenkins, Gitea y el registry (`/usr/local/share/ca-certificates/lab-ca.crt` y `update-ca-certificates` en Debian/Ubuntu). `ca.key` no sale nunca del puesto: quien la tenga puede firmar un certificado para cualquier nombre del laboratorio.
+**Quién tiene que confiar en ella.** Su `ca.crt` se instala en el navegador del puesto y en el almacén del sistema de cada máquina que va a hablar con Jenkins, Gitea y el registry (`/usr/local/share/ca-certificates/lab-ca.crt` y `update-ca-certificates` en Debian/Ubuntu). `ca.key` no sale nunca del puesto: quien la tenga puede firmar un certificado para cualquier nombre del laboratorio.
 
 **Cómo se emite.** Emitir un certificado para `jenkins.lab` son dos comandos, desde `~/ca/`: la petición con la clave nueva y la firma de la CA (`openssl ca` pide confirmar dos veces):
 

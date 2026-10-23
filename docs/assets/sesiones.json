@@ -105,8 +105,8 @@
    "titulo": "VM vs LXC, snapshots y límites",
    "tipo": "Teoría y práctica",
    "teoria": "Cómo funcionan KVM/QEMU y virtio; LXC frente a VM; qué es un snapshot en LVM-thin y qué no es (25 min).",
-   "practica": "Crear un LXC y compararlo con la VM; snapshot, romper e instalar nginx, rollback; backup con vzdump.",
-   "que": "Crear un LXC y compararlo con la VM; snapshot, romper e instalar nginx, rollback; backup con vzdump.",
+   "practica": "Crear un LXC y compararlo con la VM; snapshot, romper e instalar nginx, rollback; backup y restauración desde la web.",
+   "que": "Crear un LXC y compararlo con la VM; snapshot, romper e instalar nginx, rollback; backup y restauración desde la web.",
    "entregable": "",
    "url": "../ut/ut1-virtualizacion/#a14-vm-frente-a-lxc-snapshots-sesion-4",
    "evaluable": false

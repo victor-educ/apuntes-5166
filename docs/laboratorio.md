@@ -6,8 +6,8 @@ Todo el módulo se hace sobre un laboratorio que se construye durante las primer
 
 ```mermaid
 flowchart TB
-    subgraph host["Equipo del aula o portátil"]
-        subgraph pve["Proxmox VE en VM anidada"]
+    subgraph host["Proxmox del centro"]
+        subgraph pve["Tu Proxmox VE, una VM del centro"]
             subgraph mgmt["Subred de gestión 10.10.0.0/24"]
                 fw["<b>OPNsense</b><br><small>.1 · el cortafuegos</small>"]:::act
                 adm["<b>admin01</b><br><small>.50 · puesto de administración</small>"]:::act
@@ -47,24 +47,24 @@ Ese es el entorno **dev**, el único que llega al final. **pre** tiene la misma 
 
 ## Las dos asignaturas comparten este laboratorio
 
-La asignatura hermana, [Mantenimiento del sistema de contenedores](https://victor-educ.github.io/apuntes-5169/), vigila, prueba, actualiza y retira el mismo servicio, y empieza a hacerlo el 1 de octubre, cuando aquí todavía se está instalando Proxmox. Sus tres primeras sesiones trabajan con Docker en el puesto del alumno, porque el hipervisor se está montando todavía y la plantilla de la que salen las VM no existe hasta el 14 de octubre. Para que eso cuadre, en la sesión 3 (14 de octubre), nada más tener la plantilla cloud-init, junto a `web01` se clonan dos VM pensadas para la otra asignatura: `app01`, que aloja el servicio del curso en Docker Compose, y `mon01`, que aloja la pila de monitorización. Las dos van en vmbr0, la red del aula, con IP por DHCP y sin subredes ni cortafuegos, y se entregan con Docker Engine y el plugin compose instalados, con el usuario `ops` en el grupo `docker` y con la clave pública del puesto del alumno dentro, porque Mantenimiento entra en ellas desde su puesto al día siguiente. Los ficheros compose que corren encima los entrega la otra asignatura y se despliegan allí a partir de su sesión 4 (15 de octubre).
+La asignatura hermana, [Mantenimiento del sistema de contenedores](https://victor-educ.github.io/apuntes-5169/), vigila, prueba, actualiza y retira el mismo servicio, y empieza a hacerlo el 1 de octubre, cuando aquí todavía se está instalando Proxmox. Sus tres primeras sesiones trabajan con Docker en el puesto del alumno, porque el hipervisor se está montando todavía y la plantilla de la que salen las VM no existe hasta el 14 de octubre. Para que eso cuadre, en la sesión 3 (14 de octubre), nada más tener la plantilla cloud-init, junto a `web01` se clonan dos VM pensadas para la otra asignatura: `app01`, que aloja el servicio del curso en Docker Compose, y `mon01`, que aloja la pila de monitorización. Las dos van en vmbr0, la red del laboratorio, con IP por DHCP y sin subredes ni cortafuegos, y se entregan con Docker Engine y el plugin compose instalados, con el usuario `ops` en el grupo `docker` y con la clave pública del puesto del alumno dentro, porque Mantenimiento entra en ellas desde su puesto al día siguiente. Los ficheros compose que corren encima los entrega la otra asignatura y se despliegan allí a partir de su sesión 4 (15 de octubre).
 
 El 27 de noviembre, en la [A3.3](ut/ut3-seguridad-por-capas.md#a33-aplicacion-y-datos-sesion-16), esta asignatura traslada las dos VM a su sitio definitivo, ya detrás del cortafuegos: app01 a la subred back con la 10.10.2.10 y mon01 a la de gestión con la 10.10.0.20. Mantenimiento audita su pila el 26 de noviembre, con las VM todavía en el aula, y la protege desde el 1 de diciembre, ya en la VPC. En marzo, la UT7 de monitorización no levanta una segunda pila: trabaja sobre la de `/opt/monitoring` de mon01 y en el mismo repositorio `monitoring`, y solo le añade ficheros propios que Mantenimiento no toca (los targets que genera Ansible, sus reglas, el job de Jenkins y el panel de la plataforma). PromQL, las reglas, Alertmanager, Grafana y los indicadores se repasan en pocos minutos, porque la otra asignatura ya los ha dado a fondo.
 
-## Requisitos por puesto
+## Dónde se trabaja
 
-Proxmox va dentro de una máquina virtual de VirtualBox o VMware Workstation en el equipo del aula (virtualización anidada). No es lo ideal en rendimiento, pero permite que cada uno tenga su hipervisor completo y lo pueda romper sin afectar a nadie.
+Desde la sesión 3 (14 de octubre) todo el laboratorio corre en el **Proxmox del centro**. Cada alumno tiene allí dos máquinas virtuales, ya preparadas, en la **red del laboratorio** (192.168.100.0/24; las de los alumnos van de la 192.168.100.100 a la .200):
 
-| Recurso | Mínimo | Recomendado |
-|---------|-------:|------------:|
-| CPU del equipo | 4 núcleos con VT-x/AMD-V | 8 núcleos |
-| RAM del equipo | 16 GB | 32 GB |
-| Disco libre | 80 GB en SSD | 150 GB en SSD |
-| VM de Proxmox | 4 vCPU, 12 GB RAM, 60 GB | 6 vCPU, 16 GB RAM, 100 GB |
+| VM | Qué es | Para qué se usa |
+|----|--------|-----------------|
+| `puesto` | Ubuntu con escritorio | Es el **puesto del alumno**: desde su navegador se abre la consola web del Proxmox propio y las de los servicios, y desde su terminal se entra por SSH en las VM |
+| `pve` | Tu Proxmox VE, con la configuración de la A1.2 hecha | El hipervisor del curso: dentro se crean la plantilla y todas las VM de las dos asignaturas |
+
+Se llega siempre igual: se entra en el Proxmox del centro con tu usuario, se abre la consola de `puesto` y, desde ahí, `https://<IP de tu pve>:8006`. Las VM que crees dentro de tu Proxmox salen a la misma red del laboratorio por su `vmbr0`. Cuando los apuntes dicen «el puesto del alumno», es la VM `puesto`; cuando dicen «la red del laboratorio», es la 192.168.100.0/24.
+
+El Proxmox propio es una VM con 16 GB de RAM (la cuenta está en el [presupuesto de memoria](#presupuesto-de-memoria)).
 
 **Disco.** Además de los clones de la plantilla (20 GB cada uno, de los que se ocupan unos 3 al principio), hay dos discos que se añaden a mano durante el curso: el segundo disco de `db01` para `/data`, de 5 GB, el 27 de noviembre, y el volumen `minio_data` de la pila de `mon01`, que crece con el estado de OpenTofu (unos pocos MB) y con las copias restic de `pre` (entre 1 y 3 GB desde febrero).
-
-Con un miniPC o un portátil antiguo de 16 GB disponible, instalar Proxmox directamente sobre él (tipo 1 de verdad) es mucho mejor que la VM anidada. Es la opción preferible siempre que sea posible.
 
 ### Presupuesto de memoria
 
@@ -128,7 +128,7 @@ Quién reparte direcciones cambia una sola vez en todo el curso. En la **sesión
 
 ### Máquinas, IDs de VM y direcciones
 
-Una fila por máquina, con la hoja que la crea y la que la retira; las que no tienen fecha de baja llegan al final del curso. `qm clone` no admite la memoria, así que toda hoja que clona la fija en la misma orden con `qm set <ID> --memory <MB>`: la plantilla trae 2 GB y casi ninguna máquina los necesita. Los nombres DNS de cada una están en [Nombres DNS y acceso](#nombres-dns-y-acceso).
+Una fila por máquina, con la hoja que la crea y la que la retira; las que no tienen fecha de baja llegan al final del curso. El diálogo de clonado de la web no pregunta la memoria, así que toda hoja que clona la fija después, en la pestaña **Hardware** del clon y antes de arrancarlo: la plantilla trae 2 GB y casi ninguna máquina los necesita. Los nombres DNS de cada una están en [Nombres DNS y acceso](#nombres-dns-y-acceso).
 
 | Máquina | ID | Red e IP | RAM al clonar | Qué corre | Nace en | Muere en |
 |---------|---:|----------|--------------:|-----------|---------|----------|
@@ -187,7 +187,7 @@ Las tres VM llevan 1 GB y salen de la plantilla, así que traen node_exporter. L
 
 **Cómo llega gestión a pre.** La A2.5 aísla los entornos con rutas blackhole, y así se quedan. El paso lo da una pata de `router-pre` en `devmgmt`, que monta el paso 1 de la [A5.3](ut/ut5-iac.md#a53-vm-completas-sesion-23):
 
-- En el nodo, `qm set 200 --net5 virtio,bridge=devmgmt --ipconfig5 ip=10.10.0.2/24`; dentro de `router-pre` esa tarjeta es `ens23`. Como 10.10.0.0/24 queda conectada, gana al blackhole de 10.10.0.0/16 y `router-pre` contesta a gestión.
+- En la web, la VM 200 recibe una sexta tarjeta en `devmgmt` (**Hardware → Add → Network Device**, la `net5`) y, en su pestaña **Cloud-Init**, la IP Config de `net5` con `10.10.0.2/24`; dentro de `router-pre` esa tarjeta es `ens23`. Como 10.10.0.0/24 queda conectada, gana al blackhole de 10.10.0.0/16 y `router-pre` contesta a gestión.
 - En `router-pre`, tres reglas nftables de `forward`: lo establecido y relacionado se acepta, lo que entra por `ens23` se acepta y nada nuevo de pre sale hacia `ens23`.
 - En `admin01`, la línea `ExecStart=/sbin/ip route replace 10.20.0.0/16 via 10.10.0.2 dev ens19` añadida a `ruta-lab.service`. `agent01`, en la A6.8, y `mon01`, en la A7.4 de Mantenimiento, reciben la misma ruta con una unidad igual, `ruta-pre.service`.
 
@@ -219,7 +219,7 @@ No existe ningún `gitea01.dev.lab`: meter un servicio de plataforma en un entor
 
 | Nombre | Apunta a | Lo resuelve | Desde |
 |--------|----------|-------------|-------|
-| `app01` y `mon01` | la IP del aula de cada una | `/etc/hosts` del puesto del alumno y de `mon01` | A1.4 de Mantenimiento (15 oct), hasta el 27 nov |
+| `app01` y `mon01` | su IP de la red del laboratorio | `/etc/hosts` del puesto del alumno y de `mon01` | A1.4 de Mantenimiento (15 oct), hasta el 27 nov |
 | `<host>.dev.lab` y `api.dev.lab` | la IP de cada máquina; `api.dev.lab`, la de `web01` | `router-dev`, y OPNsense desde la A3.1 | A2.3 (4 nov) |
 | `gitea.lab` | `mon01`; `gitea01` (10.10.0.11) desde la A6.4 (12 feb) | `/etc/hosts` del puesto, de `mon01`, de `app01` y del puesto de administración hasta el 27 nov; después, OPNsense | A2.6 de Mantenimiento (17 nov) |
 | `mon01.lab`, `grafana.lab` y `prometheus.lab` | 10.10.0.20 | OPNsense | A3.1 (20 nov) |
@@ -229,19 +229,19 @@ No existe ningún `gitea01.dev.lab`: meter un servicio de plataforma en un entor
 | `jenkins.lab` y `grafana.lab`, en el puesto del alumno | 127.0.0.1, por el túnel de cada uno | `/etc/hosts` del puesto | con su túnel |
 | `<host>.pre.lab` | la `.10` de cada subred de pre | solo `router-pre` | A5.3 (8 ene); en las hojas se usa la IP |
 
-El 27 de noviembre, al trasladar `app01` y `mon01`, se borran las líneas del aula del `/etc/hosts` del puesto, de `mon01` y de `app01`: desde ese día los nombres los da OPNsense. Las VM de las zonas y `mon01` reciben el DNS del `.1` de su zona por DHCP; `jenkins01`, `gitea01` y `agent01` lo llevan fijo en su `qm set` (`--nameserver 10.10.0.1 --searchdomain lab`), y `admin01` lo recibe en la A3.1 con esa misma orden (`qm set 105 --nameserver 10.10.0.1 --searchdomain lab` y un reinicio). Con la hora pasa lo mismo: desde la A3.1, OPNsense la sirve a todas las zonas por la regla 0, y cada VM la toma del `.1` de su zona con `systemd-timesyncd`, como `web01` y `db01` en esa hoja.
+El 27 de noviembre, al trasladar `app01` y `mon01`, se borran las líneas del aula del `/etc/hosts` del puesto, de `mon01` y de `app01`: desde ese día los nombres los da OPNsense. Las VM de las zonas y `mon01` reciben el DNS del `.1` de su zona por DHCP; `jenkins01`, `gitea01` y `agent01` lo llevan fijo en su pestaña **Cloud-Init** (DNS servers `10.10.0.1` y DNS domain `lab`), y `admin01` lo recibe en la A3.1 de la misma forma, en la pestaña **Cloud-Init** de la VM 105 y con un reinicio. Con la hora pasa lo mismo: desde la A3.1, OPNsense la sirve a todas las zonas por la regla 0, y cada VM la toma del `.1` de su zona con `systemd-timesyncd`, como `web01` y `db01` en esa hoja.
 
-**Cómo se entra.** Hasta el 27 de noviembre, a app01 y mon01 se entra por SSH directamente a su IP del aula, con la clave del puesto que la A1.3 metió en la plantilla; a las que ya están en la VPC (web01 y db01, desde el 30 de octubre), desde el nodo: directamente el 30 de octubre, que el nodo es todavía el `.1` de cada subred, y con salto por `router-dev` desde el 4 de noviembre (`ssh -J ops@<IP de aula de router-dev> ops@10.10.1.10`); desde el 6 de noviembre, desde admin01. Desde el 27 de noviembre todas quedan detrás de OPNsense y solo admin01 tiene un pie en el aula, así que se entra con salto por él:
+**Cómo se entra.** Hasta el 27 de noviembre, a app01 y mon01 se entra por SSH desde `puesto`, directamente a su IP de la red del laboratorio, con la clave del puesto que la A1.3 metió en la plantilla; a las que ya están en la VPC (web01 y db01, desde el 30 de octubre), desde el nodo: directamente el 30 de octubre, que el nodo es todavía el `.1` de cada subred, y con salto por `router-dev` desde el 4 de noviembre (`ssh -J ops@<IP de router-dev en la red del laboratorio> ops@10.10.1.10`); desde el 6 de noviembre, desde admin01. Desde el 27 de noviembre todas quedan detrás de OPNsense y solo admin01 tiene un pie en el aula, así que se entra con salto por él:
 
 ```bash
-ssh -J ops@<IP de aula de admin01> ops@10.10.2.10
+ssh -J ops@<IP de admin01 en la red del laboratorio> ops@10.10.2.10
 ```
 
 Para no escribir el salto cada vez, este `~/.ssh/config` en el puesto del alumno:
 
 ```text
 Host admin01
-    HostName 192.168.1.60      # la IP de aula de admin01, la que le da el DHCP del aula
+    HostName 192.168.100.160      # la IP de admin01 en la red del laboratorio (192.168.100.x)
     User ops
 
 Host web01
@@ -282,7 +282,7 @@ Las consolas web se abren con un túnel a través de admin01, que en el puesto e
 | 2376 | Docker de agent01 con TLS, para los agentes efímeros | agent01 |
 | 5000 | registry de imágenes con TLS y `htpasswd` | gitea01 desde el 19 feb, `registry.lab:5000` |
 | 5432 | PostgreSQL | db01, abierto solo a back; db01-pre, solo a 10.20.2.0/24 |
-| 8006 | interfaz web de Proxmox | el nodo, en la red del aula |
+| 8006 | interfaz web de Proxmox | tu `pve`, en la red del laboratorio |
 | 8080 | Jenkins por HTTP, puerto interno | dentro del compose de jenkins01, nunca publicado |
 | 20080 | nginx del compose del servicio | el puesto del alumno hasta el 13 oct y app01 hasta el 27 nov; desde entonces el proxy es el nginx de web01 |
 | 23000 | Grafana | mon01; desde el 3 dic, solo por detrás de su nginx |
@@ -462,10 +462,10 @@ Se va a romper. Es parte del módulo. El orden de recuperación, de menos a más
 
 1. **Snapshot de la VM afectada.** Antes de cada práctica evaluable conviene hacer un snapshot de las VM que se vayan a tocar. Volver atrás cuesta segundos.
 2. **Recrear la VM desde la plantilla.** Con cloud-init es un minuto; las de pre, con un `tofu apply`.
-3. **Snapshot de la VM de Proxmox** en VirtualBox/VMware. Conviene hacerlo al terminar la UT1 (hipervisor limpio y configurado) y al terminar la UT3 (red y firewall montados). Son los dos puntos a los que más veces hay que volver.
+3. **Snapshot de tu VM `pve` en el Proxmox del centro**, si tu usuario lo permite; si no, pídeselo al profesor. Conviene tenerlo al terminar la UT1 (hipervisor limpio y configurado) y al terminar la UT3 (red y firewall montados). Son los dos puntos a los que más veces hay que volver.
 4. **Reinstalar Proxmox.** Dos horas con la ISO y las notas de la UT1 a mano. Por eso las notas.
 
-Conviene guardar fuera del equipo del aula una copia de: la clave SSH, los ficheros de configuración del firewall (OPNsense exporta un XML), los repositorios, las plantillas cloud-init y la carpeta `~/ca/` de admin01, sin la que no se puede emitir ni revocar ningún certificado. Con eso se reconstruye todo lo demás.
+Conviene guardar fuera del laboratorio una copia de: la clave SSH, los ficheros de configuración del firewall (OPNsense exporta un XML), los repositorios, las plantillas cloud-init y la carpeta `~/ca/` de admin01, sin la que no se puede emitir ni revocar ningún certificado. Con eso se reconstruye todo lo demás.
 
 ## Repaso previo
 

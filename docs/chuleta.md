@@ -4,63 +4,35 @@ Lo que se teclea una y otra vez en el laboratorio, agrupado por herramienta. No 
 
 ## Proxmox VE
 
-```bash
-# Estado general
-pvesh get /nodes/pve/status
-pveversion -v
-qm list                                 # VM
-pct list                                # contenedores LXC
-pvesm status                            # almacenes
+Proxmox se maneja desde su interfaz web, abierta en el navegador de la VM `puesto`. La tabla dice dónde está cada cosa; cómo y por qué se rellena cada campo está en su unidad.
 
-# Plantilla cloud-init (UT1)
-# Los dos agentes van dentro de la imagen: las VM sin salida a Internet no pueden instalarlos al arrancar
+| Qué | Dónde en la web |
+|---|---|
+| Estado del nodo y versiones | nodo `pve` → **Summary** (el botón **Package versions** da las versiones) |
+| VM, contenedores y almacenes | el árbol de recursos de la izquierda; los almacenes, también en **Datacenter → Storage** |
+| Crear la VM de la plantilla (UT1) | **Create VM**: ID 9000, `debian-tpl`, 2 GB, 2 núcleos, CPU `x86-64-v2-AES`, red en `vmbr0`, controladora VirtIO SCSI single, sin disco |
+| Importar la imagen como disco | VM 9000 → **Hardware → Add**, un disco importado desde la imagen cloud, en `local-lvm` y con Discard y SSD emulation |
+| Disco cloud-init, consola serie, arranque y agente | **Hardware → Add → CloudInit Drive** y **Serial Port**; **Display** en *Serial terminal 0*; **Options → Boot Order** (el disco importado) y **QEMU Guest Agent** |
+| Usuario, claves e IP | VM → **Cloud-Init**: User `ops`, SSH public key con las dos claves (la del puesto y la del nodo), una por línea, IP Config en DHCP |
+| Ampliar el disco | VM → **Hardware**, el disco → **Disk Action → Resize** |
+| Convertir en plantilla | VM → **More → Convert to template** |
+| Clonar | plantilla → **More → Clone** (o clic derecho): ID, nombre y **Mode: Full Clone**; la memoria, en **Hardware → Memory** |
+| Arrancar, parar y destruir | VM → **Start**, **Shutdown**; **More → Remove**, con la casilla de purga |
+| Cambiar de red conservando la MAC | VM → **Hardware → Network Device → Edit**: se cambia solo el **Bridge**; la MAC, que es la clave de la reserva DHCP, se queda |
+| Snapshots | VM → **Snapshots → Take Snapshot** y **Rollback** |
+| Backup y restauración | VM → **Backup → Backup now** (almacén `local`, modo Snapshot, ZSTD); se restaura desde el almacén `local` → **Backups → Restore** |
+| IP de una VM vista por el agente | VM → **Summary** (necesita `qemu-guest-agent` dentro de la VM) |
+| Contenedor LXC (UT1) | plantilla en `local` → **CT Templates → Templates**; **Create CT**: ID 170, `ct01`, 512 MB, 1 núcleo, 4 GB en `local-lvm`, red en `vmbr0` por DHCP (en `vmbr1` no hay DHCP ni salida a Internet), sin privilegios y con *nesting* |
+| Usuario y token de OpenTofu (UT5) | **Datacenter → Permissions → Users → Add** (`terraform@pve`); **Permissions → Add → User Permission**: `PVEVMAdmin` en `/vms`, `PVEDatastoreUser` en `/storage/local-lvm`, `PVESDNUser` en `/sdn/zones/lab`; **API Tokens → Add** (`tofu`, sin *Privilege Separation*) |
+| SDN | **Datacenter → SDN → Zones** y **VNets**; los cambios no se aplican hasta **Datacenter → SDN → Apply** |
+
+La imagen de la plantilla se prepara en la **Shell del nodo** (nodo → **>_ Shell**), porque meter paquetes dentro de una imagen no tiene equivalente en la web. Los dos agentes van dentro de la imagen: las VM sin salida a Internet no pueden instalarlos al arrancar.
+
+```bash
 apt install -y libguestfs-tools
 export LIBGUESTFS_BACKEND=direct
 virt-customize -a /root/debian-13-genericcloud-amd64.qcow2 --install qemu-guest-agent,prometheus-node-exporter \
   --write '/etc/default/prometheus-node-exporter:ARGS="--web.listen-address=:29100"'   # node_exporter, en el 29100
-qm create 9000 --name debian-tpl --memory 2048 --cores 2 --cpu x86-64-v2-AES \
-  --net0 virtio,bridge=vmbr0 --scsihw virtio-scsi-single --ostype l26
-qm set 9000 --scsi0 local-lvm:0,import-from=/root/debian-13-genericcloud-amd64.qcow2,discard=on,ssd=1
-qm set 9000 --ide2 local-lvm:cloudinit --boot order=scsi0 --agent enabled=1 --serial0 socket --vga serial0
-cat /root/puesto.pub /root/.ssh/id_ed25519.pub > /root/claves.pub   # la clave del puesto y la del nodo
-qm set 9000 --ciuser ops --sshkeys /root/claves.pub --ipconfig0 ip=dhcp
-qm disk resize 9000 scsi0 20G
-qm template 9000
-
-# Clonar con su memoria en la misma orden, arrancar, parar, destruir
-qm clone 9000 150 --name prueba --full && qm set 150 --memory 512
-qm set 150 --net0 virtio,bridge=devfront --ipconfig0 ip=dhcp
-qm start 150 && qm stop 150 && qm destroy 150 --purge
-# Cambiar de red conservando la MAC, que es la clave de la reserva DHCP
-qm config 120 | grep net0
-qm set 120 --net0 virtio=<MAC>,bridge=devback
-
-# Snapshots y backup
-qm snapshot 110 antes-nginx
-qm rollback 110 antes-nginx
-qm listsnapshot 110
-vzdump 110 --storage local --mode snapshot --compress zstd
-
-# Agente QEMU (necesita qemu-guest-agent dentro de la VM)
-qm guest cmd 110 network-get-interfaces
-
-# LXC (UT1): en vmbr0, porque en vmbr1 no hay DHCP ni salida a Internet
-pct create 170 local:vztmpl/debian-12-standard_12.7-1_amd64.tar.zst \
-  --hostname ct01 --memory 512 --cores 1 --rootfs local-lvm:4 \
-  --net0 name=eth0,bridge=vmbr0,ip=dhcp --unprivileged 1 --features nesting=1
-pct start 170 && pct enter 170
-
-# Usuario y token de OpenTofu (UT5), con los permisos justos
-pveum user add terraform@pve --comment "OpenTofu del laboratorio"
-pveum acl modify /vms --users terraform@pve --roles PVEVMAdmin
-pveum acl modify /storage/local-lvm --users terraform@pve --roles PVEDatastoreUser
-pveum acl modify /sdn/zones/lab --users terraform@pve --roles PVESDNUser
-pveum user token add terraform@pve tofu --privsep 0
-
-# SDN
-pvesh get /cluster/sdn/zones
-pvesh get /cluster/sdn/vnets
-pvesh set /cluster/sdn                  # equivale al botón Apply
 ```
 
 ## Red y diagnóstico
@@ -80,7 +52,7 @@ tcpdump -i ens22 -n host 10.10.3.10 and port 5432
 tcpdump -i any -n -w captura.pcap port 28080
 curl -kv https://api.dev.lab/health
 curl -sf -o /dev/null -w '%{http_code}\n' http://localhost:28080/health   # dentro de app01
-ssh -J ops@<IP de aula de admin01> ops@10.10.2.10   # desde el 27 nov; con el ~/.ssh/config del laboratorio, ssh app01
+ssh -J ops@<IP de admin01 en la red del laboratorio> ops@10.10.2.10   # desde el 27 nov; con el ~/.ssh/config del laboratorio, ssh app01
 
 # dnsmasq
 journalctl -u dnsmasq -f

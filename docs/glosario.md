@@ -296,7 +296,7 @@ Términos que aparecen en el módulo, explicados en una o dos frases y con la un
 
 **virt-customize** · Herramienta de libguestfs que instala paquetes dentro de una imagen de disco sin arrancarla. Con ella se meten el agente QEMU y node_exporter en la imagen de la plantilla. UT1.
 
-**Virtualización anidada** · Ejecutar un hipervisor dentro de una VM. Lo que se hace en el laboratorio del curso para tener Proxmox en VirtualBox. UT1.
+**Virtualización anidada** · Ejecutar un hipervisor dentro de una VM. Lo que se hace en el laboratorio del curso para tener un Proxmox propio dentro del Proxmox del centro. UT1.
 
 **VLAN (802.1Q)** · Etiqueta en las tramas Ethernet que separa redes lógicas sobre el mismo cable o bridge. UT1, UT2, UT3.
 
@@ -310,9 +310,9 @@ Términos que aparecen en el módulo, explicados en una o dos frases y con la un
 
 **VXLAN** · Encapsulación que transporta redes de capa 2 sobre IP; permite extender una red virtual entre varios nodos. UT2.
 
-**vzdump** · Herramienta de copia de seguridad integrada en Proxmox: copia completa de una VM o de un contenedor, con su configuración, a otro almacén. Se restaura con `qmrestore`. UT1.
+**vzdump** · Herramienta de copia de seguridad integrada en Proxmox, la que ejecuta el botón **Backup now** de la pestaña **Backup** de cada VM: copia completa de una VM o de un contenedor, con su configuración, a otro almacén. Se restaura con **Restore**, desde la propia copia. UT1.
 
-**WAN** · La interfaz exterior del cortafuegos, la que da a la red del aula y a Internet. En OPNsense es `vtnet0`, en `vmbr0`. UT3.
+**WAN** · La interfaz exterior del cortafuegos, la que da a la red del laboratorio y a Internet. En OPNsense es `vtnet0`, en `vmbr0`. UT3.
 
 **Webhook** · Petición HTTP que un sistema (Gitea, GitLab) envía a otro (Jenkins) cuando pasa algo, por ejemplo un push. UT6.
 
