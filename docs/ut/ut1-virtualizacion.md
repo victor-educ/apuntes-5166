@@ -549,10 +549,11 @@ El resultado se ve en la pestaña **Hardware** de la VM. El ejemplo usa un ID de
 
 ```bash
 virt-customize -a debian-13-genericcloud-amd64.qcow2 --install qemu-guest-agent,prometheus-node-exporter \
-  --write '/etc/default/prometheus-node-exporter:ARGS="--web.listen-address=:29100"'
+  --write '/etc/default/prometheus-node-exporter:ARGS="--web.listen-address=:29100"' \
+  --truncate /etc/machine-id
 ```
 
-La segunda línea es la del puerto: `--write` escribe ese fichero dentro de la imagen; es el que lee el servicio de node_exporter al arrancar, y `--web.listen-address` le dice dónde escuchar (`:29100`, en todas las direcciones de la máquina). Lo que se instala y se escribe así queda en la imagen y, por tanto, en la plantilla y en cada VM que salga de ella, con sus servicios en marcha desde el primer arranque.
+La segunda línea es la del puerto: `--write` escribe ese fichero dentro de la imagen; es el que lee el servicio de node_exporter al arrancar, y `--web.listen-address` le dice dónde escuchar (`:29100`, en todas las direcciones de la máquina). La tercera deja vacío el identificador de la máquina: `virt-customize` escribe uno al abrir la imagen, y si se quedara dentro, todos los clones nacerían con el mismo y podrían recibir la misma IP por DHCP (el porqué, en los dos detalles del final de [cloud-init](#cloud-init)). Vacío, cada VM se genera el suyo en su primer arranque. Lo que se instala y se escribe así queda en la imagen y, por tanto, en la plantilla y en cada VM que salga de ella, con sus servicios en marcha desde el primer arranque.
 
 #### cloud-init
 

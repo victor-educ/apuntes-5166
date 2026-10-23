@@ -32,7 +32,8 @@ La imagen de la plantilla se prepara en la **Shell del nodo** (nodo → **>_ She
 apt install -y libguestfs-tools
 export LIBGUESTFS_BACKEND=direct
 virt-customize -a /root/debian-13-genericcloud-amd64.qcow2 --install qemu-guest-agent,prometheus-node-exporter \
-  --write '/etc/default/prometheus-node-exporter:ARGS="--web.listen-address=:29100"'   # node_exporter, en el 29100
+  --write '/etc/default/prometheus-node-exporter:ARGS="--web.listen-address=:29100"' \
+  --truncate /etc/machine-id   # node_exporter en el 29100, y machine-id vacío para que cada clon genere el suyo
 ```
 
 ## Red y diagnóstico
