@@ -47,20 +47,30 @@ Ese es el entorno **dev**, el único que llega al final. **pre** tiene la misma 
 
 ## Las dos asignaturas comparten este laboratorio
 
-La asignatura hermana, [Mantenimiento del sistema de contenedores](https://victor-educ.github.io/apuntes-5169/), vigila, prueba, actualiza y retira el mismo servicio, y empieza a hacerlo el 1 de octubre, cuando aquí todavía se está instalando Proxmox. Sus tres primeras sesiones trabajan con Docker en el puesto del alumno, porque el hipervisor se está montando todavía y la plantilla de la que salen las VM no existe hasta el 14 de octubre. Para que eso cuadre, en la sesión 3 (14 de octubre), nada más tener la plantilla cloud-init, junto a `web01` se clonan dos VM pensadas para la otra asignatura: `app01`, que aloja el servicio del curso en Docker Compose, y `mon01`, que aloja la pila de monitorización. Las dos van en vmbr0, la red del laboratorio, con IP por DHCP y sin subredes ni cortafuegos, y se entregan con Docker Engine y el plugin compose instalados, con el usuario `ops` en el grupo `docker` y con la clave pública del puesto del alumno dentro, porque Mantenimiento entra en ellas desde su puesto al día siguiente. Los ficheros compose que corren encima los entrega la otra asignatura y se despliegan allí a partir de su sesión 4 (15 de octubre).
+La asignatura hermana, [Mantenimiento del sistema de contenedores](https://victor-educ.github.io/apuntes-5169/), vigila, prueba, actualiza y retira el mismo servicio, y empieza a hacerlo el 1 de octubre, cuando aquí todavía se está instalando Proxmox. Sus tres primeras sesiones trabajan con Docker en el puesto del alumno, porque el hipervisor se está montando todavía y la plantilla de la que salen las VM no existe hasta el 14 de octubre. Para que eso cuadre, en la sesión 3 (14 de octubre), nada más tener la plantilla cloud-init, junto a `web01` se clonan dos VM pensadas para la otra asignatura: `app01`, que aloja el servicio del curso en Docker Compose, y `mon01`, que aloja la pila de monitorización. Las dos van en vmbr0, la red del laboratorio, con IP por DHCP del propio Proxmox y sin subredes ni cortafuegos, y se entregan con Docker Engine y el plugin compose instalados, con el usuario `ops` en el grupo `docker` y con la clave pública del puesto del alumno dentro, porque Mantenimiento entra en ellas desde su puesto al día siguiente. Los ficheros compose que corren encima los entrega la otra asignatura y se despliegan allí a partir de su sesión 4 (15 de octubre).
 
 El 27 de noviembre, en la [A3.3](ut/ut3-seguridad-por-capas.md#a33-aplicacion-y-datos-sesion-16), esta asignatura traslada las dos VM a su sitio definitivo, ya detrás del cortafuegos: app01 a la subred back con la 10.10.2.10 y mon01 a la de gestión con la 10.10.0.20. Mantenimiento audita su pila el 26 de noviembre, con las VM todavía en el aula, y la protege desde el 1 de diciembre, ya en la VPC. En marzo, la UT7 de monitorización no levanta una segunda pila: trabaja sobre la de `/opt/monitoring` de mon01 y en el mismo repositorio `monitoring`, y solo le añade ficheros propios que Mantenimiento no toca (los targets que genera Ansible, sus reglas, el job de Jenkins y el panel de la plataforma). PromQL, las reglas, Alertmanager, Grafana y los indicadores se repasan en pocos minutos, porque la otra asignatura ya los ha dado a fondo.
 
 ## Dónde se trabaja
 
-Desde la sesión 3 (14 de octubre) todo el laboratorio corre en el **Proxmox del centro**. Cada alumno tiene allí dos máquinas virtuales, ya preparadas, en la **red del laboratorio** (192.168.100.0/24; las de los alumnos van de la 192.168.100.100 a la .200):
+Desde la sesión 3 (14 de octubre) todo el laboratorio corre en el **Proxmox del centro**. Cada alumno tiene allí dos máquinas virtuales, ya preparadas, en la **red del aula** (192.168.100.0/24; el DHCP del centro les da una IP entre la .100 y la .200):
 
 | VM | Qué es | Para qué se usa |
 |----|--------|-----------------|
 | `puesto` | Ubuntu con escritorio | Es el **puesto del alumno**: desde su navegador se abre la consola web del Proxmox propio y las de los servicios, y desde su terminal se entra por SSH en las VM |
-| `pve` | Tu Proxmox VE, con la configuración de la A1.2 hecha | El hipervisor del curso: dentro se crean la plantilla y todas las VM de las dos asignaturas |
+| `pve` | Tu Proxmox VE, con la configuración de la A1.2 hecha y la plantilla 9000 dentro | El hipervisor del curso: dentro se crean todas las VM de las dos asignaturas |
 
-Se llega siempre igual: se entra en el Proxmox del centro con tu usuario, se abre la consola de `puesto` y, desde ahí, `https://<IP de tu pve>:8006`. Las VM que crees dentro de tu Proxmox salen a la misma red del laboratorio por su `vmbr0`. Cuando los apuntes dicen «el puesto del alumno», es la VM `puesto`; cuando dicen «la red del laboratorio», es la 192.168.100.0/24.
+Se llega siempre igual: se entra en el Proxmox del centro con tu usuario, se abre la consola de `puesto` y, desde ahí, `https://<IP de tu pve>:8006`. La IP de tu `pve` sale en su consola y en **SDN → IPAM** del Proxmox del centro.
+
+**Dos redes, y por qué.** Las VM que creas dentro de tu Proxmox no van a la red del aula. El DHCP del Proxmox del centro solo contesta a las máquinas que tiene registradas, que son las suyas, así que una VM creada dentro de tu Proxmox nunca recibiría IP, y repartir IP fijas a mano entre treinta alumnos acaba en direcciones repetidas. Por eso cada Proxmox del curso trae su propia red para sus VM, igual en todas las copias, y es la que los apuntes llaman **red del laboratorio**:
+
+| Bridge de tu Proxmox | Red | Qué hay | Quién da la IP |
+|----|----|----|----|
+| `vmbr9` | La red del aula, 192.168.100.0/24 | El propio Proxmox, con la tarjeta física (`ens18`) como puerto | El DHCP del Proxmox del centro |
+| `vmbr0` | La red del laboratorio, 10.99.0.0/24, con el Proxmox en la `.1` | Las VM que se crean dentro: la plantilla y todos los clones | El propio Proxmox: un dnsmasq (`dnsmasq-vmbr0.service`) reparte de la `.100` a la `.250` y hace de DNS, y el nodo les da salida a Internet con NAT por `vmbr9` |
+| `vmbr1` | Red interna, 10.10.10.0/24, con el Proxmox en la `.1` | Las redes internas y las VLAN de las pruebas, desde la A1.5 | Nadie: IP fija |
+
+Que todas las copias usen la misma 10.99.0.0/24 no es un problema, porque cada una vive dentro de su Proxmox y no sale de él: hacia fuera, todo lo que sale de las VM lleva la IP del Proxmox en el aula. Lo que esto cambia es la entrada: el puesto está en la red del aula y no sabe llegar a la 10.99.0.0/24 si no se le dice que pase por tu Proxmox. Por eso el puesto lleva una ruta fija a la 10.99.0.0/24 por la IP de tu `pve` en el aula, que se pone en la [A1.3](ut/ut1-virtualizacion.md#a13-plantilla-cloud-init-y-clonado-sesion-3). Con ella, el SSH desde el puesto a cualquier VM de `vmbr0` va directo. Cuando los apuntes dicen «el puesto del alumno», es la VM `puesto`; cuando dicen «la red del laboratorio», es la `vmbr0` de tu Proxmox, la 10.99.0.0/24.
 
 El Proxmox propio es una VM con 16 GB de RAM (la cuenta está en el [presupuesto de memoria](#presupuesto-de-memoria)).
 
@@ -231,7 +241,7 @@ No existe ningún `gitea01.dev.lab`: meter un servicio de plataforma en un entor
 
 El 27 de noviembre, al trasladar `app01` y `mon01`, se borran las líneas del aula del `/etc/hosts` del puesto, de `mon01` y de `app01`: desde ese día los nombres los da OPNsense. Las VM de las zonas y `mon01` reciben el DNS del `.1` de su zona por DHCP; `jenkins01`, `gitea01` y `agent01` lo llevan fijo en su pestaña **Cloud-Init** (DNS servers `10.10.0.1` y DNS domain `lab`), y `admin01` lo recibe en la A3.1 de la misma forma, en la pestaña **Cloud-Init** de la VM 105 y con un reinicio. Con la hora pasa lo mismo: desde la A3.1, OPNsense la sirve a todas las zonas por la regla 0, y cada VM la toma del `.1` de su zona con `systemd-timesyncd`, como `web01` y `db01` en esa hoja.
 
-**Cómo se entra.** Hasta el 27 de noviembre, a app01 y mon01 se entra por SSH desde `puesto`, directamente a su IP de la red del laboratorio, con la clave del puesto que la A1.3 metió en la plantilla; a las que ya están en la VPC (web01 y db01, desde el 30 de octubre), desde el nodo: directamente el 30 de octubre, que el nodo es todavía el `.1` de cada subred, y con salto por `router-dev` desde el 4 de noviembre (`ssh -J ops@<IP de router-dev en la red del laboratorio> ops@10.10.1.10`); desde el 6 de noviembre, desde admin01. Desde el 27 de noviembre todas quedan detrás de OPNsense y solo admin01 tiene un pie en el aula, así que se entra con salto por él:
+**Cómo se entra.** Hasta el 27 de noviembre, a app01 y mon01 se entra por SSH desde `puesto`, directamente a su IP de la red del laboratorio gracias a la ruta del puesto a la 10.99.0.0/24 ([Dónde se trabaja](#donde-se-trabaja)), con la clave del puesto que la A1.3 metió en la plantilla; a las que ya están en la VPC (web01 y db01, desde el 30 de octubre), desde el nodo: directamente el 30 de octubre, que el nodo es todavía el `.1` de cada subred, y con salto por `router-dev` desde el 4 de noviembre (`ssh -J ops@<IP de router-dev en la red del laboratorio> ops@10.10.1.10`); desde el 6 de noviembre, desde admin01. Desde el 27 de noviembre todas quedan detrás de OPNsense y solo admin01 tiene un pie en el aula, así que se entra con salto por él:
 
 ```bash
 ssh -J ops@<IP de admin01 en la red del laboratorio> ops@10.10.2.10
@@ -241,7 +251,7 @@ Para no escribir el salto cada vez, este `~/.ssh/config` en el puesto del alumno
 
 ```text
 Host admin01
-    HostName 192.168.100.160      # la IP de admin01 en la red del laboratorio (192.168.100.x)
+    HostName 10.99.0.160          # la IP de admin01 en la red del laboratorio (10.99.0.x)
     User ops
 
 Host web01
@@ -282,7 +292,7 @@ Las consolas web se abren con un túnel a través de admin01, que en el puesto e
 | 2376 | Docker de agent01 con TLS, para los agentes efímeros | agent01 |
 | 5000 | registry de imágenes con TLS y `htpasswd` | gitea01 desde el 19 feb, `registry.lab:5000` |
 | 5432 | PostgreSQL | db01, abierto solo a back; db01-pre, solo a 10.20.2.0/24 |
-| 8006 | interfaz web de Proxmox | tu `pve`, en la red del laboratorio |
+| 8006 | interfaz web de Proxmox | tu `pve`, en la red del aula |
 | 8080 | Jenkins por HTTP, puerto interno | dentro del compose de jenkins01, nunca publicado |
 | 20080 | nginx del compose del servicio | el puesto del alumno hasta el 13 oct y app01 hasta el 27 nov; desde entonces el proxy es el nginx de web01 |
 | 23000 | Grafana | mon01; desde el 3 dic, solo por detrás de su nginx |
