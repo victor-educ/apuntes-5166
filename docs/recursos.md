@@ -65,7 +65,6 @@ La primera fuente siempre. Cuando un comando de los apuntes no funcione en una v
 | proxmox-cluster-summary.png | Proxmox Server Solutions GmbH, dominio público | Wikimedia Commons |
 | cloud-init-logo.svg | Dominio público | Wikimedia Commons |
 | vpc-esquema.svg | Sam Johnston, CC BY-SA 3.0 | Wikimedia Commons |
-| dmz-un-firewall.svg, dmz-dos-firewalls.svg | Pbroks13, dominio público | Wikimedia Commons |
 | opnsense-dashboard.png | Hagennos, CC BY-SA 4.0 | Wikimedia Commons |
 | reverse-proxy.svg | H2g2bob, CC0 | Wikimedia Commons |
 | jenkins-pipeline.png | Mark Waite, CC BY-SA 4.0 | Wikimedia Commons |
