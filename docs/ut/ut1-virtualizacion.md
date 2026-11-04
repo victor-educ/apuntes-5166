@@ -1,8 +1,8 @@
 # UT1 · Virtualización e hipervisores
 
-<p class="ut-meta">12 h · Sesiones 1 a 6 · RA1 CE a</p>
+<p class="ut-meta">20 h · Sesiones 1 a 10 · RA1 CE a</p>
 
-Esta es la primera unidad del módulo y la que sostiene todas las demás. Todo lo que se despliega en el curso corre sobre máquinas virtuales: las redes, el cortafuegos y los proxies, el servicio en Docker y su monitorización, los pipelines de Jenkins. Y esas máquinas virtuales corren sobre un hipervisor, el software que reparte un equipo físico entre todas ellas, que hay que saber instalar, configurar y, sobre todo, entender. La unidad monta un Proxmox VE propio en cada puesto, construye una plantilla con cloud-init (el servicio que configura una VM en su primer arranque) de la que saldrán decenas de VM en las próximas semanas y mide qué aguanta y qué no aguanta el laboratorio. La unidad siguiente, la UT2, parte de ese mismo Proxmox: desde finales de octubre le añade redes definidas por software para construir una VPC, la red privada que ofrece cualquier nube pública.
+Esta es la primera unidad del módulo y la que sostiene todas las demás. Todo lo que se despliega en el curso corre sobre máquinas virtuales: las redes, el cortafuegos y los proxies, el servicio en Docker y su monitorización, los pipelines de Jenkins. Y esas máquinas virtuales corren sobre un hipervisor, el software que reparte un equipo físico entre todas ellas, que hay que saber instalar, configurar y, sobre todo, entender. La unidad monta un Proxmox VE propio en cada puesto, construye una plantilla con cloud-init (el servicio que configura una VM en su primer arranque) de la que saldrán decenas de VM en las próximas semanas y mide qué aguanta y qué no aguanta el laboratorio. La unidad siguiente, la UT2, parte de ese mismo Proxmox: desde mediados de noviembre le añade redes definidas por software para construir una VPC, la red privada que ofrece cualquier nube pública.
 
 ## Sesión 1 · Presentación e instalación del hipervisor
 
@@ -44,7 +44,7 @@ flowchart TB
 
 - **Consolidación.** Un servidor actual tiene 32 o 64 núcleos y 256 GB de RAM, y ninguna aplicación normal los usa. Con virtualización, ese servidor aloja decenas de VM en lugar de una sola aplicación, y la factura de electricidad y de armario se divide entre todas. Es lo que hace el laboratorio: un solo Proxmox por puesto, con todas las máquinas del curso dentro.
 - **Aislamiento.** Si una VM falla, se cuelga o se compromete, las demás siguen. El hipervisor es la frontera de seguridad.
-- **Snapshots y clonado.** Se guarda el estado de una VM y se vuelve a él en segundos, y se sacan copias idénticas de una VM ya preparada. Antes de una actualización arriesgada, snapshot; si sale mal, se vuelve atrás y a otra cosa. En el laboratorio, el clonado se practica en la sesión 3, el 14 de octubre, y los snapshots en la 4, dos días después.
+- **Snapshots y clonado.** Se guarda el estado de una VM y se vuelve a él en segundos, y se sacan copias idénticas de una VM ya preparada. Antes de una actualización arriesgada, snapshot; si sale mal, se vuelve atrás y a otra cosa. En el laboratorio, el clonado se practica en la sesión 3, el 14 de octubre, y los snapshots en la sesión 9, el 4 de noviembre.
 - **Portabilidad.** Una VM se mueve entre servidores sin reinstalar, incluso encendida (*migración en vivo*), así que el hardware se cambia sin que el servicio se entere. En el laboratorio no se monta, porque hacen falta varios servidores; está en [Clúster y migración en vivo](../ampliacion.md#cluster-y-migracion-en-vivo).
 - **Base de la nube.** Toda nube pública es, por debajo, hipervisores gestionados a gran escala: una instancia actual de Amazon EC2 es una VM sobre Nitro, un hipervisor basado en KVM, y una de Azure corre sobre Hyper-V. Lanzar una instancia en la nube es hacer con una API lo mismo que aquí se hace con el botón **Create VM** de la consola web.
 
@@ -260,12 +260,12 @@ Dónde está en la web lo de uso diario (el árbol de recursos de la izquierda t
 | Discos, memoria, red de una VM | Pestaña **Hardware** de la VM | Desde la A1.3 |
 | Usuario, claves e IP del primer arranque | Pestaña **Cloud-Init** de la VM | Desde la A1.3 |
 | Snapshots | Pestaña **Snapshots** de la VM | `web01` en la A1.4 |
-| Copias de seguridad | Pestaña **Backup** de la VM; **Datacenter → Backup** para programarlas | La copia de `web01` en la A1.4 |
+| Copias de seguridad | Pestaña **Backup** de la VM; **Datacenter → Backup** para programarlas | La copia de `web01`, en «Si te sobra tiempo» de la A1.4 |
 | Almacenes | **Datacenter → Storage**; cada almacén en el árbol, con su **Summary** | La revisión de la A1.2 |
 | Plantillas de contenedor | Almacén `local` → **CT Templates** → **Templates** | La plantilla de `ct01` en la A1.4 |
 | Usuarios y permisos | **Datacenter → Permissions** | `admin@pve` en la A1.2 |
 | Red del host | Nodo → **System → Network** | `vmbr1` en la A1.2 |
-| Terminal del nodo | Nodo → **>_ Shell** | El SSH a `web01` en la A1.3 y las medidas de la A1.5 |
+| Terminal del nodo | Nodo → **>_ Shell** | El SSH a `web01` en la A1.3 y `lvs pve` en la A1.4 |
 | Lo que ha hecho cada operación | Panel **Tasks** de abajo, con el log de cada tarea | Siempre que algo falla |
 
 Puertos que conviene tener en la cabeza: 8006 (web y API), 22 (SSH) y 5900 a 5999 (consolas VNC). Los de la otra consola remota (SPICE), el clúster y las migraciones están también en [Clúster y migración en vivo](../ampliacion.md#cluster-y-migracion-en-vivo).
@@ -406,7 +406,7 @@ iface vmbr1 inet static
 
 En cada bridge, `bridge-ports` dice qué tarjeta física tiene enchufada (`none`, ninguna), y `bridge-stp off` y `bridge-fd 0` desactivan el protocolo con el que los switches evitan los bucles (STP) y la espera que impone antes de dejar pasar tráfico por un puerto nuevo. Con un solo bridge no hay bucle posible, y así la tarjeta de una VM que arranca transmite desde el primer momento.
 
-**Para qué sirve `vmbr1`.** Es un bridge sin tarjeta física: lo que se conecta a él solo llega a las otras VM del mismo bridge y al host, que tiene la `10.10.10.1`, y no sale a la red del aula. Es el sitio de las redes de prueba del curso. Las dos últimas líneas del ejemplo, `bridge-vlan-aware` y `bridge-vids`, lo preparan para separar varias redes por etiquetas (VLAN), y no se ponen al crearlo. Se añaden en la sesión 5, el 21 de octubre, cuando se explican las VLAN.
+**Para qué sirve `vmbr1`.** Es un bridge sin tarjeta física: lo que se conecta a él solo llega a las otras VM del mismo bridge y al host, que tiene la `10.10.10.1`, y no sale a la red del aula. Es el sitio de las redes de prueba del curso. Las dos últimas líneas del ejemplo, `bridge-vlan-aware` y `bridge-vids`, lo preparan para separar varias redes por etiquetas (VLAN), y no se ponen al crearlo. Se añaden cuando se explican las VLAN, en la sesión 9, el 4 de noviembre.
 
 **El Proxmox del curso tiene un bridge más.** Lo anterior es la instalación de fábrica, con las VM en la misma red que el host. En el laboratorio del curso no puede ser así, porque el DHCP del Proxmox del centro solo da IP a las máquinas que tiene registradas, y las VM que nacen dentro de cada Proxmox no lo están. Por eso el Proxmox que se entrega a cada alumno mueve la tarjeta física a `vmbr9`, que recibe por DHCP la IP del aula, y deja `vmbr0` sin puerto físico, como red propia de las VM: la 10.99.0.0/24, con el host en la `.1`, un DHCP propio y salida a Internet por NAT. Para las hojas no cambia nada, porque las VM siguen yendo a `vmbr0` y reciben IP solas; lo que cambia es que el puesto del alumno llega a ellas a través del host. La tabla de los tres bridges y el porqué están en [Dónde se trabaja](../laboratorio.md#donde-se-trabaja).
 
@@ -506,7 +506,7 @@ Con el Proxmox preparado, toca crear máquinas. Instalar cada una desde la ISO, 
 - **Origen del disco.** Una ISO de instalación, o una imagen de disco ya instalada que se importa, que es lo que hace el curso con la plantilla.
 - **Disco.** Bus `scsi` con controladora `VirtIO SCSI single`, formato raw sobre `local-lvm`, `discard=on` para que el descarte llegue al pool thin y `ssd=1` si el almacén es SSD, para que el invitado lo trate como tal. *VirtIO* son dispositivos pensados para máquinas virtuales, mucho más rápidos que imitar hardware real. Con thin, se puede ser generoso en tamaño, pero siendo consciente de lo que suma.
 - **CPU.** Número de núcleos (`cores`), un solo socket y el tipo, que tiene apartado propio más abajo.
-- **Memoria.** Fija o con *ballooning*: un driver dentro del invitado que, cuando el host necesita memoria, la reserva dentro de la VM y se la devuelve al host, como un globo que se hincha. Con ballooning, en la pestaña **Memory** (con **Advanced** marcado), Memory es el máximo y Minimum memory el mínimo hasta el que el host puede reclamar. En el curso las VM van con memoria fija. El ballooning se ensaya en la A1.5, el 21 de octubre, porque lo pide la práctica evaluable.
+- **Memoria.** Fija o con *ballooning*: un driver dentro del invitado que, cuando el host necesita memoria, la reserva dentro de la VM y se la devuelve al host, como un globo que se hincha. Con ballooning, en la pestaña **Memory** (con **Advanced** marcado), Memory es el máximo y Minimum memory el mínimo hasta el que el host puede reclamar. En el curso las VM van con memoria fija. El ballooning solo se usa en la práctica evaluable de la unidad, el 6 de noviembre.
 - **Red.** Modelo virtio, el bridge al que se conecta y, si procede, la etiqueta VLAN y el cortafuegos de Proxmox.
 - **Firmware y máquina** (el tipo de BIOS y de placa base que imita QEMU): SeaBIOS con i440fx por defecto; OVMF (UEFI) con q35 para passthrough de PCIe, Secure Boot o Windows 11 (que además exige un TPM virtual, un chip de seguridad emulado).
 - **Agente QEMU.** Es un servicio dentro de la VM por el que Proxmox le pregunta su IP, la apaga limpiamente, congela su sistema de ficheros durante una copia y le manda ejecutar `fstrim`. Hacen falta las dos mitades: el agente instalado dentro (en el curso va dentro de la imagen de la plantilla, como se explica más abajo) y activado en la VM (la casilla **QEMU Agent** del asistente, o **Options → QEMU Guest Agent**), que es lo que crea el canal por el que hablan.
@@ -717,11 +717,11 @@ La plantilla ya está construida, así que empiezas por entenderla: la recorres 
 
 <span class="et et-ext">Si te sobra tiempo</span> Comprueba con números esa diferencia: mira `lvs pve`, saca de la plantilla un clon enlazado, `web02` (ID 150, 1 GB), y vuelve a mirarlo. Compara de qué depende el volumen de `web02` y de qué el de `web01`, y lo que ocupa cada uno. Practica también con los snippets de cloud-init, que es como se personaliza una VM cuando no se puede tocar la imagen: activa el contenido `snippets` en `local` (Datacenter > Storage > local > Edit), guarda el YAML del [apartado de cloud-init](#cloud-init) en `/var/lib/vz/snippets/web.yaml`, clona una VM, apúntala a ese fichero con el `--cicustom` del [apartado de cloud-init](#cloud-init) (desde la Shell, porque la web no tiene esa opción) y comprueba qué ha hecho el fichero en el primer arranque. Rompe algo a propósito: clona una VM, quítale la red que hereda de la plantilla (la IP Config de `net0`, en su pestaña Cloud-Init) y depúrala con `cloud-init status --long` y `/var/log/cloud-init.log`. Y si quieres construir una plantilla desde cero, hazlo en casa, porque tarda más de una hora: descarga la imagen de Debian 13, prepárala con el `virt-customize` de [Imágenes cloud](#imagenes-cloud-y-como-se-preparan) y crea con ella una 9001 siguiendo el [flujo completo](#plantillas-y-clonado), con los mismos ajustes que has encontrado en el paso 1. Bórrala al terminar: la del curso es la 9000.
 
-## Sesión 4 · VM vs LXC, snapshots y límites
+## Sesión 9 · VM vs LXC, snapshots y redes
 
-<p class="ut-meta" markdown>16 de octubre · Teoría y práctica · <span class="dur" tabindex="0" aria-label="Cómo funciona KVM/QEMU por debajo · 15 min&#10;LXC frente a VM, con números · 5 min&#10;Snapshots · 5 min&#10;A1.4 VM frente a LXC, snapshots · 85 min" data-dur="Cómo funciona KVM/QEMU por debajo · 15 min&#10;LXC frente a VM, con números · 5 min&#10;Snapshots · 5 min&#10;A1.4 VM frente a LXC, snapshots · 85 min">:material-school:<i class="dur-barra" style="--teoria:23%"></i>:material-flask:</span></p>
+<p class="ut-meta" markdown>4 de noviembre · Teoría y práctica · <span class="dur" tabindex="0" aria-label="Cómo funciona KVM/QEMU por debajo · 10 min&#10;LXC frente a VM, con números · 5 min&#10;Snapshots · 5 min&#10;Modalidades de red y VLAN · 5 min&#10;Demostración: VLAN en vmbr1 · 20 min&#10;A1.4 VM frente a LXC, snapshots · 65 min" data-dur="Cómo funciona KVM/QEMU por debajo · 10 min&#10;LXC frente a VM, con números · 5 min&#10;Snapshots · 5 min&#10;Modalidades de red y VLAN · 5 min&#10;Demostración: VLAN en vmbr1 · 20 min&#10;A1.4 VM frente a LXC, snapshots · 65 min">:material-school:<i class="dur-barra" style="--teoria:41%"></i>:material-flask:</span></p>
 
-Desde la sesión 3 hay VM funcionando, y con ellas aparecen dos preguntas que no se pueden contestar sin saber qué hay debajo. La primera es de coste: por qué una VM tarda quince segundos en arrancar y se queda con cientos de megas del host, y cuándo bastaría con algo más ligero. La segunda es de seguridad: qué hacer cuando un cambio sale mal, o cuando se pierde el disco. La teoría responde en ese orden: qué son KVM y QEMU y por qué virtio es más rápido que el hardware imitado, que explica lo que cuesta una VM; qué es un contenedor LXC y cuánto se ahorra con él, con números; y qué es un snapshot y por qué no es una copia de seguridad. Las copias de seguridad (la pestaña Backup) no se explican en clase, pero el último paso de la hoja las usa. Al acabar, hay una tabla con medidas propias de VM frente a LXC, un snapshot de `web01` al que se ha vuelto y un backup restaurado como VM 151.
+Desde la sesión 3 hay VM funcionando, y con ellas aparecen tres preguntas que no se pueden contestar sin saber qué hay debajo. La primera es de coste: por qué una VM tarda quince segundos en arrancar y se queda con cientos de megas del host, y cuándo bastaría con algo más ligero. La segunda es de seguridad: qué hacer cuando un cambio sale mal. La tercera es de red: hasta ahora cada VM ha ido a `vmbr0` o a `vmbr1`, y una plataforma de verdad necesita muchas redes separadas entre sí. La teoría responde en ese orden: qué son KVM y QEMU y por qué virtio es más rápido que el hardware imitado, que explica lo que cuesta una VM; qué es un contenedor LXC y cuánto se ahorra con él, con números; qué es un snapshot y por qué no es una copia de seguridad; y qué formas tiene el hipervisor de conectar VM, con la VLAN a fondo. Las VLAN no se montan en la hoja: se ven en una demostración en la pizarra, porque la práctica evaluable las monta en el Proxmox propio y hay que haberlas visto funcionar antes. Dos apartados no se explican en clase y se leen por cuenta propia: las copias de seguridad, que usa «Si te sobra tiempo» de la hoja, y capacidades y limitaciones, con las herramientas de medida de la práctica evaluable. Al acabar, hay una tabla con medidas propias de VM frente a LXC, un snapshot de `web01` al que se ha vuelto y las herramientas de medida instaladas en `web01` y `app01`.
 
 ### Cómo funciona KVM/QEMU por debajo
 
@@ -898,11 +898,11 @@ En la pestaña **Snapshots** de la VM hay tres botones:
 ### Backups con vzdump y Proxmox Backup Server
 
 !!! consulta "Material de consulta"
-    Esto no se explica en clase: lo necesitas para la hoja de práctica de esta sesión.
+    Esto no se explica en clase: lo necesitas para «Si te sobra tiempo» de la hoja de esta sesión.
 
 **Lo que no resuelve un snapshot.** Un snapshot vive en el mismo disco que la VM, así que no protege de perder ese disco, ni de borrar la VM por error. Para eso hace falta una copia completa guardada en otro sitio, y en Proxmox la herramienta integrada es vzdump, la que hay detrás de la pestaña **Backup** de cada VM.
 
-**Cómo funciona vzdump.** Copia la VM entera (configuración y discos) a otro almacén, a mano desde la pestaña **Backup** de la VM o programada desde **Datacenter → Backup**. Tiene tres modos, que se diferencian en cuánto molestan a la VM: `stop` (apaga la VM, copia y la enciende; el único con consistencia total garantizada), `suspend` (la pausa mientras copia) y `snapshot` (el habitual: hace un snapshot temporal, copia desde él mientras la VM sigue funcionando y lo borra al terminar; con el agente QEMU congela el sistema de ficheros para que sea consistente). El resultado es un fichero `.vma.zst` (el formato de archivo de VM de Proxmox, comprimido) o `.tar.zst` (contenedor) en el directorio `dump` del almacén elegido, por ejemplo `/var/lib/vz/dump/vzdump-qemu-110-2026_10_16-10_30_00.vma.zst`. Se restaura con **Restore**, con la posibilidad de cambiar el ID y el almacén de destino. La copia guarda también la configuración, MAC de la tarjeta incluida, así que la VM restaurada es un gemelo de la original.
+**Cómo funciona vzdump.** Copia la VM entera (configuración y discos) a otro almacén, a mano desde la pestaña **Backup** de la VM o programada desde **Datacenter → Backup**. Tiene tres modos, que se diferencian en cuánto molestan a la VM: `stop` (apaga la VM, copia y la enciende; el único con consistencia total garantizada), `suspend` (la pausa mientras copia) y `snapshot` (el habitual: hace un snapshot temporal, copia desde él mientras la VM sigue funcionando y lo borra al terminar; con el agente QEMU congela el sistema de ficheros para que sea consistente). El resultado es un fichero `.vma.zst` (el formato de archivo de VM de Proxmox, comprimido) o `.tar.zst` (contenedor) en el directorio `dump` del almacén elegido, por ejemplo `/var/lib/vz/dump/vzdump-qemu-110-2026_11_04-10_30_00.vma.zst`. Se restaura con **Restore**, con la posibilidad de cambiar el ID y el almacén de destino. La copia guarda también la configuración, MAC de la tarjeta incluida, así que la VM restaurada es un gemelo de la original.
 
 | Qué | Dónde | Qué se rellena |
 |---|---|---|
@@ -920,63 +920,21 @@ Restaurar desde la pestaña Backup de la propia VM, en cambio, sobrescribe esa V
     el mismo servidor que el original no protege de que se estropee ese servidor.
 
 
-### A1.4 VM frente a LXC, snapshots (sesión 4)
-
-<span class="et et-obj">Objetivo</span> Una tabla con tus medidas de VM frente a LXC, un snapshot de `web01` al que has vuelto y un backup restaurado como VM 151. Con la tabla pones números propios a la diferencia entre una VM y un contenedor, que la práctica evaluable te va a pedir; con el snapshot y el backup pruebas las dos formas de volver atrás y lo que protege cada una.
-
-<span class="et et-pre">Antes de empezar</span>
-
-- `web01` funcionando con agente QEMU y acceso SSH desde el nodo y desde el puesto (A1.3).
-- `ct01` irá, como las VM, a `vmbr0`, y recibirá una 10.99.0.x del DHCP de tu Proxmox, que también le da salida a Internet ([Dónde se trabaja](../laboratorio.md#donde-se-trabaja)).
-- Lo explicado al principio de la sesión: [KVM/QEMU y virtio](#como-funciona-kvmqemu-por-debajo), [LXC frente a VM](#lxc-frente-a-vm-con-numeros) y [snapshots](#snapshots). Para el paso del backup, [backups](#backups-con-vzdump-y-proxmox-backup-server) es material de consulta.
-
-<span class="et et-pas">Pasos</span>
-
-La hoja tiene dos mitades. En la primera mides una VM y un contenedor con las mismas medidas, para que la comparación valga: primero `web01`, que ya existe, y después `ct01`, que creas hoy. En la segunda proteges `web01` de las dos formas de la teoría, de la más rápida a la más segura: un snapshot, que te devuelve atrás en segundos pero vive en el mismo disco, y un backup, que tarda más pero sobrevive a perder ese disco.
-
-1. **Mide la VM.** Mide `web01` desde apagada: la RAM usada en el host antes y después de arrancarla, su tiempo de arranque y su `uname -r`. Son las tres filas de [LXC frente a VM](#lxc-frente-a-vm-con-numeros) que mejor muestran lo que cuesta tener un kernel propio. Apunta también la condición en que mides: tu Proxmox es una VM del Proxmox del centro con el disco en la red, y los tiempos saldrán bastante más altos que los de la tabla de referencia, que se tomó en un portátil con SSD. Lo que tiene que mantenerse es la proporción entre la VM y el contenedor.
-
-    *Pista:* en la VM, el tiempo de arranque es lo que tarda en contestar por SSH; dentro, `systemd-analyze` lo desglosa.
-
-2. **Mide un contenedor igual.** Crea el contenedor `ct01` (ID 170, no privilegiado, 512 MB) como en [LXC frente a VM](#lxc-frente-a-vm-con-numeros) y toma las mismas medidas. Compara su `uname -r` con el de la VM y con el del host: es la prueba directa de quién tiene kernel propio y quién no.
-
-    *Pista:* si el nombre de la plantilla de Debian ha cambiado, usa el que aparezca en la lista del botón **Templates** de `local` → CT Templates.
-
-3. **Vuelve atrás con un snapshot.** Haz un snapshot de `web01` llamado `antes-nginx`, mirando `lvs pve` antes y después: el volumen que aparece es el que tendrás que explicar al final con lo visto en [Snapshots](#snapshots). Instala nginx dentro, vuelve al snapshot y comprueba si nginx sigue. Es el uso normal de un snapshot: una red de seguridad justo antes de un cambio.
-
-    *Pista:* tras el rollback, `web01` queda apagada.
-
-4. **Haz una copia que sobreviva al disco.** Haz un backup de `web01` a `local` en modo snapshot, apunta lo que ocupa y lo que tarda, y restáuralo como VM 151 desde la web, como en [Backups](#backups-con-vzdump-y-proxmox-backup-server). Restaurar es la mitad que importa: de una copia que nunca se ha restaurado no se sabe si sirve.
-
-    *Pista:* arranca la 151 con `web01` apagada: tienen la misma MAC y en el mismo bridge se pisarían.
-
-<span class="et et-com">Comprobación</span> Tienes tiempo de arranque, RAM en el host y `uname -r` para la VM y para el LXC (el LXC muestra el kernel del host); tras el rollback, nginx no está en `web01`; en `lvs pve` apareció `snap_vm-110-disk-0_antes-nginx` al crear el snapshot; la 151 aparece en el árbol de recursos y arranca.
-
-<span class="et et-ent">Para practicar</span> Guarda en el documento de la unidad tu tabla VM frente a LXC con sus capturas y las de `lvs pve` antes y después del snapshot, explicando qué volumen apareció, y apunta el tamaño y el tiempo del backup. La práctica evaluable parte de la tabla.
-
-<span class="et et-ext">Si te sobra tiempo</span> Borra el snapshot desde la pestaña Snapshots y comprueba en `lvs pve` que el volumen desaparece. Con `web01` encendida, `ps aux | grep 'kvm -id 110'` en el host te enseña la línea de QEMU completa que Proxmox ha construido desde `/etc/pve/qemu-server/110.conf`: localiza en ella el disco virtio-scsi, la tarjeta virtio-net y el tipo de CPU.
-
-## Sesión 5 · Redes en el hipervisor
-
-<p class="ut-meta" markdown>21 de octubre · Teoría y práctica · <span class="dur" tabindex="0" aria-label="Modalidades de red: bridge, NAT, VLAN y bond · 20 min&#10;A1.5 Redes: VLAN · 90 min" data-dur="Modalidades de red: bridge, NAT, VLAN y bond · 20 min&#10;A1.5 Redes: VLAN · 90 min">:material-school:<i class="dur-barra" style="--teoria:18%"></i>:material-flask:</span></p>
-
-Hasta ahora cada VM ha ido a una de dos redes: la del laboratorio, por `vmbr0`, o la interna del host, por `vmbr1`. Una plataforma de verdad necesita bastantes más, separadas entre sí, y esta sesión repasa todas las formas que tiene el hipervisor de conectar VM y qué resuelve cada una, desde el bridge de la sesión 2 hasta las que agrupan tarjetas o hacen de router. Después explica a fondo la que monta la hoja, la VLAN, que es la forma habitual de llevar muchas redes aisladas por un mismo bridge o un mismo cable. La segunda mitad de la hoja es de otro tipo: medir con herramientas propias qué aguanta el laboratorio, porque el criterio de evaluación de la unidad pide conocer las capacidades y limitaciones del hipervisor, y eso no se aprende leyendo. Ese apartado no se explica en clase: conviene leerlo antes del paso 4 de la hoja, porque la tabla que sale de él es el borrador de la práctica evaluable. Al acabar, hay tres VM en `vmbr1` repartidas en dos VLAN que solo se ven dentro de su VLAN, y las primeras medidas de CPU, disco y red del laboratorio.
-
 ### Modalidades de red: bridge, NAT, VLAN y bond
 
 **Cinco formas de conectar una VM.** Todas se construyen con el bridge de [Red](#red), y se diferencian en adónde llega lo que se conecta a él:
 
-- **Bridge simple** (`vmbr0` con `eno1` como puerto): las VM están en la misma red que el host y reciben IP del router de la red del laboratorio. Es la opción con la que se instala Proxmox y la que da acceso inmediato a las VM desde el puesto; en esta unidad, la de `web01`, `app01` y `mon01`.
-- **Bridge sin interfaz física** (`bridge-ports none`): red interna solo entre VM y el host. Es la base de las VPC. Las VM no salen a Internet salvo que alguien enrute por ellas.
-- **NAT**: el bridge interno más dos cosas en el host, que pasa a hacer de router: `ip_forward`, que le deja reenviar paquetes de una red a otra, y una regla de *masquerade*, que cambia la dirección de origen de lo que sale de las VM por la suya, para que las respuestas vuelvan a él. Es cómodo cuando la red solo da una IP y hacen falta muchas VM con salida a Internet sin exponerlas. Se configura con `post-up` en el bridge; la documentación de Proxmox trae el ejemplo exacto.
-- **VLAN-aware bridge** (`bridge-vlan-aware yes`): un solo bridge transporta varias redes separadas por etiquetas; cada VM indica la suya (*tag*) en la tarjeta virtual. Es la forma de tener varias redes aisladas con un solo bridge, lo que se monta en la actividad A1.5, y se explica en el apartado siguiente.
+- **Bridge simple** (un bridge con la tarjeta física como puerto): lo que se conecta a él está en la misma red que el host y recibe IP del DHCP de esa red. Es la opción con la que se instala Proxmox. En el Proxmox del curso es `vmbr9`, con `ens18` como puerto, y en él solo está el propio nodo, porque el DHCP del centro no da IP a las VM que nacen dentro de cada Proxmox ([Red](#red)).
+- **Bridge sin interfaz física** (`bridge-ports none`): red interna solo entre VM y el host; en el laboratorio, `vmbr1`. Es la base de las VPC. Las VM no salen a Internet salvo que alguien enrute por ellas.
+- **NAT**: el bridge interno más dos cosas en el host, que pasa a hacer de router: `ip_forward`, que le deja reenviar paquetes de una red a otra, y una regla de *masquerade*, que cambia la dirección de origen de lo que sale de las VM por la suya, para que las respuestas vuelvan a él. Es cómodo cuando la red solo da una IP y hacen falta muchas VM con salida a Internet sin exponerlas. Se configura con `post-up` en el bridge; la documentación de Proxmox trae el ejemplo exacto. Es lo que es `vmbr0` en el laboratorio: el nodo tiene la `10.99.0.1`, reparte IP con un dnsmasq y saca por `vmbr9` lo que envían `web01`, `app01` y `mon01`.
+- **VLAN-aware bridge** (`bridge-vlan-aware yes`): un solo bridge transporta varias redes separadas por etiquetas; cada VM indica la suya (*tag*) en la tarjeta virtual. Es la forma de tener varias redes aisladas con un solo bridge, se explica en el apartado siguiente y se ve funcionar en la [demostración](#demostracion-vlan-en-vmbr1) de esta sesión.
 - **Bond**: varias tarjetas físicas agrupadas en una interfaz `bond0`, para tener redundancia o sumar ancho de banda; es `bond0`, no las tarjetas, lo que se pone como puerto del bridge. La VM de Proxmox del laboratorio tiene una sola tarjeta, así que aquí no se monta: los modos y un fichero de ejemplo están en [Bond: modos y configuración](../ampliacion.md#bond-modos-y-configuracion).
 
 ```mermaid
 flowchart TB
-    subgraph S1["Bridge simple · la VM está en la red del laboratorio"]
+    subgraph S1["Bridge simple · en la red del aula"]
         direction LR
-        A1["<b>VM</b>"]:::act --- A2["<b>vmbr0</b>"]:::pieza --- A3["<b>eno1</b>"]:::infra --- A4(("<b>Red del laboratorio</b>")):::infra
+        A1["<b>Host</b>"]:::act --- A2["<b>vmbr9</b>"]:::pieza --- A3["<b>ens18</b>"]:::infra --- A4(("<b>Red del aula</b>")):::infra
     end
     subgraph S2["Bridge sin puerto físico · red interna"]
         direction LR
@@ -984,11 +942,11 @@ flowchart TB
     end
     subgraph S3["NAT · el host hace de router"]
         direction LR
-        C1["<b>VM</b>"]:::act --- C2["<b>vmbr1</b><br><small>ip_forward + masquerade</small>"]:::pieza --- C3(("<b>Internet</b>")):::infra
+        C1["<b>VM</b>"]:::act --- C2["<b>vmbr0</b><br><small>ip_forward + masquerade</small>"]:::pieza --- C3(("<b>Internet</b>")):::infra
     end
     subgraph S4["VLAN aware · varias redes por un bridge"]
         direction LR
-        D1["<b>VM</b><br><small>tag 10</small>"]:::act --- D2["<b>vmbr0</b><br><small>vlan-aware</small>"]:::pieza
+        D1["<b>VM</b><br><small>tag 10</small>"]:::act --- D2["<b>vmbr1</b><br><small>vlan-aware</small>"]:::pieza
         D3["<b>VM</b><br><small>tag 20</small>"]:::act --- D2
         D2 --- D4["<b>trunk</b><br><small>al switch del laboratorio</small>"]:::infra
     end
@@ -1007,7 +965,7 @@ flowchart TB
     classDef riesgo fill:#dc262622,stroke:#dc2626,stroke-width:1.5px
 ```
 
-<p class="pie" markdown>Las cinco conviven en el mismo host. En la A1.5 se monta la cuarta.</p>
+<p class="pie" markdown>Las cinco conviven en el mismo host. El Proxmox del curso trae las tres primeras (`vmbr9`, `vmbr1` y `vmbr0`); la cuarta la monta la práctica evaluable.</p>
 
 !!! ojo "Cambiar la red del host a distancia"
     Un error en `/etc/network/interfaces` deja sin acceso al Proxmox. En un laboratorio anidado queda la consola de la VM exterior y no pasa nada; en un servidor real, los cambios se hacen desde la web (que valida y aplica con `ifreload`) o se deja programado un `sleep 120 && ifreload -a` con la configuración antigua a mano. Y antes de tocar `vmbr0`, conviene comprobar qué interfaz física es la buena con `ip -br link` y `ethtool eno1`.
@@ -1022,10 +980,24 @@ flowchart TB
 
 **Y el host.** La IP que el host tiene en el bridge, la `10.10.10.1` de `vmbr1`, va sin etiqueta, en la VLAN por defecto del bridge, que es la 1. Por eso el host no llega a las VM de la VLAN 10 ni de la 20, que es justo el aislamiento que se busca. Cuando el host necesita un pie en una VLAN, se le crea una interfaz VLAN sobre el bridge con una IP de esa red: `vmbr1.30` sería la del host en la VLAN 30, y es lo primero que monta la práctica evaluable.
 
+### Demostración: VLAN en vmbr1
+
+**Qué se quiere ver.** Que dos VM conectadas al mismo bridge no se ven si llevan etiquetas distintas, y que el host tampoco las ve mientras no tenga un pie en su VLAN. La demostración se hace en el Proxmox del profesor, proyectado, y va en el orden en que una trama atraviesa el montaje: el bridge, las tarjetas de las VM y la prueba de quién ve a quién. No se repite en la hoja: la práctica evaluable monta una VLAN propia con lo que se ve aquí.
+
+**1. El bridge entiende de etiquetas.** En nodo → System → Network se edita `vmbr1`, se marca **VLAN aware** y se pulsa **Apply Configuration**. `/etc/network/interfaces` muestra entonces en `vmbr1` las dos líneas del final del ejemplo de [Red](#red), `bridge-vlan-aware yes` y `bridge-vids 2-4094`. Sin este paso, Proxmox no sabe poner la etiqueta en un bridge sin tarjeta física como `vmbr1`, y una VM con VLAN Tag en él no arranca ("no physical interface on bridge").
+
+**2. Tres VM de prueba, cada una con su etiqueta.** Se clonan de la plantilla tres VM enlazadas, porque solo viven durante la demostración, con 512 MB y la tarjeta en `vmbr1`: `vlan10a` (160) y `vlan10b` (161) con la etiqueta 10, y `vlan20a` (162) con la 20. La etiqueta va en la propia tarjeta (pestaña Hardware → Network Device → VLAN Tag). En la pestaña Cloud-Init llevan IP fija, `192.168.10.11/24`, `192.168.10.12/24` y `192.168.10.13/24`, porque en esa red no hay DHCP; las tres en la misma subred a propósito, para que lo único que las separe sea la etiqueta, y una contraseña para la consola, porque el host no llega a esas VLAN y no se puede entrar por SSH. En `vlan10a` se enseña además dónde se configura el ballooning que pide la práctica evaluable: pestaña Hardware → Memory, con **Advanced** marcado, el campo **Minimum memory** (qué hace, en [crear una VM](#crear-una-vm-los-parametros-que-importan)).
+
+**3. Quién ve a quién.** Desde la consola de `vlan10a`, el ping a `192.168.10.12` responde y el ping a `192.168.10.13` no, aunque las tres compartan subred: el primero demuestra que la red funciona, y el segundo, que la VLAN aísla por sí sola. `ip neigh` lo confirma: la entrada de la `.13` queda en `FAILED`, porque su ARP no llega a cruzar de la VLAN 10 a la 20. Desde la Shell del nodo no se llega a ninguna de las tres, porque el host no tiene dirección en esa subred ni pie en esas VLAN. `bridge vlan show` enseña la misma separación vista desde dentro del switch: cada `tap16Xi0` con una sola VLAN, marcada como `PVID` y `Egress Untagged`.
+
+**4. La contraprueba.** Se cambia la etiqueta de `vlan20a` a 10 sin tocar su IP ni reiniciarla (el cambio se aplica en caliente), y el ping desde `vlan10a` a la `.13` empieza a responder. Es la prueba de que lo que las separaba era la etiqueta y no la dirección. La VLAN separa en la capa de enlace y la subred en la de red: para que dos máquinas hablen sin router tienen que coincidir las dos, y si solo coincide la subred, como en el paso 3, no basta.
+
+**Lo que se lleva la práctica evaluable.** El paso 1, tal cual, en el Proxmox propio, y lo que en la demostración falta a propósito: el pie del host en una VLAN, la interfaz `vmbr1.30` de [VLAN: varias redes en un mismo bridge](#vlan-varias-redes-en-un-mismo-bridge).
+
 ### Capacidades y limitaciones, y cómo medirlas
 
 !!! consulta "Material de consulta"
-    Esto no se explica en clase: lo necesitas para la hoja de práctica de esta sesión.
+    Esto no se explica en clase: lo necesitas para el paso 4 de la hoja de esta sesión y para las medidas de la práctica evaluable.
 
 **Por qué se mide.** El criterio de evaluación pide conocer las capacidades y limitaciones del hipervisor, y eso no se aprende leyendo: se mide. Casi todo lo que ofrece un hipervisor consiste en prometer más de lo que hay (más vCPU que núcleos, más memoria, más disco), y su límite no es un número del manual, sino el punto en que esa promesa deja de cumplirse porque todas las VM piden a la vez. Primero va la tabla de qué permite hacer un hipervisor y dónde está el riesgo de cada cosa, y después las herramientas con las que tomar las medidas propias.
 
@@ -1077,62 +1049,64 @@ Dos medidas salen de la web y no de la Shell: la ocupación de cada almacén, en
 
 **Cómo se anota.** Conviene anotar no solo el resultado sino la condición: "fio 4k aleatorio 70/30 en web01 con app01 en reposo: 18 000 IOPS; con app01 ejecutando el mismo fio: 9 500 IOPS cada una". Ese segundo número es el límite del hipervisor; el primero es solo lo que hace un SSD. Lo mismo con iperf3: entre dos VM del mismo bridge suelen salir varios Gbit/s aunque la tarjeta física sea de 1 Gbit/s, porque el tráfico nunca sale del host; hacia fuera, lo que dé la tarjeta.
 
-### A1.5 Redes: VLAN (sesión 5)
+### A1.4 VM frente a LXC, snapshots (sesión 9)
 
-<span class="et et-obj">Objetivo</span> Tres VM en `vmbr1` repartidas en dos VLAN que solo se ven dentro de su VLAN, y las primeras medidas de CPU, disco y red de tu laboratorio. Las VLAN son la forma habitual de separar redes sobre un mismo bridge, y las medidas son el borrador de la tabla de capacidades de la práctica evaluable.
+<span class="et et-obj">Objetivo</span> Una tabla con tus medidas de VM frente a LXC, un snapshot de `web01` al que has vuelto y las herramientas de medida listas dentro de `web01` y `app01`. Con la tabla pones números propios a la diferencia entre una VM y un contenedor, que la tabla de capacidades de la práctica evaluable te va a pedir; con el snapshot pruebas la forma más rápida de volver atrás y ves en el almacén qué es en realidad; con las herramientas instaladas, la práctica evaluable empieza midiendo desde el primer minuto.
 
 <span class="et et-pre">Antes de empezar</span>
 
-- Plantilla 9000 y `vmbr1` (A1.2 y A1.3); `web01` y `app01` funcionando en `vmbr0`; `stress-ng`, `fio` e `iperf3` instalados en el host.
-- Lo explicado al principio de la sesión: [red](#red), [modalidades de red](#modalidades-de-red-bridge-nat-vlan-y-bond) (bridge simple, VLAN-aware, bond y NAT) y [VLAN en un bridge](#vlan-varias-redes-en-un-mismo-bridge). Para las medidas, [capacidades y limitaciones](#capacidades-y-limitaciones-y-como-medirlas) es material de consulta: lee ese apartado antes del paso 4.
-
-!!! ojo "Haz la cuenta de RAM antes de encender"
-    El Proxmox tiene 12 GB y se queda con cerca de 2; `web01` (1 GB), `app01` (2 GB) y `mon01` (3 GB) ya suman 6. Tres clones con los 2 GB que heredan de la plantilla pasarían de los 10 disponibles: por eso las VM de prueba van con 512 MB y se apagan en cuanto termina la comprobación de VLAN. `app01` y `mon01` siguen encendidas toda la sesión, porque las usa Mantenimiento. Si vas justo, apaga la VM 151, `ct01` y `web02`, que ya no hacen falta.
+- `web01` funcionando con agente QEMU y acceso SSH desde el nodo y desde el puesto, y `app01` encendida (A1.3).
+- `ct01` irá, como las VM, a `vmbr0`, y recibirá una 10.99.0.x del DHCP de tu Proxmox, que también le da salida a Internet ([Dónde se trabaja](../laboratorio.md#donde-se-trabaja)).
+- Lo explicado al principio de la sesión: [KVM/QEMU y virtio](#como-funciona-kvmqemu-por-debajo), [LXC frente a VM](#lxc-frente-a-vm-con-numeros) y [snapshots](#snapshots). Para el paso 4, [capacidades y limitaciones](#capacidades-y-limitaciones-y-como-medirlas) es material de consulta, y para «Si te sobra tiempo», [backups](#backups-con-vzdump-y-proxmox-backup-server).
 
 <span class="et et-pas">Pasos</span>
 
-La hoja tiene dos partes independientes. En la primera montas el aislamiento por VLAN en el orden en que lo atraviesa una trama: primero el bridge que entiende de etiquetas, después las VM con su etiqueta y al final la prueba de quién ve a quién, desde las VM y desde el host. En la segunda mides el laboratorio. Entre una y otra apagas las VM de prueba, porque la memoria no da para todo a la vez, y las medidas se toman en `web01` y `app01`, que tienen Internet para instalar las herramientas.
+La hoja tiene tres partes. En la primera mides una VM y un contenedor con las mismas medidas, para que la comparación valga: primero `web01`, que ya existe, y después `ct01`, que creas hoy. En la segunda proteges `web01` con un snapshot, la forma más rápida de volver atrás, y miras en el almacén qué ha creado. En la tercera dejas instaladas las herramientas de medida, porque la práctica evaluable las usa desde el principio y son descargas que, con treinta puestos a la vez, no conviene dejar para ese día.
 
-1. **Haz que `vmbr1` entienda de etiquetas.** Hazlo VLAN aware desde nodo > Network. Sin esto, el bridge pasa por alto las etiquetas de las tarjetas y todas las VM se verían entre sí, como se explica en [VLAN: varias redes en un mismo bridge](#vlan-varias-redes-en-un-mismo-bridge).
+1. **Mide la VM.** Mide `web01` desde apagada: la RAM usada en el host antes y después de arrancarla, su tiempo de arranque y su `uname -r`. Son las tres filas de [LXC frente a VM](#lxc-frente-a-vm-con-numeros) que mejor muestran lo que cuesta tener un kernel propio. Apunta también la condición en que mides: tu Proxmox es una VM del Proxmox del centro con el disco en la red, y los tiempos saldrán bastante más altos que los de la tabla de referencia, que se tomó en un portátil con SSD. Lo que tiene que mantenerse es la proporción entre la VM y el contenedor.
 
-2. **Clona las VM de prueba en sus VLAN.** Clona de la plantilla tres VM de prueba, enlazadas porque solo viven esta sesión y con 512 MB porque la memoria no da para más, con la tarjeta en `vmbr1` e IP fija por cloud-init, porque en esa red no hay DHCP: `vlan10a` (160, `192.168.10.11/24`) y `vlan10b` (161, `192.168.10.12/24`) con la etiqueta 10, y `vlan20a` (162, `192.168.20.11/24`) con la 20. `vlan10a` lleva además, para que lo ensayes hoy, lo que pide la práctica evaluable: ballooning con un mínimo de 256 MB y puerta de enlace `192.168.10.1`, aunque hoy nadie tenga esa dirección.
+    *Pista:* en la VM, el tiempo de arranque es lo que tarda en contestar por SSH; dentro, `systemd-analyze` lo desglosa.
 
-    *Pista:* la etiqueta va en la propia tarjeta (pestaña Hardware, Network Device, VLAN Tag). El host no llega a esas VLAN, así que solo se entra por la consola: ponles una contraseña en la pestaña Cloud-Init (Password; por ejemplo, `lab`).
+2. **Mide un contenedor igual.** Crea el contenedor `ct01` (ID 170, no privilegiado, 512 MB) como en [LXC frente a VM](#lxc-frente-a-vm-con-numeros) y toma las mismas medidas. Compara su `uname -r` con el de la VM y con el del host: es la prueba directa de quién tiene kernel propio y quién no.
 
-3. **Comprueba quién ve a quién.** Desde la consola de `vlan10a` y de `vlan20a`, comprueba que cada VM solo ve a las de su VLAN: el ping que llega demuestra que la red funciona, y el que falla, que está aislada. Después localiza en el host en qué VLAN ha puesto el bridge cada interfaz `tap`, que es la misma comprobación vista desde dentro del switch. Al terminar, apaga las tres, porque el paso 4 necesita esa RAM; si no vas a hacer «Si te sobra tiempo», destrúyelas.
+    *Pista:* si el nombre de la plantilla de Debian ha cambiado, usa el que aparezca en la lista del botón **Templates** de `local` → CT Templates.
 
-    *Pista:* la consola es el botón **Console** de cada VM. En la Shell del nodo, `bridge vlan show`.
+3. **Vuelve atrás con un snapshot.** Haz un snapshot de `web01` llamado `antes-nginx`, mirando `lvs pve` antes y después: el volumen que aparece es el que tendrás que explicar al final con lo visto en [Snapshots](#snapshots). Instala nginx dentro, vuelve al snapshot y comprueba si nginx sigue. Es el uso normal de un snapshot: una red de seguridad justo antes de un cambio.
 
-4. **Mide el laboratorio.** Mide CPU, disco y red en `web01` y `app01`, que están en `vmbr0` y pueden instalar paquetes, con las herramientas de [capacidades y limitaciones](#capacidades-y-limitaciones-y-como-medirlas): CPU y disco, primero en `web01` sola y después con `app01` haciendo lo mismo a la vez; la red, entre las dos. El número que importa es el que sale cuando las dos compiten, porque es el límite del hipervisor; por eso anota junto a cada número la condición en que lo tomaste.
+    *Pista:* tras el rollback, `web01` queda apagada.
 
-    *Pista:* las herramientas hay que instalarlas también dentro de cada VM, no solo en el host.
+4. **Deja preparadas las medidas.** Instala `stress-ng`, `fio` e `iperf3` dentro de `web01` y de `app01`. La práctica evaluable mide en esas dos VM la CPU, el disco y la red, primero cada una sola y después compitiendo, y no sirven las del host, porque lo que se quiere saber es lo que recibe una VM. Hazlo después del rollback del paso 3, o el snapshot se llevaría la instalación de `web01`. Antes de irte, lee en [capacidades y limitaciones](#capacidades-y-limitaciones-y-como-medirlas) qué prueba hace cada herramienta y cómo se anota el resultado.
 
-<span class="et et-com">Comprobación</span> la pestaña Hardware de la 160 muestra el mínimo de 256 MB en la memoria y su pestaña Cloud-Init, la puerta de enlace en la IP Config de `net0`; el ping funciona entre `192.168.10.11` y `192.168.10.12` y falla hacia `192.168.20.11`; `bridge vlan show` coloca cada `tap` en su VLAN; las tres VM de prueba aparecen apagadas en el árbol de recursos al empezar las medidas, y `app01` y `mon01` siguen encendidas; tienes un valor de bogo ops/s, de IOPS y de Gbit/s con y sin carga simultánea.
+    *Pista:* `app01` es de Mantenimiento: instala solo esos tres paquetes y no toques sus contenedores.
 
-<span class="et et-ent">Para practicar</span> Dibuja en el documento de la unidad, en Mermaid o a mano, las tres VM, el bridge y las VLAN, y guarda las capturas del ping y de `bridge vlan show`. Pasa a una tabla las medidas de CPU, disco y red con la condición de cada una: la práctica evaluable parte de ella.
+<span class="et et-com">Comprobación</span> Tienes tiempo de arranque, RAM en el host y `uname -r` para la VM y para el LXC (el LXC muestra el kernel del host); tras el rollback, nginx no está en `web01`; en `lvs pve` apareció `snap_vm-110-disk-0_antes-nginx` al crear el snapshot; dentro de `web01` y de `app01`, `stress-ng --version`, `fio --version` e `iperf3 --version` responden.
 
-<span class="et et-ext">Si te sobra tiempo</span> Vuelve a encender las tres VM de prueba y mide con `iperf3` el ancho de banda entre las dos VM de la VLAN 10: para instalarlo necesitan Internet, así que añade a cada una una segunda tarjeta temporal en `vmbr0` (Hardware → Add → Network Device; dentro, `sudo dhclient` sobre la interfaz nueva que muestre `ip -br link`), instala, quita la tarjeta (**Remove** en Hardware) y mide entre `192.168.10.11` y `192.168.10.12`. Cambia `vlan20a` a tag 10 (editando su tarjeta en Hardware) y comprueba que ahora sí responde al ping desde `vlan10a`. Al terminar, vuelve a apagar las tres o bórralas (**More → Remove**).
+<span class="et et-ent">Para practicar</span> Guarda en el documento de la unidad tu tabla VM frente a LXC con sus capturas y las de `lvs pve` antes y después del snapshot, explicando qué volumen apareció. La práctica evaluable parte de la tabla: de ella sale la fila de RAM de su tabla de capacidades.
 
-## Sesión 6 · Práctica evaluable
+<span class="et et-ext">Si te sobra tiempo</span> Haz la copia que sobrevive a perder el disco: un backup de `web01` a `local` en modo snapshot, apuntando lo que ocupa y lo que tarda, y restáuralo como VM 151 desde la web, como en [Backups](#backups-con-vzdump-y-proxmox-backup-server). Restaurar es la mitad que importa: de una copia que nunca se ha restaurado no se sabe si sirve. Arranca la 151 con `web01` apagada, porque tienen la misma MAC y en el mismo bridge se pisarían, y apágala al terminar. Borra después el snapshot desde la pestaña Snapshots y comprueba en `lvs pve` que el volumen desaparece. Con `web01` encendida, `ps aux | grep 'kvm -id 110'` en el host te enseña la línea de QEMU completa que Proxmox ha construido desde `/etc/pve/qemu-server/110.conf`: localiza en ella el disco virtio-scsi, la tarjeta virtio-net y el tipo de CPU.
 
-<p class="ut-meta" markdown>23 de octubre · Práctica evaluable · <span class="dur" tabindex="0" aria-label="Explicación · 10 min&#10;Trabajo en la práctica · 100 min" data-dur="Explicación · 10 min&#10;Trabajo en la práctica · 100 min">:material-school:<i class="dur-barra" style="--teoria:9%"></i>:material-flask:</span></p>
+## Sesión 10 · Práctica evaluable
 
-Esta sesión no tiene teoría nueva: demuestras que sabes hacer sin hoja lo que has hecho en las cinco anteriores, sobre el Proxmox que montaste en ellas. El criterio de la unidad (RA1 a) tiene dos mitades, y el informe recoge las dos: un hipervisor instalado y configurado, con una VM desplegada exactamente como se pide, y el conocimiento de sus capacidades y limitaciones, demostrado con medidas propias. Los primeros 10 minutos son para aclarar el enunciado; el resto es tiempo de trabajo. La tabla de capacidades y limitaciones no pide medidas nuevas: sale de las que ya tomaste en las hojas con las herramientas del apartado [capacidades y limitaciones](#capacidades-y-limitaciones-y-como-medirlas) de la sesión 5, cada una con la condición en que se tomó.
+<p class="ut-meta" markdown>6 de noviembre · Práctica evaluable · <span class="dur" tabindex="0" aria-label="Explicación · 10 min&#10;Trabajo en la práctica · 100 min" data-dur="Explicación · 10 min&#10;Trabajo en la práctica · 100 min">:material-school:<i class="dur-barra" style="--teoria:9%"></i>:material-flask:</span></p>
 
-El orden de lo que sigue no es casual: primero haces sitio en la memoria, porque `app-eval` no cabe con todo encendido; después abres el camino para llegar a ella, porque en su VLAN no hay nada; y solo entonces la despliegas.
+Esta sesión no tiene teoría nueva: demuestras que sabes hacer sin hoja lo que se ha trabajado en la unidad, sobre el Proxmox que has montado en ella. El criterio de la unidad (RA1 a) tiene dos mitades, y el informe recoge las dos: un hipervisor instalado y configurado, con una VM desplegada exactamente como se pide, y el conocimiento de sus capacidades y limitaciones, demostrado con medidas propias. Los primeros 10 minutos son para aclarar el enunciado; el resto es tiempo de trabajo. Las medidas de CPU, disco y red se toman hoy, con las herramientas que dejaste instaladas en la A1.4 y las pruebas de [capacidades y limitaciones](#capacidades-y-limitaciones-y-como-medirlas); las de RAM y de virtualización anidada ya las tienes de las hojas.
 
-**Antes del enunciado, la RAM.** Apaga lo que no hace falta hoy: `web01`, la VM 151 restaurada, el contenedor `ct01` y, si siguen encendidas, `web02` y las VM de la VLAN. `app01` y `mon01` siguen encendidas, porque las usa Mantenimiento. Quedan unos 2 GB del propio Proxmox, los 5 GB de esas dos VM y los 3 GB de `app-eval`: 10 de los 12 GB.
+El orden de lo que sigue no es casual: primero mides, porque las medidas necesitan `web01` encendida y con Internet; después haces sitio en la memoria, porque `app-eval` no cabe con todo encendido; después abres el camino para llegar a ella, porque en su VLAN no hay nada; y solo entonces la despliegas. Reserva para las medidas unos 30 minutos: si una prueba se alarga, te quedas sin tiempo para el despliegue.
 
-**Después, el camino de entrada.** Una VM en la VLAN 30 de `vmbr1` no tiene DHCP, ni salida a Internet, ni camino hacia el host, porque la `10.10.10.1` del host en `vmbr1` va sin etiquetar (por qué, en [VLAN: varias redes en un mismo bridge](#vlan-varias-redes-en-un-mismo-bridge)). Crea primero en el host la interfaz VLAN `vmbr1.30`, con `192.168.30.1/24`: en la web es Create > Linux VLAN, sobre `vmbr1` y con tag 30. Hazlo con `app-eval` ya clonada y encendida: si en `vmbr1` no hay ninguna VM arrancada, el bridge no tiene puertos y Apply Configuration falla con `ifreload -a failed`. Esa dirección es la puerta de entrada por SSH a la VM, que lleva una IP fija de esa misma red por cloud-init. El agente QEMU no hay que instalarlo: viene dentro de la imagen de la plantilla, como se comprobó en la A1.3, que es justo lo que salva esta práctica, porque sin Internet no se puede instalar nada en el primer arranque. Por la misma razón, la actualización de paquetes que cloud-init hace en ese primer arranque solo puede fallar: puedes desactivarla con la opción que explica [cloud-init](#cloud-init) o, si la dejas, no te extrañe ver ese fallo en su registro aunque la VM esté bien.
+**Primero, las medidas.** Mide CPU, disco y red en `web01` y `app01`, que están en `vmbr0` y tienen Internet: la CPU y el disco, primero en `web01` sola y después con `app01` haciendo la misma prueba a la vez; la red, con `iperf3` entre las dos. El número que importa es el que sale cuando las dos compiten, porque ese es el límite del hipervisor; por eso anota junto a cada número la condición en que lo tomaste, como explica [capacidades y limitaciones](#capacidades-y-limitaciones-y-como-medirlas). Si no llegaste a instalar las herramientas en la A1.4, empieza por ahí, dentro de las dos VM y no en el host.
 
-**Enunciado.** Despliega desde la plantilla propia una VM llamada `app-eval`, con un ID libre del rango de pruebas de dev (150 a 199), 2 vCPU, 3 GB de RAM con ballooning (mínimo 1 GB), disco de 20 GB, red en `vmbr1` con VLAN 30, IP fija por cloud-init en `192.168.30.0/24` con puerta de enlace `192.168.30.1`, usuario `ops` con clave SSH y agente QEMU funcionando.
+**Después, la RAM.** Apaga lo que no hace falta hoy: `web01`, el contenedor `ct01` y, si las creaste, la VM 151 restaurada y `web02`. `app01` y `mon01` siguen encendidas, porque las usa Mantenimiento. Quedan unos 2 GB del propio Proxmox, los 5 GB de esas dos VM y los 3 GB de `app-eval`: 10 de los 12 GB.
+
+**Después, el camino de entrada.** Una VM en la VLAN 30 de `vmbr1` no tiene DHCP, ni salida a Internet, ni camino hacia el host, porque la `10.10.10.1` del host en `vmbr1` va sin etiquetar (por qué, en [VLAN: varias redes en un mismo bridge](#vlan-varias-redes-en-un-mismo-bridge)). Antes que nada, `vmbr1` tiene que entender de etiquetas: márcalo como VLAN aware, como en el primer paso de la [demostración de VLAN](#demostracion-vlan-en-vmbr1). Después crea en el host la interfaz VLAN `vmbr1.30`, con `192.168.30.1/24`: en la web es Create > Linux VLAN, sobre `vmbr1` y con tag 30. Hazlo con `app-eval` ya clonada y encendida: si en `vmbr1` no hay ninguna VM arrancada, el bridge no tiene puertos y Apply Configuration falla con `ifreload -a failed`. Esa dirección es la puerta de entrada por SSH a la VM, que lleva una IP fija de esa misma red por cloud-init. El agente QEMU no hay que instalarlo: viene dentro de la imagen de la plantilla, como se comprobó en la A1.3, que es justo lo que salva esta práctica, porque sin Internet no se puede instalar nada en el primer arranque. Por la misma razón, la actualización de paquetes que cloud-init hace en ese primer arranque solo puede fallar: puedes desactivarla con la opción que explica [cloud-init](#cloud-init) o, si la dejas, no te extrañe ver ese fallo en su registro aunque la VM esté bien.
+
+**Enunciado.** Despliega desde la plantilla propia una VM llamada `app-eval`, con un ID libre del rango de pruebas de dev (150 a 199), 2 vCPU, 3 GB de RAM con ballooning (mínimo 1 GB), disco de 20 GB, red en `vmbr1` con VLAN 30, IP fija por cloud-init en `192.168.30.0/24` con puerta de enlace `192.168.30.1`, usuario `ops` con clave SSH y agente QEMU funcionando. Qué es el ballooning y dónde se configura está en [crear una VM](#crear-una-vm-los-parametros-que-importan).
 
 <span class="et et-ent">Entrega</span> Un informe (máximo 3 páginas) con:
 
-- [ ] Configuración del hipervisor, reutilizando lo que guardaste en la A1.2 (pasos 1, 4 y 5 de la A1.2): repositorios sin `pve-enterprise`, la lista de usuarios con `admin@pve` y `/etc/network/interfaces`, ahora con `vmbr1.30`.
-- [ ] Capturas del proceso: creación de `vmbr1.30` en el host, clonado, y las pestañas Hardware y Cloud-Init de la VM antes de arrancarla (lo mismo que en los pasos 3 y 5 de la A1.3 y el paso 2 de la A1.5).
+- [ ] Configuración del hipervisor, reutilizando lo que guardaste en la A1.2 (pasos 1, 4 y 5 de la A1.2): repositorios sin `pve-enterprise`, la lista de usuarios con `admin@pve` y `/etc/network/interfaces`, ahora con `vmbr1` VLAN aware y `vmbr1.30`.
+- [ ] Capturas del proceso: `vmbr1` marcado como VLAN aware y la creación de `vmbr1.30` en el host, el clonado, y las pestañas Hardware y Cloud-Init de la VM antes de arrancarla (lo mismo que en el paso 3 de la A1.3).
 - [ ] Evidencia de que la VM cumple lo pedido: las pestañas Hardware y Cloud-Init de la VM, `free -h` y `nproc` dentro de la VM, `lsblk`, IP en la VLAN 30 visible en la web de Proxmox gracias al agente, acceso SSH como `ops` desde el host a través de `192.168.30.1`.
-- [ ] Una tabla de capacidades y limitaciones del hipervisor del laboratorio (CPU, RAM, disco, red, anidada) con una medida real de cada una y la condición en que se tomó: CPU, disco y red del paso 4 de la A1.5, RAM de los pasos 1 y 2 de la A1.4 y anidada del paso 5 de la A1.1.
+- [ ] Una tabla de capacidades y limitaciones del hipervisor del laboratorio (CPU, RAM, disco, red, anidada) con una medida real de cada una y la condición en que se tomó: CPU, disco y red de las medidas de hoy, con y sin carga simultánea; RAM de los pasos 1 y 2 de la A1.4, y anidada del paso 5 de la A1.1.
 
 | Criterio (RA1 a) | Peso |
 |----|----|
@@ -1140,7 +1114,7 @@ El orden de lo que sigue no es casual: primero haces sitio en la memoria, porque
 | VM cumple la especificación y se demuestra | 40 % |
 | Tabla de capacidades y limitaciones con medidas reales | 30 % |
 
-Cuando hayas entregado, destruye las VM de prueba de la unidad, que ya no hacen falta y dejan libre el rango 150 a 199 para las unidades siguientes: `app-eval`, la 151 restaurada, `web02` (150) si la creaste y el contenedor `ct01` (170). `web01`, `app01` y `mon01` se quedan.
+Cuando hayas entregado, destruye las VM de prueba de la unidad, que ya no hacen falta y dejan libre el rango 150 a 199 para las unidades siguientes: `app-eval`, el contenedor `ct01` (170) y, si las creaste, la 151 restaurada y `web02` (150). `web01`, `app01` y `mon01` se quedan.
 
 ## Errores frecuentes en el laboratorio
 
@@ -1164,9 +1138,9 @@ Cuando hayas entregado, destruye las VM de prueba de la unidad, que ya no hacen 
 
 **node_exporter contesta en el 9100 y no en el 29100.** La imagen se preparó sin el `--write` de [Imágenes cloud y cómo se preparan](#imagenes-cloud-y-como-se-preparan), y el servicio arranca con el fichero de fábrica del paquete, con `ARGS` vacío. Dentro del clon, `ss -tlnp` muestra el puerto en el que escucha, y `/etc/default/prometheus-node-exporter` no lleva la línea del curso. En las VM ya clonadas se escribe esa línea a mano y se reinicia `prometheus-node-exporter`; la plantilla se rehace desde la imagen, a la que basta pasar otra vez `virt-customize` con solo el `--write`, porque la primera pasada ya le dejó los paquetes.
 
-**Las VM en VLAN 10 y 20 se ven entre sí.** El bridge no es VLAN-aware (falta `bridge-vlan-aware yes` y aplicar la configuración) o las VM se conectaron sin `tag`. `bridge vlan show` en el host muestra en qué VLAN está cada `tap`.
+**VM en VLAN distintas se ven entre sí, o `app-eval` no responde desde `vmbr1.30`.** El bridge no es VLAN-aware (falta `bridge-vlan-aware yes` y aplicar la configuración) o la VM se conectó sin `tag`. `bridge vlan show` en el host muestra en qué VLAN está cada `tap`.
 
-**Ping entre VM de la red interna funciona pero no salen a Internet.** Es lo esperado en un bridge sin puerto físico. Si hace falta salida, se pone NAT en el host (`ip_forward` y `MASQUERADE` hacia `vmbr0`). En la UT2, la de la VPC, a partir del 4 de noviembre la da una VM router en cada entorno.
+**Ping entre VM de la red interna funciona pero no salen a Internet.** Es lo esperado en un bridge sin puerto físico. Si hace falta salida, se pone NAT en el host (`ip_forward` y `MASQUERADE` hacia `vmbr0`). En la UT2, la de la VPC, a partir del 11 de noviembre la da una VM router en cada entorno.
 
 **Rendimiento de disco pésimo en la VM (cientos de IOPS).** Disco en bus IDE o SATA en lugar de VirtIO SCSI, o caché de disco en `writethrough` sobre disco mecánico, o el host anidado sobre un almacén lento del Proxmox del centro. Conviene comprobar la pestaña Hardware de la VM y medir con `fio` en el host y en la VM para localizar la capa que frena.
 

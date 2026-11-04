@@ -1,16 +1,16 @@
 # UT2 · Nubes privadas virtuales (VPC)
 
-<p class="ut-meta">14 h · Sesiones 7 a 13 · RA1 CE b, c</p>
+<p class="ut-meta">8 h · Sesiones 11 a 14 · RA1 CE b, c</p>
 
-La UT1 dejó un Proxmox funcionando, una plantilla Debian con cloud-init (ID 9000; cloud-init es lo que configura nombre, red y usuario en el primer arranque de cada clon) y dos bridges (los switches virtuales del nodo). Todas las VM clonadas hasta ahora cuelgan de `vmbr0`, la red del laboratorio: reciben la dirección de su router y se ven con cualquier equipo de esa red. Para probar vale, pero un servicio de verdad no se monta así, por dos razones. La primera es que sus piezas no deberían compartir red: si alguien se hace con el servidor web, que es lo que se ve desde fuera, no debería tener la base de datos a un paso. La segunda es que lo que se ensaya no debería poder tocar lo que está en marcha. Por eso las empresas trabajan con varios **entornos**: *dev* (desarrollo), donde se construye y se prueba sin miedo a romper; *pre* (preproducción), una copia de producción donde se ensaya cada cambio antes de hacerlo de verdad; y *pro* (producción), donde corre el servicio que usan los clientes.
+La UT1 dejó un Proxmox funcionando, una plantilla Debian con cloud-init (ID 9000; cloud-init es lo que configura nombre, red y usuario en el primer arranque de cada clon) y sus bridges (los switches virtuales del nodo). Todas las VM clonadas hasta ahora cuelgan de `vmbr0`, la red del laboratorio: reciben la dirección que reparte el propio nodo y se ven con cualquier equipo de esa red. Para probar vale, pero un servicio de verdad no se monta así, por dos razones. La primera es que sus piezas no deberían compartir red: si alguien se hace con el servidor web, que es lo que se ve desde fuera, no debería tener la base de datos a un paso. La segunda es que lo que se ensaya no debería poder tocar lo que está en marcha. Por eso las empresas trabajan con varios **entornos**: *dev* (desarrollo), donde se construye y se prueba sin miedo a romper; *pre* (preproducción), una copia de producción donde se ensaya cada cambio antes de hacerlo de verdad; y *pro* (producción), donde corre el servicio que usan los clientes.
 
-Esta unidad construye la red de esos tres entornos. Cada uno es una VPC, una red privada definida por software: un bloque de direcciones propio, partido en cuatro subredes (gestión, front, back y data), con su router, su DHCP y su DNS, y aislado de los otros dos, de forma que lo que pase en dev no pueda alcanzar pre ni pro. Se hace en el orden en que se haría en una empresa: el plano en papel, la red de dev en el SDN de Proxmox, el router que reparte direcciones y nombres, las pruebas que demuestran que funciona, pre y pro aislados de dev y, al final, lo mismo escrito en un script que habla con la API de Proxmox, para poder repetirlo sin clics. `app01` y `mon01` se quedan de momento en la red del laboratorio, porque Mantenimiento las usa a diario, y esta unidad les deja reservadas su dirección y su nombre. Llegan a la VPC el 27 de noviembre, ya detrás del cortafuegos que monta la unidad de seguridad por capas (UT3).
+Esta unidad construye la red de esos tres entornos. Cada uno es una VPC, una red privada definida por software: un bloque de direcciones propio, partido en cuatro subredes (gestión, front, back y data), con su router, su DHCP y su DNS, y aislado de los otros dos, de forma que lo que pase en dev no pueda alcanzar pre ni pro. Se hace en el orden en que se haría en una empresa: primero el plano en papel y la red de dev en el SDN de Proxmox; después el router que reparte direcciones y nombres, con las pruebas que demuestran que funciona; y al final pre y pro, aislados de dev y creados con un script que habla con Proxmox, para poder repetirlos sin clics. `app01` y `mon01` se quedan de momento en la red del laboratorio, porque Mantenimiento las usa a diario, y esta unidad les deja reservadas su dirección y su nombre. Llegan a la VPC el 27 de noviembre, ya detrás del cortafuegos que monta la unidad de seguridad por capas (UT3).
 
-## Sesión 7 · Diseño de la VPC dev
+## Sesión 11 · Diseño y VPC dev con SDN
 
-<p class="ut-meta" markdown>28 de octubre · Teoría y práctica · <span class="dur" tabindex="0" aria-label="Qué es una VPC · 10 min&#10;Diseño de direccionamiento · 15 min&#10;A2.1 Diseño · 85 min" data-dur="Qué es una VPC · 10 min&#10;Diseño de direccionamiento · 15 min&#10;A2.1 Diseño · 85 min">:material-school:<i class="dur-barra" style="--teoria:23%"></i>:material-flask:</span></p>
+<p class="ut-meta" markdown>11 de noviembre · Teoría y práctica · <span class="dur" tabindex="0" aria-label="Qué es una VPC · 5 min&#10;Diseño de direccionamiento · 10 min&#10;SDN en Proxmox · 10 min&#10;A2.1 Diseño y VPC dev con SDN · 85 min" data-dur="Qué es una VPC · 5 min&#10;Diseño de direccionamiento · 10 min&#10;SDN en Proxmox · 10 min&#10;A2.1 Diseño y VPC dev con SDN · 85 min">:material-school:<i class="dur-barra" style="--teoria:23%"></i>:material-flask:</span></p>
 
-Antes de crear una sola red en Proxmox hay que decidir cómo será, porque el direccionamiento es lo más caro de cambiar después. Esta sesión hace ese plano. La teoría empieza por lo que se quiere imitar, la VPC de una nube pública, y por sus piezas, porque todas tienen equivalente en el laboratorio. Después baja al direccionamiento en el orden en que se decide: el repaso del cálculo de subredes, qué rangos se pueden usar sin chocar con nadie, y cómo se reparten entre entornos y zonas, con una convención para las direcciones y otra para los números de VM. La hoja aplica todo eso a un plano propio de los tres entornos.
+Antes de crear una sola red en Proxmox hay que decidir cómo será, porque el direccionamiento es lo más caro de cambiar después; y una vez decidido, hay que construirlo de forma que se pueda repetir para los tres entornos. Esta sesión hace las dos cosas, en ese orden. La teoría empieza por lo que se quiere imitar, la VPC de una nube pública, y por sus piezas, porque todas tienen equivalente en el laboratorio. Después baja al direccionamiento en el orden en que se decide: qué rangos se pueden usar sin chocar con nadie y cómo se reparten entre entornos y zonas, con una convención para las direcciones y otra para los números de VM. Por último presenta el SDN de Proxmox, la herramienta que convierte ese plano en redes: sus tres objetos, por qué cada zona lleva su propia VNet, qué pasa al aplicar y el DHCP que trae de serie. En clase se explica lo que decide la hoja; el repaso de CIDR y subnetting (que ya se trae del ciclo), la tabla de tipos de zona, la comparación de VLAN y VXLAN y la alternativa sin SDN son de consulta y se leen antes de clase. La hoja completa un plano propio de los tres entornos y monta la red de dev con las dos primeras VM.
 
 ### Qué es una VPC
 
@@ -37,7 +37,7 @@ Antes de crear una sola red en Proxmox hay que decidir cómo será, porque el di
 
 El laboratorio tiene un solo nodo, así que no hay zonas de disponibilidad que repartir; qué son y cómo se simulan con uno o con dos nodos está en [Zonas de disponibilidad](../ampliacion.md#zonas-de-disponibilidad).
 
-**Zonas: una subred por papel.** Dentro de la VPC, las máquinas no van todas juntas. Una aplicación web típica tiene tres capas: el servidor web o proxy que recibe las peticiones de fuera, la aplicación que las procesa y la base de datos que guarda los datos. Cada capa necesita una exposición distinta (el proxy tiene que verse desde Internet; la base de datos, solo desde la aplicación), y por eso cada una va en su propia subred, que en el curso se llama **zona**: *front* para el proxy, *back* para la aplicación y *data* para la base de datos, más una cuarta, *gestión*, para lo que administra y vigila (el puesto de administración y la monitorización). Separarlas en subredes es lo que permite poner reglas entre ellas, porque el tráfico de una zona a otra tiene que pasar por el router, que es donde se puede filtrar. El cortafuegos que pone esas reglas sustituye al router el 20 de noviembre, al empezar la unidad de seguridad por capas.
+**Zonas: una subred por papel.** Dentro de la VPC, las máquinas no van todas juntas. Una aplicación web típica tiene tres capas: el servidor web o proxy que recibe las peticiones de fuera, la aplicación que las procesa y la base de datos que guarda los datos. Cada capa necesita una exposición distinta (el proxy tiene que verse desde Internet; la base de datos, solo desde la aplicación), y por eso cada una va en su propia subred, que en el curso se llama **zona**: *front* para el proxy, *back* para la aplicación y *data* para la base de datos, más una cuarta, *gestión*, para lo que administra y vigila (el puesto de administración y la monitorización). Separarlas en subredes es lo que permite poner reglas entre ellas, porque el tráfico de una zona a otra tiene que pasar por el router, que es donde se puede filtrar. El cortafuegos que pone esas reglas sustituye al router el 25 de noviembre, al empezar la unidad de seguridad por capas.
 
 **Subredes públicas y privadas.** Una subred es pública cuando tiene ruta directa a Internet en los dos sentidos: ahí van balanceadores, proxies inversos y bastiones (las máquinas por las que se entra a administrar). Una subred es privada cuando solo sale por NAT (puede descargar paquetes, nadie puede entrar) o directamente no sale (la base de datos no tiene ninguna razón para hablar con Internet). En el laboratorio, front será la subred «pública» de cada entorno; back y data, las privadas; y gestión, privada y además solo accesible desde una red concreta.
 
@@ -190,44 +190,9 @@ flowchart LR
 
 <p class="pie" markdown>Entre dev y pre no hay ninguna línea, y eso es justo el aislamiento: no es una regla que prohíbe, es que no existe el camino.</p>
 
-### A2.1 Diseño (sesión 7)
-
-<span class="et et-obj">Objetivo</span> Tener el plano de los tres entornos en papel, con una tabla de direccionamiento propia justificada. Es el ejercicio de diseño que pide el criterio de evaluación y el primer punto de la memoria de la práctica evaluable. El laboratorio se monta después con los rangos del curso, que son los que comparten las dos asignaturas, pero las decisiones son las mismas que tomas hoy: un bloque por entorno, una subred por zona y una convención para las direcciones y otra para los ID.
-
-<span class="et et-pre">Antes de empezar</span>
-
-- Papel o una herramienta de dibujo (un diagrama Mermaid vale), el nodo de la UT1 para `ipcalc` y la VM `puesto` con `git`.
-- Explicado en esta sesión: [qué es una VPC](#que-es-una-vpc) y [el diseño de direccionamiento](#diseno-de-direccionamiento), con el [repaso de CIDR](#repaso-rapido-de-cidr-y-subnetting), [la RFC 1918](#rfc-1918-y-el-problema-del-solapamiento) y [el reparto en /16 y /24](#por-que-16-por-entorno-y-24-por-subred).
-
-<span class="et et-pas">Pasos</span>
-
-Vas a hacer el plano en el orden de la teoría: primero el dibujo, con las piezas de cada entorno; después los números, eligiendo los bloques y repartiéndolos; luego su justificación, y al final la comprobación de que no chocan con nada. El último paso no es de diseño: crea el repositorio donde vas a guardar el trabajo de las hojas, empezando por el de hoy.
-
-1. **Dibuja los tres entornos.** Representa dev, pre y pro con sus cuatro zonas, el router de cada uno y los servicios de red que dará (DHCP, DNS y NAT), como el esquema de [Por qué /16 por entorno y /24 por subred](#por-que-16-por-entorno-y-24-por-subred) pero con tus nombres. Fíjate en lo que no tiene que haber: ninguna línea entre entornos, porque el aislamiento es que no exista el camino.
-
-2. **Elige tus bloques y rellena la tabla.** Haz tu tabla de direccionamiento (entorno, bloque, gestión, front, back, data) con un bloque de la RFC 1918 distinto del ejemplo, y escribe en una línea por qué ese: que no choque con las redes que ya existen ni con las que podrían tener que unirse algún día, como explica [el problema del solapamiento](#rfc-1918-y-el-problema-del-solapamiento). Es solo el ejercicio de diseño: el laboratorio se monta con los rangos del ejemplo, que son los que usan las dos asignaturas.
-
-3. **Justifica cada tamaño.** Para cada bloque y cada subred, su máscara, sus direcciones, sus hosts útiles y su broadcast, y por qué ese tamaño y no otro. Añade la convención de IP dentro de cada /24 y el rango de ID de VM por entorno, las dos del apartado de diseño: son las reglas que harán que una dirección o un número de VM digan dónde vive cada máquina.
-
-4. **Comprueba que nada se solapa.** Con `ipcalc` en el nodo, comprueba que ningún bloque se solapa con otro, ni entre entornos ni con la red del laboratorio, que es la de `vmbr0`. Un solapamiento con la red del laboratorio no da error al crear nada: aparece semanas después, como una máquina a la que no se llega.
-
-    *Pista:* `ipcalc` no compara bloques; te da la primera y la última dirección de cada uno, y el solapamiento se ve al ponerlos en orden.
-
-5. **Crea el repositorio de entregas.** Crea en el puesto `entregas-5166`, el repositorio Git donde guardas el trabajo de las hojas de esta asignatura, con una carpeta por hoja dentro de `ut2/` (la de hoy, `ut2/a21`). De momento es local: el 6 de noviembre, en la A2.4, pasa al puesto de administración, y el 17 de noviembre recibe su remoto en el Gitea que monta la A2.6 de Mantenimiento.
-
-<span class="et et-com">Comprobación</span> Ningún bloque se solapa entre sí ni con la red del laboratorio, cada tamaño está justificado con el cálculo de hosts y `git -C entregas-5166 status` responde.
-
-<span class="et et-ent">Para practicar</span> Guarda en `ut2/a21` de `entregas-5166` el esquema y la tabla de direccionamiento con las justificaciones.
-
-## Sesión 8 · Crear la VPC dev con SDN
-
-<p class="ut-meta" markdown>30 de octubre · Teoría y práctica · <span class="dur" tabindex="0" aria-label="SDN en Proxmox · 15 min&#10;A2.2 Crear la VPC dev con SDN · 95 min" data-dur="SDN en Proxmox · 15 min&#10;A2.2 Crear la VPC dev con SDN · 95 min">:material-school:<i class="dur-barra" style="--teoria:14%"></i>:material-flask:</span></p>
-
-Con el plano hecho, toca construir la red de dev. En la UT1 se vio cómo se hace una red interna a mano: un bridge sin puerto físico en el `/etc/network/interfaces` del nodo. Eso sirve para una red, pero no para doce (cuatro zonas por tres entornos) que, además, en un clúster habría que repetir igual en cada nodo. Para eso Proxmox tiene el SDN: la red se describe una vez, en la configuración del clúster, y cada nodo la construye. La teoría va de lo general a lo concreto: qué es el SDN y sus tres objetos; por qué cada zona del diseño lleva su propia VNet; qué tipo de zona del SDN se elige y por qué; qué pasa por debajo al aplicar, que es donde se mira cuando algo falla; y el DHCP que trae el propio SDN, que da las primeras direcciones mientras el entorno no tiene router propio. La hoja crea la zona y las cuatro VNets de dev y conecta a ellas las dos primeras VM del servicio.
-
 ### SDN en Proxmox
 
-**El problema.** Una VNet de la VPC no es más que un bridge en el nodo, como los que ya se han creado a mano. Pero hacerlo así tiene dos pegas. Cada bridge se escribe en el fichero de red de un nodo, y en un clúster hay que repetirlo idéntico en todos, nodo a nodo; y nada lleva la cuenta de qué direcciones están dadas ni a quién. Un **SDN** (*Software-Defined Network*, red definida por software) resuelve las dos: la red se describe una sola vez, en un sitio central, y el software crea en cada nodo los bridges, las VLAN o los túneles que hagan falta y lleva el registro de las direcciones. Proxmox lo trae instalado de serie desde la versión 8.1, en Datacenter → SDN.
+**El problema.** Con el plano hecho, toca construir la red de dev. Una VNet de la VPC no es más que un bridge en el nodo, como los que en la UT1 se crearon a mano en `/etc/network/interfaces`. Eso sirve para una red, pero no para doce (cuatro zonas por tres entornos), y hacerlo así tiene dos pegas. Cada bridge se escribe en el fichero de red de un nodo, y en un clúster hay que repetirlo idéntico en todos, nodo a nodo; y nada lleva la cuenta de qué direcciones están dadas ni a quién. Un **SDN** (*Software-Defined Network*, red definida por software) resuelve las dos: la red se describe una sola vez, en un sitio central, y el software crea en cada nodo los bridges, las VLAN o los túneles que hagan falta y lleva el registro de las direcciones. Proxmox lo trae instalado de serie desde la versión 8.1, en Datacenter → SDN.
 
 **Tres objetos, de lo general a lo particular.** La jerarquía tiene tres niveles y conviene tenerla clara:
 
@@ -262,7 +227,7 @@ Por eso cada entorno tiene cuatro VNets, una por zona, y cada VNet una sola subr
 
 | Zona | Cómo funciona | Alcance | Cuándo |
 |---|---|---|---|
-| Simple | Crea un bridge Linux sin interfaz física por cada VNet. Aislado. Puede hacer SNAT hacia fuera. | Un nodo (las VM de otro nodo no ven la red) | Laboratorio de un solo nodo, redes de pruebas, lo que se usa en la A2.2 |
+| Simple | Crea un bridge Linux sin interfaz física por cada VNet. Aislado. Puede hacer SNAT hacia fuera. | Un nodo (las VM de otro nodo no ven la red) | Laboratorio de un solo nodo, redes de pruebas, lo que se usa en la A2.1 |
 | VLAN | Cada VNet es un tag 802.1Q sobre un bridge físico existente (vmbr0). El switch físico tiene que dejar pasar esas VLAN. | Todo el clúster, si el switch está configurado | Empresa pequeña con switches gestionables; lo más habitual en producción on-premise |
 | QinQ | VLAN dentro de VLAN (802.1ad). Una VLAN de servicio por zona y VLAN de cliente por VNet. | Clúster | Proveedores que necesitan más de 4094 segmentos o aislar clientes que a su vez usan VLAN |
 | VXLAN | Encapsula tramas Ethernet en UDP (puerto 4789) entre los nodos. No necesita nada del switch físico. | Clúster (túnel entre las IP de los nodos) | Clúster de varios nodos sin control sobre la red física; nube |
@@ -272,7 +237,7 @@ Por eso cada entorno tiene cuatro VNets, una por zona, y cada VNet una sola subr
 
 #### VLAN 802.1Q frente a VXLAN
 
-Los dos tipos de zona que se usan fuera del laboratorio llevan varias redes por el mismo cable de dos maneras distintas: la VLAN, la misma de la A1.5, etiqueta la trama Ethernet y necesita que cada switch del camino conozca la etiqueta; VXLAN envuelve la trama entera dentro de un paquete UDP/IP, atraviesa routers y no exige nada al switch. La comparación completa (tamaño del identificador, coste de proceso y cuándo se elige cada una) está en [VLAN frente a VXLAN](../ampliacion.md#vlan-frente-a-vxlan). Del lado práctico solo hay que retener una consecuencia: esa envoltura añade unos 50 bytes, así que con VXLAN la MTU (el tamaño máximo de paquete que admite una interfaz) de las VM baja a 1450 si la red física va a 1500.
+Los dos tipos de zona que se usan fuera del laboratorio llevan varias redes por el mismo cable de dos maneras distintas: la VLAN, la misma de las modalidades de red de la UT1, etiqueta la trama Ethernet y necesita que cada switch del camino conozca la etiqueta; VXLAN envuelve la trama entera dentro de un paquete UDP/IP, atraviesa routers y no exige nada al switch. La comparación completa (tamaño del identificador, coste de proceso y cuándo se elige cada una) está en [VLAN frente a VXLAN](../ampliacion.md#vlan-frente-a-vxlan). Del lado práctico solo hay que retener una consecuencia: esa envoltura añade unos 50 bytes, así que con VXLAN la MTU (el tamaño máximo de paquete que admite una interfaz) de las VM baja a 1450 si la red física va a 1500.
 
 !!! ojo "Si se olvida la MTU, el fallo no parece de red"
     Los ping pequeños funcionan y las transferencias grandes se cuelgan sin dar error. Es el síntoma más
@@ -317,7 +282,7 @@ iface devfront
         alias dev front
 ```
 
-Si la subnet lleva gateway, como en la A2.2, el bloque tiene además una línea `address 10.10.1.1/24`: es el `.1` que el nodo se pone en ese bridge para hacer de router de la subred, y es lo que hay que quitar cuando el entorno tiene su propio router.
+Si la subnet lleva gateway, como en la A2.1, el bloque tiene además una línea `address 10.10.1.1/24`: es el `.1` que el nodo se pone en ese bridge para hacer de router de la subred, y es lo que hay que quitar cuando el entorno tiene su propio router.
 
 **Si Apply no hace nada.** Si en `/etc/network/interfaces` no está la línea `source /etc/network/interfaces.d/*` (viene en instalaciones nuevas, pero no siempre en las actualizadas desde versiones antiguas), Apply dirá que todo va bien y no habrá ningún bridge. Es la primera cosa que se comprueba cuando "el SDN no hace nada".
 
@@ -332,60 +297,71 @@ apt install dnsmasq
 systemctl disable --now dnsmasq
 ```
 
-**Por qué es provisional.** Es cómodo, y para probar es perfecto, pero se queda corto para un entorno de verdad, por razones prácticas y didácticas a la vez: el DHCP del SDN no hace DNS con nombres propios ni deja tocar opciones finas; con él, el nodo, que es el hipervisor de todo el laboratorio, hace además de router de los entornos; y el router del entorno es donde van a vivir las reglas de cortafuegos entre zonas. Por eso, el 4 de noviembre, se sustituye por una VM router propia, `router-dev`. Ese relevo tiene un paso obligatorio: al montar el router hay que quitar el gateway y el rango DHCP de las subredes del SDN, porque el `.1` de una subred solo puede estar en un sitio. Entender qué hace el SDN por debajo (un bridge con el `.1`, un dnsmasq por zona y una regla de NAT) es lo que permite arreglarlo cuando falla.
+**Por qué es provisional.** Es cómodo, y para probar es perfecto, pero se queda corto para un entorno de verdad, por razones prácticas y didácticas a la vez: el DHCP del SDN no hace DNS con nombres propios ni deja tocar opciones finas; con él, el nodo, que es el hipervisor de todo el laboratorio, hace además de router de los entornos; y el router del entorno es donde van a vivir las reglas de cortafuegos entre zonas. Por eso, el 13 de noviembre, se sustituye por una VM router propia, `router-dev`. Ese relevo tiene un paso obligatorio: al montar el router hay que quitar el gateway y el rango DHCP de las subredes del SDN, porque el `.1` de una subred solo puede estar en un sitio. Entender qué hace el SDN por debajo (un bridge con el `.1`, un dnsmasq por zona y una regla de NAT) es lo que permite arreglarlo cuando falla.
 
 #### Alternativa sin SDN
 
 Lo que existía antes del SDN sigue funcionando y es lo mismo hecho a mano: en `/etc/network/interfaces` un bridge sin `bridge-ports` (sin interfaz física, por tanto aislado dentro del nodo) por cada zona, `vmbr10` para gestión, `vmbr11` para front, `vmbr12` para back y `vmbr13` para data, y una VM router con una pata en cada uno de ellos y otra en `vmbr0` que hace DHCP, DNS y NAT. Si el SDN da guerra, esto es el plan B y es equivalente para la práctica evaluable.
 
-### A2.2 Crear la VPC dev con SDN (sesión 8)
+### A2.1 Diseño y VPC dev con SDN (sesión 11)
 
-<span class="et et-obj">Objetivo</span> Tener las cuatro VNets de dev funcionando en el SDN, una por zona, con dos VM de zonas distintas que reciben IP de su subred. Es la primera vez que una VM sale de la red del laboratorio, y estas cuatro VNets son las que usa dev hasta el final del curso: a ellas se conectan después el router del entorno, el cortafuegos y, el 27 de noviembre, `app01` y `mon01`.
+<span class="et et-obj">Objetivo</span> Al terminar tienes dos cosas. La primera es el plano de los tres entornos, con una tabla de direccionamiento propia y justificada: es el ejercicio de diseño que pide el criterio de evaluación y el primer punto de la memoria de la práctica evaluable. La segunda son las cuatro VNets de dev funcionando en el SDN, una por zona, con dos VM de zonas distintas que reciben IP de su subred. El plano es tuyo, pero el laboratorio se monta con los rangos del curso, que son los que comparten las dos asignaturas; las decisiones son las mismas. Estas cuatro VNets son las que usa dev hasta el final del curso: a ellas se conectan después el router del entorno, el cortafuegos y, el 27 de noviembre, `app01` y `mon01`.
 
 <span class="et et-pre">Antes de empezar</span>
 
-- El nodo de la UT1 con la plantilla 9000, la consola web como `root@pam` y una sesión SSH contra él.
-- Los rangos de dev son los de las [convenciones del laboratorio](../laboratorio.md#convenciones), no los de tu tabla de la A2.1.
-- `web01` (110), `app01` y `mon01` existen desde la A1.3, en `vmbr0`. Hoy `web01` pasa a la VPC; `app01` y `mon01` se quedan, porque Mantenimiento las usa a diario: las traslada la A3.3 el 27 de noviembre, ya con cortafuegos.
-- Explicado en esta sesión: [zonas, VNets y subnets del SDN](#sdn-en-proxmox), [una VNet por zona](#una-vnet-por-zona-una-subred-por-vnet), [el tipo de zona](#tipos-de-zona-y-cuando-usar-cada-uno), [qué hace Apply](#que-hace-apply-por-debajo) y [el DHCP integrado](#dhcp-e-ipam-integrados).
+- El nodo de la UT1 con la plantilla 9000, la consola web como `root@pam` y su Shell, con `ipcalc` instalado; y la VM `puesto` con `git`.
+- `web01` (110), `app01` y `mon01` existen desde la A1.3, en `vmbr0`. Hoy `web01` pasa a la VPC; `app01` y `mon01` se quedan, porque Mantenimiento las usa a diario: las traslada la unidad de seguridad por capas el 27 de noviembre, ya con cortafuegos.
+- Los rangos de dev que se montan hoy son los de las [convenciones del laboratorio](../laboratorio.md#convenciones), no los de tu plano.
+- Explicado en esta sesión: [qué es una VPC](#que-es-una-vpc), [el diseño de direccionamiento](#diseno-de-direccionamiento) y [el SDN de Proxmox](#sdn-en-proxmox), con [una VNet por zona](#una-vnet-por-zona-una-subred-por-vnet), [qué hace Apply](#que-hace-apply-por-debajo) y [el DHCP integrado](#dhcp-e-ipam-integrados). De consulta: el [repaso de CIDR](#repaso-rapido-de-cidr-y-subnetting) y [los tipos de zona](#tipos-de-zona-y-cuando-usar-cada-uno).
 
 <span class="et et-pas">Pasos</span>
 
-Vas a construir la red en el orden de los objetos del SDN, de lo general a lo particular: primero preparas el nodo para que pueda dar DHCP, después creas la zona, dentro de ella las VNets y en cada VNet su subred, y solo entonces aplicas, porque hasta ese momento nada existe en la red. Con la red en marcha conectas las dos primeras VM y compruebas, desde ellas y desde el IPAM, que cada una ha recibido una dirección de su propia subred.
+La primera parte es de papel y la segunda de consola, y van en ese orden porque la red se construye a partir del plano. Primero completas tu plano y compruebas que no choca con nada. Después construyes dev en el orden de los objetos del SDN, de lo general a lo particular: preparas el nodo, creas la zona, dentro de ella las VNets con su subred, y aplicas, porque hasta ese momento nada existe en la red. Solo entonces conectas las dos VM y compruebas que cada una ha recibido una dirección de su propia subred.
 
-1. **Prepara el nodo para dar DHCP.** El DHCP del SDN arranca un dnsmasq propio por zona, así que el paquete tiene que estar instalado en el nodo y su servicio genérico, parado, para que no compita con él, como dice [DHCP e IPAM integrados](#dhcp-e-ipam-integrados).
+1. **Completa el plano de los tres entornos.** Parte de estas dos tablas, que tienen la estructura del curso y dejan en blanco lo que decides tú. Rellena la primera con un bloque de la RFC 1918 distinto del ejemplo y escribe debajo, en una línea, por qué ese, como explica [el problema del solapamiento](#rfc-1918-y-el-problema-del-solapamiento). En la segunda, justifica cada tamaño con su cálculo. Añade la convención de IP dentro de cada /24 (puedes adoptar la del curso) y un esquema de los tres entornos: vale el de [Por qué /16 por entorno y /24 por subred](#por-que-16-por-entorno-y-24-por-subred) con tus rangos y con pro añadido, sin ninguna línea entre entornos.
 
-2. **Crea la zona `lab`.** En Datacenter → SDN, una zona Simple con ID `lab`, DHCP `dnsmasq` e IPAM `pve`. Simple, porque el laboratorio es un solo nodo sin control del switch ([tipos de zona](#tipos-de-zona-y-cuando-usar-cada-uno)). Es la zona de los tres entornos durante todo el curso.
+    | Entorno | Bloque | Gestión | Front | Back | Data | ID de VM |
+    |---|---|---|---|---|---|---|
+    | dev | | | | | | 100 a 199 |
+    | pre | | | | | | |
+    | pro | | | | | | |
 
-3. **Crea las cuatro VNets de dev.** En la zona `lab`, una VNet por zona del diseño: `devmgmt`, `devfront`, `devback` y `devdata`, con los alias `dev gestion`, `dev front`, `dev back` y `dev data`. Los nombres no se eligen: son los de las [convenciones del laboratorio](../laboratorio.md#convenciones), y caben en los ocho caracteres que admite Proxmox.
+    | Red | Máscara | Direcciones | Hosts útiles | Broadcast | Por qué este tamaño |
+    |---|---|---|---|---|---|
+    | El bloque de un entorno | | | | | |
+    | La subred de una zona | | | | | |
 
-4. **Dale a cada VNet su subred.** Una sola por VNet: el /24 de su zona, con gateway en el `.1` y rango DHCP de `.100` a `.199`, que es la franja dinámica de la convención. Hoy los sirve el nodo; el 4 de noviembre pasan al router del entorno.
+2. **Comprueba que nada se solapa.** Con `ipcalc` en el nodo, comprueba que ninguno de tus bloques se solapa con otro, ni entre entornos ni con las redes que ya tiene el nodo: la del aula (`vmbr9`) y la del laboratorio (`vmbr0`). Un solapamiento no da error al crear nada: aparece semanas después, como una máquina a la que no se llega.
 
-5. **Aplica y comprueba lo que ha hecho Apply.** Aplica la configuración y comprueba en el nodo las tres cosas que tiene que haber dejado [Apply](#que-hace-apply-por-debajo): los cuatro bridges, su definición en `/etc/network/interfaces.d/sdn` y `dnsmasq@lab` en marcha. Ese fichero es una de las evidencias de la memoria de la evaluable.
+    *Pista:* `ipcalc` no compara bloques; te da la primera y la última dirección de cada uno, y el solapamiento se ve al ponerlos en orden.
 
-6. **Conecta las dos primeras VM.** Conecta a la VPC sus dos primeras VM de servicio, las dos con IP por DHCP: `web01` (110) a `devfront`, y `db01` (130), que nace hoy de la plantilla con 2 GB, a `devdata`. Busca en Datacenter → SDN → IPAM la IP que ha recibido cada una, entra por SSH desde el nodo y guarda su `ip a` y su `ip r`: tienen que coincidir con lo que dice el IPAM, y la ruta por defecto, apuntar al `.1` de su subred.
+3. **Prepara el nodo y crea la zona `lab`.** El DHCP del SDN arranca un dnsmasq propio por zona, así que el paquete tiene que estar instalado en el nodo y su servicio genérico, parado, como dice [DHCP e IPAM integrados](#dhcp-e-ipam-integrados). Después, en Datacenter → SDN, crea una zona Simple con ID `lab`, DHCP `dnsmasq` e IPAM `pve`: Simple, porque el laboratorio es un solo nodo sin control del switch. Es la zona de los tres entornos durante todo el curso.
+
+4. **Crea las cuatro VNets de dev y aplica.** En la zona `lab`, una VNet por zona del diseño: `devmgmt`, `devfront`, `devback` y `devdata`, con los alias `dev gestion`, `dev front`, `dev back` y `dev data`, y en cada una una sola subred, el /24 de su zona, con gateway en el `.1` y rango DHCP de `.100` a `.199`. Los nombres y rangos no se eligen: son los de las [convenciones del laboratorio](../laboratorio.md#convenciones). Aplica y comprueba en el nodo las tres cosas que tiene que haber dejado [Apply](#que-hace-apply-por-debajo): los cuatro bridges, su definición en `/etc/network/interfaces.d/sdn` y `dnsmasq@lab` en marcha. Ese fichero es una de las evidencias de la memoria de la evaluable.
+
+5. **Conecta las dos primeras VM.** Conecta a la VPC sus dos primeras VM de servicio, las dos con IP por DHCP: `web01` (110) a `devfront`, y `db01` (130), que nace hoy de la plantilla con 2 GB, a `devdata`. Busca en Datacenter → SDN → IPAM la IP que ha recibido cada una, entra por SSH desde el nodo y guarda su `ip a` y su `ip r`: tienen que coincidir con lo que dice el IPAM, y la ruta por defecto, apuntar al `.1` de su subred.
 
     *Pista:* `web01` no se clona otra vez: apágala, cambia el Bridge de su `net0` en la pestaña Hardware y arráncala. Desde el nodo entras con `ssh ops@<IP>`, porque hoy es el `.1` de cada subred y su clave va en la plantilla.
 
-<span class="et et-com">Comprobación</span> `ip -br link show type bridge` lista las cuatro VNets: `devfront` y `devdata`, que ya tienen una VM conectada, en `UP`, y `devmgmt` y `devback` en `DOWN` mientras no se les conecte nada, que es lo normal en un bridge vacío; `web01` tiene una IP del rango `10.10.1.100` a `10.10.1.199` con gateway `10.10.1.1`, y `db01` una de `10.10.3.100` a `10.10.3.199` con gateway `10.10.3.1`, cada una de su propia subred; el IPAM lista las dos VM con su MAC e IP; cada VM hace `ping` a su `.1`. Que `web01` alcance a `db01` no es cosa de hoy: eso lo hace el router del entorno, que llega el 4 de noviembre. Si una VM no coge IP, `journalctl -u dnsmasq@lab -f` en el nodo mientras la reinicias enseña el DORA o su ausencia.
+<span class="et et-com">Comprobación</span> Ninguno de tus bloques se solapa entre sí ni con `vmbr9` ni con `vmbr0`, y cada tamaño está justificado con el cálculo de hosts. `ip -br link show type bridge` lista las cuatro VNets: `devfront` y `devdata`, que ya tienen una VM conectada, en `UP`, y `devmgmt` y `devback` en `DOWN` mientras no se les conecte nada, que es lo normal en un bridge vacío. `web01` tiene una IP del rango `10.10.1.100` a `10.10.1.199` con gateway `10.10.1.1`, y `db01` una de `10.10.3.100` a `10.10.3.199` con gateway `10.10.3.1`; el IPAM lista las dos VM con su MAC e IP, y cada VM hace `ping` a su `.1`. Que `web01` alcance a `db01` no es cosa de hoy: eso lo hace el router del entorno, que llega el 13 de noviembre.
 
-<span class="et et-ent">Para practicar</span> Guarda en `ut2/a22` de tu repositorio una captura del SDN aplicado con las cuatro VNets, el contenido de `/etc/network/interfaces.d/sdn` y la salida de `ip a` de las dos VM.
+<span class="et et-ent">Para practicar</span> Crea en el puesto `entregas-5166`, el repositorio Git donde guardas el trabajo de las hojas de esta asignatura, con una carpeta por hoja dentro de `ut2/`. Guarda en `ut2/a21` tu plano (las dos tablas, la línea que justifica el bloque, la convención y el esquema), una captura del SDN aplicado con las cuatro VNets, el contenido de `/etc/network/interfaces.d/sdn` y la salida de `ip a` de las dos VM. El plano y el fichero del SDN son los puntos 1 y 2 de la memoria de la evaluable. El repositorio es local de momento: el 13 de noviembre lo llevas al puesto de administración, y recibe su remoto cuando exista la Gitea de Mantenimiento en `mon01`.
 
-<span class="et et-ext">Si te sobra tiempo</span> Marca SNAT en la subnet de `devfront`, aplica, y comprueba desde `web01` que `ping -c 3 deb.debian.org` sale a Internet sin ninguna VM router.
+<span class="et et-ext">Si te sobra tiempo</span> Marca SNAT en la subnet de `devfront`, aplica, y comprueba desde `web01` que `ping -c 3 deb.debian.org` sale a Internet sin ninguna VM router. Si una VM no coge IP, `journalctl -u dnsmasq@lab -f` en el nodo mientras la reinicias enseña el intercambio DHCP o su ausencia.
 
-## Sesión 9 · DHCP y DNS propios
+## Sesión 12 · Router de dev y comunicación entre zonas
 
-<p class="ut-meta" markdown>4 de noviembre · Teoría y práctica · <span class="dur" tabindex="0" aria-label="Servicios de red: enrutado, NAT, DHCP y DNS · 20 min&#10;A2.3 DHCP y DNS propios · 90 min" data-dur="Servicios de red: enrutado, NAT, DHCP y DNS · 20 min&#10;A2.3 DHCP y DNS propios · 90 min">:material-school:<i class="dur-barra" style="--teoria:18%"></i>:material-flask:</span></p>
+<p class="ut-meta" markdown>13 de noviembre · Teoría y práctica · <span class="dur" tabindex="0" aria-label="Servicios de red: enrutado, NAT, DHCP y DNS · 15 min&#10;Cómo se prueba una red · 10 min&#10;A2.2 Router de dev y comunicación entre zonas · 85 min" data-dur="Servicios de red: enrutado, NAT, DHCP y DNS · 15 min&#10;Cómo se prueba una red · 10 min&#10;A2.2 Router de dev y comunicación entre zonas · 85 min">:material-school:<i class="dur-barra" style="--teoria:23%"></i>:material-flask:</span></p>
 
-Con el DHCP del SDN, `web01` y `db01` tienen dirección, pero se la da el nodo: una cualquiera del rango, que puede cambiar, sin un nombre que la resuelva y con el propio hipervisor haciendo de router de las subredes. Un entorno de verdad necesita una máquina suya que haga cuatro trabajos: encaminar el tráfico entre las cuatro zonas, sacarlo a Internet, dar a cada servidor siempre la misma dirección y resolver los nombres de todos. Es el router del entorno, `router-dev`. La teoría sigue el orden en que se monta: primero la VM con una pata en cada VNet y el reenvío IP, que la convierte en router; después la diferencia entre enrutar y hacer NAT, que decide qué tráfico se traduce y cuál no; y al final dnsmasq, que reparte direcciones y nombres. La hoja retira el DHCP del SDN y monta `router-dev` en ese mismo orden.
+Con el DHCP del SDN, `web01` y `db01` tienen dirección, pero se la da el nodo: una cualquiera del rango, que puede cambiar, sin un nombre que la resuelva y con el propio hipervisor haciendo de router de las subredes. Un entorno de verdad necesita una máquina suya que haga cuatro trabajos: encaminar el tráfico entre las cuatro zonas, sacarlo a Internet, dar a cada servidor siempre la misma dirección y resolver los nombres de todos. Es el router del entorno, `router-dev`. Y una vez montado, «parece funcionar» no es una prueba: el criterio de evaluación pide demostrar con evidencias que las zonas se comunican como deben. Esta sesión hace las dos cosas, en ese orden. La teoría empieza por los servicios de red en el orden en que se montan: la VM con una pata en cada VNet y el reenvío IP, que la convierte en router; la diferencia entre enrutar y hacer NAT, que decide qué tráfico se traduce y cuál no; y dnsmasq, que reparte direcciones y nombres. Después pasa a las pruebas: desde dónde se prueba (el puesto de administración, porque desde que `router-dev` es el `.1` de cada subred el nodo ya no tiene dirección en ninguna), qué demuestra cada herramienta y la plantilla con la que cada prueba queda escrita. En clase se explican las piezas y el porqué; el comentario línea a línea de `dev.conf` y la lectura detallada de las salidas de cada herramienta son de consulta: se leen antes de clase y se vuelve a ellos durante la hoja. La hoja monta `router-dev` y el puesto de administración, y demuestra la comunicación entre front y data.
 
 ### Servicios de red: enrutado, NAT, DHCP y DNS
 
-**Cuatro servicios en una máquina.** Una VNet es un cable. Lo que la convierte en una red utilizable son cuatro servicios: alguien que encamine el tráfico entre subredes, alguien que lo traduzca al salir a Internet, alguien que reparta direcciones (el DHCP) y alguien que convierta nombres en direcciones (el DNS). Con el SDN, el nodo hacía dos, el gateway y el DHCP. Desde hoy los cuatro los hace una VM por entorno, y este apartado la monta pieza a pieza. Es el apartado con más configuración de la unidad; la A2.4 y la A2.5 salen de aquí.
+**Cuatro servicios en una máquina.** Una VNet es un cable. Lo que la convierte en una red utilizable son cuatro servicios: alguien que encamine el tráfico entre subredes, alguien que lo traduzca al salir a Internet, alguien que reparta direcciones (el DHCP) y alguien que convierta nombres en direcciones (el DNS). Con el SDN, el nodo hacía dos, el gateway y el DHCP. Desde hoy los cuatro los hace una VM por entorno, y este apartado la monta pieza a pieza. Es el apartado con más configuración de la unidad; la A2.2 y la A2.3 salen de aquí.
 
 #### Router de entorno
 
-**Por qué una VM y no el nodo.** El nodo podría seguir siendo el router de las subredes, como hasta ahora, pero entonces el hipervisor de todo el laboratorio sería también la puerta de cada entorno, y un error en su configuración de red afectaría a la vez a todos los entornos y al propio nodo. Una VM por entorno separa los papeles: se puede reiniciar, romper o sustituir sin tocar el nodo ni los otros entornos, y es lo que tiene una VPC de nube pública, un router propio por red. El 20 de noviembre, al empezar la unidad de seguridad por capas, su sitio lo ocupa un cortafuegos, OPNsense, con las mismas direcciones.
+**Por qué una VM y no el nodo.** El nodo podría seguir siendo el router de las subredes, como hasta ahora, pero entonces el hipervisor de todo el laboratorio sería también la puerta de cada entorno, y un error en su configuración de red afectaría a la vez a todos los entornos y al propio nodo. Una VM por entorno separa los papeles: se puede reiniciar, romper o sustituir sin tocar el nodo ni los otros entornos, y es lo que tiene una VPC de nube pública, un router propio por red. El 25 de noviembre, al empezar la unidad de seguridad por capas, su sitio lo ocupa un cortafuegos, OPNsense, con las mismas direcciones.
 
 **Una pata en cada VNet.** El router es una VM Debian 13 clonada de la plantilla, con una interfaz por VNet y otra hacia el exterior. Cada pata cuelga de un bridge distinto, y eso es justo lo que permite filtrar entre zonas: el tráfico de una zona a otra solo puede ir de una pata a otra atravesando el router. En Proxmox las interfaces virtio (las tarjetas de red paravirtualizadas, las más rápidas para una VM) aparecen dentro de la VM como `ens18`, `ens19`, `ens20`... en el orden de `net0`, `net1`, `net2`. El número no es casual: Linux nombra cada tarjeta por la ranura PCI en la que la encuentra, y Proxmox pone `net0` en la ranura 18 de la placa virtual, `net1` en la 19, y así sucesivamente. Convención del curso: `ens18` exterior (vmbr0, IP de la red del laboratorio por DHCP), `ens19` gestión (`devmgmt`, `.0.1`), `ens20` front (`devfront`, `.1.1`), `ens21` back (`devback`, `.2.1`) y `ens22` data (`devdata`, `.3.1`).
 
@@ -535,7 +511,7 @@ log-queries
 - Las interfaces. `interface=` y `bind-interfaces` hacen que dnsmasq atienda solo en las cuatro patas internas. Si escuchara también en `ens18`, contestaría a las consultas de DNS de cualquier equipo de la red del laboratorio, que no tiene por qué ver los nombres de dev.
 - Los tags. `dhcp-range=set:front,...` etiqueta con `front` a cualquier cliente que reciba IP de ese rango, y `dhcp-option=tag:front,...` aplica esa opción solo a los etiquetados. Así cada subred recibe su propio router (`.1`) aunque el DNS sea el mismo para todas. dnsmasq elige el rango por la interfaz de llegada de la petición DHCP, por eso da igual que las cuatro subredes estén en el mismo fichero.
 - Las opciones comunes. El router va en la opción de cada tag, pero el DNS y el dominio de búsqueda son los mismos para todas las subredes: la `10.10.0.1`. Cualquier dirección del router serviría, porque es la misma máquina, y una sola hace que todas las VM tengan el mismo servidor en su configuración. El dominio de búsqueda es lo que permite escribir `db01` a secas: el cliente le añade `.dev.lab` antes de preguntar.
-- Las reservas (`dhcp-host`). La MAC de una VM de Proxmox se ve en su pestaña Hardware, en la línea Network Device (net0). El prefijo `bc:24:11`, los tres primeros bytes de la MAC, identifica al fabricante y es el que usa Proxmox por defecto. Al reservar, la IP queda fuera del rango dinámico (`.10`, no `.100`) para que no haya conflicto. Cuando la VM recoge su concesión, dnsmasq da de alta además su nombre en el DNS con esa IP, y por eso los nombres de `app01` y `mon01` no resuelven todavía: sus reservas están para cuando lleguen a la VPC. El 20 de noviembre, el cortafuegos que sustituye a `router-dev` las copia de este fichero.
+- Las reservas (`dhcp-host`). La MAC de una VM de Proxmox se ve en su pestaña Hardware, en la línea Network Device (net0). El prefijo `bc:24:11`, los tres primeros bytes de la MAC, identifica al fabricante y es el que usa Proxmox por defecto. Al reservar, la IP queda fuera del rango dinámico (`.10`, no `.100`) para que no haya conflicto. Cuando la VM recoge su concesión, dnsmasq da de alta además su nombre en el DNS con esa IP, y por eso los nombres de `app01` y `mon01` no resuelven todavía: sus reservas están para cuando lleguen a la VPC. El 25 de noviembre, el cortafuegos que sustituye a `router-dev` las copia de este fichero.
 - `domain` y `expand-hosts`. `domain=dev.lab` hace dos cosas: se lo da a los clientes como su dominio y se lo añade a los nombres que llegan por DHCP, así que `web01` responde también como `web01.dev.lab`. `expand-hosts` hace lo mismo con los nombres que haya en el `/etc/hosts` del propio router, que sin esa línea solo responderían por su nombre corto.
 - `local=/dev.lab/` dice que dnsmasq es autoritativo para ese dominio y no reenvía preguntas sobre él a los `server=`. Sin esta línea, preguntar por `noexiste.dev.lab` acabaría en Cloudflare, con la latencia y la fuga de información que eso supone.
 - `no-resolv` evita que dnsmasq lea `/etc/resolv.conf` del propio router, que en Debian con DHCP en `ens18` apunta al DNS de la red del laboratorio. Aquí interesa el control explícito: lo que no es de `dev.lab` va solo a los dos `server=`, dos DNS públicos por si uno falla.
@@ -582,54 +558,6 @@ sequenceDiagram
 <p class="pie" markdown>El router del entorno responde lo suyo y reenvía el resto: `db01.dev.lab` sale de su propia tabla y `deb.debian.org` va a 1.1.1.1 y se queda en la caché.</p>
 
 **Del lado de las VM.** No hay que hacer nada especial: los clones de la plantilla 9000 llevan `ip=dhcp` en cloud-init, así que en cada arranque piden dirección, mandan su nombre de host (el `--name` del clon) en la petición y reciben el DNS y el dominio de búsqueda. El resultado es que `web01` resuelve `db01.dev.lab` y `db01` a secas sin que nadie haya tocado `/etc/hosts`. Cuando una tarjeta necesita IP fija, como las patas internas del propio router, se le da en la pestaña Cloud-Init de la VM, en el IP Config de esa tarjeta (para `net2`, la pata de front, IPv4 estática `10.10.1.1/24`), y el DNS de la VM se fija en DNS servers, en la misma pestaña. En el router ese DNS es uno público, `1.1.1.1`, y no el suyo: la primera vez que arranca, su dnsmasq todavía no existe, y necesita resolver nombres para instalarlo.
-
-### A2.3 DHCP y DNS propios (sesión 9)
-
-<span class="et et-obj">Objetivo</span> Que la VM `router-dev`, con una pata en cada VNet y dnsmasq, reparta IP, gateway y DNS a las VM de dev en lugar del SDN, con reserva por MAC para `web01` y `db01` y el nombre `api.dev.lab` resolviendo. Desde hoy cada máquina de dev tiene una dirección que no cambia y un nombre, que es lo que necesitan las reglas de un cortafuegos; y lo que dejas en `dev.conf` (reservas y nombres) es lo que copia el cortafuegos que sustituye a `router-dev` el 20 de noviembre.
-
-<span class="et et-pre">Antes de empezar</span>
-
-- La zona `lab` y las cuatro VNets de la A2.2 aplicadas, con `web01` en `devfront` y `db01` en `devdata` funcionando.
-- Los rangos de dev del curso a mano: aquí se usan el `.1` de cada subred y las IP fijas del rango `.10` a `.99`.
-- Explicado en esta sesión: [el router de entorno](#router-de-entorno), [enrutar frente a hacer NAT](#enrutar-frente-a-hacer-nat) y [dnsmasq](#dnsmasq-dhcp-y-dns-en-uno).
-
-<span class="et et-pas">Pasos</span>
-
-El orden lo marca el `.1`. Primero lo dejas libre, retirando del SDN el gateway y el DHCP; después creas la máquina que lo ocupa; luego la conviertes en router (reenvío y NAT) y, ya con salida a Internet, le instalas dnsmasq, que reparte direcciones y nombres. Al final compruebas el resultado desde los clientes: primero el DORA en el journal del router, después la resolución y la salida desde `web01`.
-
-1. **Deja libre el `.1`.** Desde hoy el gateway y el DHCP de dev son del router, así que retíralos del SDN: deja las cuatro subnets de dev sin rango DHCP, sin gateway y sin SNAT, y aplica. Tiene que ser lo primero: si queda alguno, en cuanto arranque el router habrá dos `.1` o dos DHCP en la misma red.
-
-2. **Crea `router-dev`.** VM 100, 512 MB y DNS `1.1.1.1`, con cinco tarjetas en este orden: `net0` en `vmbr0` por DHCP y `net1` a `net4` en `devmgmt`, `devfront`, `devback` y `devdata`, cada una con el `.1` de su subred fijo. Ese orden da en la VM los nombres `ens18` a `ens22` que usa `dev.conf`, y el DNS público es el que le deja instalar paquetes antes de tener el suyo.
-
-    *Pista:* las tarjetas se añaden en Hardware → Add → Network Device, una a una y en ese orden; la IP de cada una va en la pestaña Cloud-Init, en su IP Config (net2 con `10.10.1.1/24`, por ejemplo).
-
-3. **Conviértelo en router.** Activa el reenvío IP y el NAT de salida por `ens18`, los dos persistentes, como en [router de entorno](#router-de-entorno) y [enrutar frente a hacer NAT](#enrutar-frente-a-hacer-nat). Con eso las cuatro zonas se alcanzan entre sí y salen a Internet, que es lo que necesitan las VM para instalar lo que usan los pasos siguientes.
-
-    *Pista:* entras desde el nodo por SSH a la IP que el DHCP de la red del laboratorio le da en `ens18`.
-
-4. **Monta dnsmasq.** Instálalo en el router con el `dev.conf` de [dnsmasq: DHCP y DNS en uno](#dnsmasq-dhcp-y-dns-en-uno), tal cual salvo las MAC de las cuatro reservas, y arráncalo con la sintaxis comprobada y el journal abierto. Las reservas son cuatro, no dos: `app01` (`10.10.2.10`, en back) y `mon01` (`10.10.0.20`, en gestión) siguen en la red del laboratorio, pero la A3.3 las traslada a esta VPC el 27 de noviembre con su misma MAC y una sola tarjeta, y al llegar tienen que recibir su IP y seguir llamándose igual.
-
-    *Pista:* la MAC de cada VM está en la línea Network Device (net0) de su pestaña Hardware: `web01` es la 110, `app01` la 120, `db01` la 130 y `mon01` la 103.
-
-5. **Sigue el DORA de cada VM.** Reinicia `web01` y `db01` para que pidan dirección al router, y sigue en su journal el DORA de cada una: qué IP le ofrece y por qué interfaz llega su petición. La IP demuestra que la reserva funciona; la interfaz, que dnsmasq elige el rango por la pata en la que oye al cliente.
-
-    *Pista:* desde el nodo ya no llegas a ellas por SSH, pero el botón Reboot de la consola web no lo necesita.
-
-6. **Comprueba el resultado desde un cliente.** Desde `web01`, verifica que tiene su IP reservada y el DNS y el dominio de búsqueda del router, que `dig` contra `10.10.0.1` resuelve `db01.dev.lab`, `db01` a secas, `api.dev.lab` y un nombre de Internet, y que sale a Internet por el NAT. Son las tres cosas que el router tiene que dar a cada máquina: dirección, nombres y salida.
-
-    *Pista:* el nodo ya no es el `.1` de front: entra saltando por el router, con `ssh -J ops@<IP de router-dev en la red del laboratorio> ops@10.10.1.10`. `dig` está en `bind9-dnsutils`.
-
-<span class="et et-com">Comprobación</span> `web01` tiene `10.10.1.10` y `db01` tiene `10.10.3.10`, no una del rango dinámico; ninguna subred del SDN conserva gateway ni rango DHCP, así que el `.1` es solo el router; `dig` con `@10.10.0.1` devuelve `NOERROR` y flag `aa` para `dev.lab`; los nombres externos resuelven y el `ping` a Internet responde; en `/var/lib/misc/dnsmasq.leases` hay una línea por VM. Si el DISCOVER no aparece en el journal, revisa que la VM cuelga de su VNet y que dnsmasq escucha ahí (`ss -ulnp | grep :67`).
-
-<span class="et et-ent">Para practicar</span> Guarda en `ut2/a23` del repositorio `dev.conf` comentado, `/etc/nftables.conf`, el DORA de una VM sacado de `journalctl -u dnsmasq` y la salida de los `dig` del paso 6: `dev.conf` lo pide la memoria de la evaluable.
-
-<span class="et et-ext">Si te sobra tiempo</span> Comprueba qué hace `dhcp-authoritative`. Quítala y, con dnsmasq parado, vacía su fichero de concesiones, como si el router lo hubiera perdido; arráncalo y fuerza en `web01` la renovación de su concesión. Compara en el journal lo que contesta dnsmasq sin la línea con lo que contesta cuando la vuelves a poner y repites la prueba.
-
-## Sesión 10 · Comunicación entre zonas
-
-<p class="ut-meta" markdown>6 de noviembre · Teoría y práctica · <span class="dur" tabindex="0" aria-label="Cómo se prueba una red · 15 min&#10;A2.4 Comunicación entre zonas · 95 min" data-dur="Cómo se prueba una red · 15 min&#10;A2.4 Comunicación entre zonas · 95 min">:material-school:<i class="dur-barra" style="--teoria:14%"></i>:material-flask:</span></p>
-
-Con `router-dev` en marcha, dev parece funcionar: las VM tienen dirección y nombre, y salen a Internet. Pero «parece funcionar» no es una prueba, y el criterio de evaluación pide demostrar con evidencias que las zonas se comunican como deben. Esta sesión hace dos cosas, en este orden. Primero crea el sitio desde el que se administra y se prueba todo el resto del curso, el puesto de administración, porque desde que `router-dev` es el `.1` de cada subred el nodo ya no tiene dirección en ninguna de ellas. Después demuestra la comunicación entre front y data con cuatro herramientas, cada una contestando a una pregunta distinta, y provoca a propósito el fallo más típico, un router que no reenvía, para aprender a reconocerlo. La teoría es la de las pruebas: desde dónde se prueba, qué demuestra cada herramienta y cómo se leen sus salidas, y la plantilla con la que cada prueba queda escrita. La diferencia entre enrutar y hacer NAT, que es lo que la captura tiene que enseñar, está en [Enrutar frente a hacer NAT](#enrutar-frente-a-hacer-nat).
 
 ### Cómo se prueba una red
 
@@ -717,7 +645,7 @@ Eso es un handshake TCP completo (SYN, SYN-ACK, ACK) y demuestra que `web01` lle
 
 ```text
 Prueba 3 · Resolución DNS interna
-Fecha: 2026-11-04 11:40   Origen: web01 (10.10.1.10)   Destino: router-dev (10.10.0.1)
+Fecha: 2026-11-13 11:40   Origen: web01 (10.10.1.10)   Destino: router-dev (10.10.0.1)
 Comando: dig db01.dev.lab @10.10.0.1 +short
 Esperado: 10.10.3.10
 Obtenido: 10.10.3.10
@@ -726,50 +654,66 @@ Evidencia: captura dig-db01.png
 
 La fecha importa porque una red cambia: la misma prueba de aislamiento puede dar otro resultado antes y después de tocar un router. El origen importa porque lo que se alcanza depende de desde dónde se mire.
 
-### A2.4 Comunicación entre zonas (sesión 10)
+### A2.2 Router de dev y comunicación entre zonas (sesión 12)
 
-<span class="et et-obj">Objetivo</span> Demostrar con `ping`, `traceroute`, `nc` y una captura de `tcpdump` que `web01` (front) llega a `db01` (data) a través del router, con las IP reales a ambos lados, y qué pasa cuando el router deja de reenviar. Es la evidencia del criterio de comunicación entre zonas y tres de las cinco pruebas de la memoria. De camino queda creado el puesto de administración, la máquina de la subred de gestión desde la que se alcanzan las cuatro zonas y que se usa el resto del curso.
+<span class="et et-obj">Objetivo</span> Que la VM `router-dev`, con una pata en cada VNet y dnsmasq, reparta IP, gateway y DNS a las VM de dev en lugar del SDN, con reserva por MAC para `web01` y `db01` y el nombre `api.dev.lab` resolviendo; y demostrar con `ping`, `traceroute`, `nc` y una captura de `tcpdump` que `web01` (front) llega a `db01` (data) a través del router, con las IP reales a ambos lados. Es la evidencia del criterio de comunicación entre zonas y tres de las cinco pruebas de la memoria. Lo que dejas en `dev.conf` (reservas y nombres) es lo que copia el cortafuegos que sustituye a `router-dev` el 25 de noviembre, y el puesto de administración que nace hoy es la máquina desde la que se administra todo el laboratorio el resto del curso.
 
 <span class="et et-pre">Antes de empezar</span>
 
-- `router-dev` de la A2.3 funcionando, con `web01` en front (`10.10.1.10`) y `db01` en data (`10.10.3.10`).
-- El puesto de administración nace hoy y se queda el resto del curso, porque desde él se administra todo el laboratorio. Su clon lo puedes dejar hecho antes de clase.
-- Cinco máquinas: el nodo, el puesto de administración, `web01`, `db01` y el router.
-- Explicado en esta sesión: [cómo se prueba una red](#como-se-prueba-una-red), con [el puesto de administración](#desde-donde-se-prueba-el-puesto-de-administracion), [qué demuestra cada herramienta](#que-demuestra-cada-herramienta) y [la plantilla de pruebas](#la-plantilla-de-pruebas). De la sesión 9: el reenvío IP del [router de entorno](#router-de-entorno) y [enrutar frente a hacer NAT](#enrutar-frente-a-hacer-nat).
+- La zona `lab` y las cuatro VNets de la A2.1 aplicadas, con `web01` en `devfront` y `db01` en `devdata` funcionando.
+- `router-dev` (100) y el puesto de administración (105) clonados y **apagados**, con la preparación de casa del bloque siguiente.
+- Cinco máquinas: el nodo, `router-dev`, el puesto de administración, `web01` y `db01`.
+- Explicado en esta sesión: [los servicios de red](#servicios-de-red-enrutado-nat-dhcp-y-dns), con [el router de entorno](#router-de-entorno), [enrutar frente a hacer NAT](#enrutar-frente-a-hacer-nat) y [dnsmasq](#dnsmasq-dhcp-y-dns-en-uno); y [cómo se prueba una red](#como-se-prueba-una-red), con [el puesto de administración](#desde-donde-se-prueba-el-puesto-de-administracion), [qué demuestra cada herramienta](#que-demuestra-cada-herramienta) y [la plantilla de pruebas](#la-plantilla-de-pruebas).
+
+!!! truco "Preparación antes de la sesión: los dos clones, sin arrancar"
+    Son unos quince minutos de clics en la consola web que no dependen de nadie: se traen hechos de casa.
+    Las dos VM se quedan **apagadas**, porque `router-dev` lleva el `.1` de cada subred, que hasta el paso 1
+    sigue siendo del nodo.
+
+    1. `router-dev`: VM 100, clon completo de la 9000, 512 MB y DNS `1.1.1.1` en su pestaña Cloud-Init, con
+       cinco tarjetas en este orden: `net0` en `vmbr0` por DHCP y `net1` a `net4` en `devmgmt`, `devfront`,
+       `devback` y `devdata`, cada una con el `.1` de su subred fijo. Ese orden da en la VM los nombres `ens18`
+       a `ens22` que usa `dev.conf`, y el DNS público es el que le deja instalar paquetes antes de tener el
+       suyo. Las tarjetas se añaden en Hardware → Add → Network Device, una a una y en ese orden; la IP de
+       cada una va en la pestaña Cloud-Init, en su IP Config (`net2` con `10.10.1.1/24`, por ejemplo).
+    2. El puesto de administración, `admin01`: VM 105, clon completo de la 9000, 1 GB y un núcleo, con `net0`
+       en `vmbr0` por DHCP y `net1` en `devmgmt` con la `10.10.0.50/24` fija y sin gateway.
 
 <span class="et et-pas">Pasos</span>
 
-Primero montas el sitio desde el que vas a trabajar, porque todo lo demás se lanza desde él: el puesto de administración, con su ruta, y tu repositorio de entregas. Después haces la prueba de comunicación entre front y data, con las cuatro herramientas y la captura abierta, y la lees paquete a paquete. Luego rompes el reenvío a propósito para ver cómo se reconoce ese fallo, y al final pasas a la plantilla las tres pruebas que pide la evaluable.
+El orden lo marca el `.1`. Primero lo dejas libre en el SDN y arrancas el router que lo ocupa; lo conviertes en router y pones en marcha a su lado el puesto de administración, desde el que haces todo lo demás. Después le das a dev direcciones y nombres con dnsmasq. Solo con todo eso funcionando demuestras que front llega a data, y al final pasas a la plantilla las tres pruebas que pide la evaluable.
 
-1. **Crea el puesto de administración.** Es `admin01` (ID 105, 1 GB, un núcleo), con `net0` en `vmbr0` por DHCP y `net1` en `devmgmt` con la `10.10.0.50/24`. Dale su ruta persistente a `10.10.0.0/16` por `10.10.0.1` en la unidad `ruta-lab.service` de [Desde dónde se prueba](#desde-donde-se-prueba-el-puesto-de-administracion). Comprueba que llega a Internet y a los cuatro `.1`: son los dos caminos de su tabla de rutas, el de la red del laboratorio y el de gestión.
+1. **Deja libre el `.1` y arranca el router.** Desde hoy el gateway y el DHCP de dev son del router, así que retíralos del SDN: deja las cuatro subnets de dev sin rango DHCP, sin gateway y sin SNAT, aplica, y solo entonces arranca `router-dev`. Tiene que ser en este orden: si queda alguno, en cuanto arranque el router habrá dos `.1` o dos DHCP en la misma red.
 
-    *Pista:* antes de copiar la unidad, mira con `ip -br a` que la tarjeta de gestión es `ens19`.
+    *Pista:* desde el puesto entras en `router-dev` por la IP que recibe en `vmbr0`, que ves en el Summary de la VM gracias al agente QEMU.
 
-2. **Lleva allí tu repositorio de entregas.** Pasa `entregas-5166` desde la VM `puesto` al puesto de administración, con `git` instalado allí: desde hoy el repositorio de entregas vive en esta VM, que es donde vas a generar las evidencias.
+2. **Conviértelo en router.** Activa el reenvío IP y el NAT de salida por `ens18`, los dos persistentes, como en [router de entorno](#router-de-entorno) y [enrutar frente a hacer NAT](#enrutar-frente-a-hacer-nat). Con eso las cuatro zonas se alcanzan entre sí y salen a Internet, que es lo que necesitan las VM para instalar lo que usan los pasos siguientes.
 
-3. **Demuestra que front llega a data por el 5432.** Deja algo escuchando en ese puerto de `db01`, captura en la pata de data del router y lanza desde `web01` un `ping`, un `traceroute` y un `nc -zv` contra `db01.dev.lab`. Cada herramienta contesta a una pregunta de [qué demuestra cada herramienta](#que-demuestra-cada-herramienta): si hay camino, por dónde pasa y si el puerto responde; la captura, qué viaja de verdad. La captura tiene que estar abierta antes de lanzar las pruebas, porque solo enseña lo que pasa mientras escucha.
+3. **Pon en marcha el puesto de administración.** Arranca `admin01`, dale su ruta persistente a `10.10.0.0/16` por `10.10.0.1` con la unidad `ruta-lab.service` de [Desde dónde se prueba](#desde-donde-se-prueba-el-puesto-de-administracion) y comprueba que llega a Internet y a los cuatro `.1`: son los dos caminos de su tabla de rutas. Lleva allí tu repositorio `entregas-5166` desde el puesto, con `git` instalado: desde hoy vive en esta VM, que es donde generas las evidencias, y todo lo que sigue lo haces entrando en ella con `ssh -A`.
 
-    *Pista:* entra en el puesto de administración con `ssh -A`, que le presta tu clave para saltar desde él a `web01`, `db01` y el router por su IP interna. Como servidor basta `nc -l -p 5432`, de `netcat-openbsd`.
+    *Pista:* antes de copiar la unidad, mira con `ip -br a` que la tarjeta de gestión es `ens19`. El repositorio se copia desde el puesto con `scp -r`, que lleva también la carpeta `.git`.
 
-4. **Lee el handshake.** Copia de la captura las tres líneas del handshake (`[S]`, `[S.]`, `[.]`) y escribe debajo, en tres líneas, quién inicia, quién responde y con qué IP de origen llega el paquete a `db01`. Esa IP es la prueba de que dentro del entorno se enruta y no se hace NAT.
+4. **Dale a dev direcciones y nombres.** Instala dnsmasq en el router con el `dev.conf` de [dnsmasq: DHCP y DNS en uno](#dnsmasq-dhcp-y-dns-en-uno), tal cual salvo las MAC de las cuatro reservas, y arráncalo con la sintaxis comprobada y el journal abierto. Reinicia `web01` y `db01` y sigue en el journal el DORA de cada una: la IP que recibe demuestra que la reserva funciona, y la interfaz por la que llega su petición, que dnsmasq elige el rango por la pata en la que oye al cliente. Termina comprobando desde `web01` que `dig` contra `10.10.0.1` resuelve `db01.dev.lab`, `db01` a secas, `api.dev.lab` y un nombre de Internet. Las reservas son cuatro, no dos: `app01` (`10.10.2.10`) y `mon01` (`10.10.0.20`) llegan a esta VPC el 27 de noviembre con su misma MAC, y al llegar tienen que recibir su IP y seguir llamándose igual.
 
-5. **Rompe el reenvío y aprende a reconocerlo.** Desactiva el reenvío en el router y repite desde `web01` el `ping` y el `traceroute`: anota qué cambia y qué enseña una captura ICMP en la pata de front del router. Es el fallo más típico de un router recién montado, y haberlo visto una vez hace que se reconozca a la primera. Después vuelve a activarlo y confirma con un `ping`.
+    *Pista:* la MAC de cada VM está en la línea Network Device (net0) de su pestaña Hardware: `web01` es la 110, `app01` la 120, `db01` la 130 y `mon01` la 103. Para reiniciarlas, el botón Reboot de la consola web no necesita SSH. `dig` está en `bind9-dnsutils`.
 
-    *Pista:* `sysctl -w` cambia el valor en caliente, sin tocar el fichero de la A2.3.
+5. **Demuestra que front llega a data por el 5432.** Deja algo escuchando en ese puerto de `db01`, captura en la pata de data del router y lanza desde `web01` un `ping`, un `traceroute` y un `nc -zv` contra `db01.dev.lab`. Cada herramienta contesta a una pregunta de [qué demuestra cada herramienta](#que-demuestra-cada-herramienta): si hay camino, por dónde pasa y si el puerto responde; la captura, qué viaja de verdad. Copia de la captura las tres líneas del handshake y escribe debajo quién inicia, quién responde y con qué IP de origen llega el paquete a `db01`: esa IP es la prueba de que dentro del entorno se enruta y no se hace NAT.
 
-6. **Documenta tres pruebas de la evaluable.** Rellena la [plantilla de pruebas](#la-plantilla-de-pruebas) para tres de las cinco pruebas de la evaluable: la conectividad intra-entorno (paso 3), la captura de tráfico (paso 4) y la resolución DNS, esta última con la salida de `dig db01.dev.lab @10.10.0.1` que guardaste en la A2.3.
+    *Pista:* la captura tiene que estar abierta antes de lanzar las pruebas, porque solo enseña lo que pasa mientras escucha. Como servidor basta `nc -l -p 5432`, de `netcat-openbsd`.
 
-<span class="et et-com">Comprobación</span> El puesto de administración responde a los cuatro `.1` y su `ip route` muestra `10.10.0.0/16 via 10.10.0.1 dev ens19` además de la ruta por defecto hacia la red del laboratorio; el `traceroute` de `web01` a `db01` muestra un solo salto intermedio, `10.10.1.1`; `nc -zv` dice `succeeded`; la captura en `ens22` muestra origen `10.10.1.10` y destino `10.10.3.10`, sin NAT; con `ip_forward=0` el ping falla y el traceroute solo da asteriscos.
+6. **Documenta tres pruebas de la evaluable.** Rellena la [plantilla de pruebas](#la-plantilla-de-pruebas) para tres de las cinco pruebas de la evaluable: la conectividad intra-entorno y la captura de tráfico, con lo del paso 5, y la resolución DNS, con la salida de `dig db01.dev.lab @10.10.0.1` del paso 4.
 
-<span class="et et-ent">Para practicar</span> Guarda en `ut2/a24` del repositorio el `ip route` del puesto de administración con los cuatro `ping` del paso 1, la captura del handshake con tu explicación, los dos `traceroute` (con y sin reenvío) y las tres plantillas de prueba.
+<span class="et et-com">Comprobación</span> Ninguna subred del SDN conserva gateway ni rango DHCP, así que el `.1` es solo el router. El `ip route` del puesto de administración muestra `10.10.0.0/16 via 10.10.0.1 dev ens19` además de la ruta por defecto hacia la red del laboratorio. `web01` tiene `10.10.1.10` y `db01` tiene `10.10.3.10`, no una del rango dinámico, y en `/var/lib/misc/dnsmasq.leases` hay una línea por VM. `dig` con `@10.10.0.1` devuelve `NOERROR` y flag `aa` para `dev.lab`, y los nombres externos resuelven. El `traceroute` de `web01` a `db01` muestra un solo salto intermedio, `10.10.1.1`; `nc -zv` dice `succeeded`; la captura en `ens22` muestra origen `10.10.1.10` y destino `10.10.3.10`, sin NAT.
 
-<span class="et et-ext">Si te sobra tiempo</span> Instala PostgreSQL en `db01` con `listen_addresses = '*'`, conecta desde `web01` con `psql -h db01.dev.lab -U postgres` y mira en `/var/log/postgresql/` desde qué IP dice que viene la conexión.
+<span class="et et-ent">Para practicar</span> Guarda en `ut2/a22` del repositorio `dev.conf` comentado, `/etc/nftables.conf`, el DORA de una VM sacado de `journalctl -u dnsmasq`, la salida de los `dig` del paso 4, el `ip route` del puesto de administración, la captura del handshake con tu explicación, el `traceroute` y las tres plantillas de prueba. `dev.conf` y las tres plantillas son los puntos 3 y 5 de la memoria de la evaluable.
 
-## Sesión 11 · Segundo y tercer entorno; aislamiento
+<span class="et et-ext">Si te sobra tiempo</span> Provoca el fallo más típico de un router recién montado: desactiva el reenvío en `router-dev` con `sysctl -w`, que lo cambia en caliente sin tocar el fichero del paso 2, y repite desde `web01` el `ping` y el `traceroute` a `db01` mientras capturas ICMP en la pata de front del router. Anota qué cambia y qué enseña la captura; haberlo visto una vez hace que se reconozca a la primera. Después vuelve a activarlo y confirma con un `ping`.
 
-<p class="ut-meta" markdown>11 de noviembre · Práctica · <span class="dur" tabindex="0" aria-label="Aislamiento y separación · 5 min&#10;A2.5 pre, pro y aislamiento · 105 min" data-dur="Aislamiento y separación · 5 min&#10;A2.5 pre, pro y aislamiento · 105 min">:material-school:<i class="dur-barra" style="--teoria:5%"></i>:material-flask:</span></p>
+## Sesión 13 · pre y pro con un script; aislamiento
 
-Hasta aquí solo existe dev. La razón de tener tres entornos es que lo que se haga en uno no pueda afectar a los otros, y eso hay que construirlo y después demostrarlo, no darlo por supuesto. Esta sesión de práctica hace las dos cosas. Primero replica la red: pre igual que dev, con su router completo, y pro solo con sus VNets y su router, porque en el curso no tendrá servicio. Las ocho VNets nuevas se crean en la consola web como las de dev, cambiando solo el prefijo. Después cierra el paso entre entornos y lo demuestra desde dev con las pruebas de [cómo se prueba una red](#como-se-prueba-una-red), donde están también la plantilla y la lectura de `nmap -sn`. Los cinco minutos de explicación son el apartado de aislamiento: por qué dev no llega a pre sin que nadie lo prohíba y qué añade una ruta blackhole. Cómo se automatiza esta misma repetición con un script se ve en la sesión siguiente, el 13 de noviembre.
+<p class="ut-meta" markdown>18 de noviembre · Teoría y práctica · <span class="dur" tabindex="0" aria-label="Aislamiento y separación · 5 min&#10;Demostración: crear un entorno con un script · 20 min&#10;A2.3 pre, pro y aislamiento · 85 min" data-dur="Aislamiento y separación · 5 min&#10;Demostración: crear un entorno con un script · 20 min&#10;A2.3 pre, pro y aislamiento · 85 min">:material-school:<i class="dur-barra" style="--teoria:23%"></i>:material-flask:</span></p>
+
+Hasta aquí solo existe dev. La razón de tener tres entornos es que lo que se haga en uno no pueda afectar a los otros, y eso hay que construirlo y después demostrarlo, no darlo por supuesto. Construir pre y pro a clics, como dev, costaría otra tarde por entorno, y cada repetición saldría un poco distinta; por eso se escriben una vez como un script que cualquiera puede ejecutar y que da siempre el mismo resultado, aunque se lance dos veces. La teoría empieza por el aislamiento: por qué dev no llega a pre sin que nadie lo prohíba y qué añade una ruta blackhole. Sigue con las formas de hablar con Proxmox sin la consola web, de la más concreta a la más general: `qm` y `pct` para las máquinas, `pvesh` para el resto de la API (el SDN incluido) y la API REST con un token, que es la única que funciona desde fuera del nodo; ese apartado es de consulta y se lee antes de clase. En clase, el profesor hace una demostración: explica el script que crea un entorno, lo ejecuta dos veces para enseñar que es idempotente y reproduce una llamada a la API con `curl` y un token. La hoja usa ese script para crear pre y pro, deja pre funcionando como dev, cierra el paso entre entornos y lo demuestra desde dev con las pruebas de [cómo se prueba una red](#como-se-prueba-una-red). Es la antesala de diciembre, cuando la unidad de infraestructura como código (UT5) describe las máquinas en ficheros y las crea con OpenTofu, que llama a esta misma API a través de un complemento para Proxmox, el provider.
 
 ### Aislamiento y separación
 
@@ -794,61 +738,16 @@ flowchart LR
 
 <p class="pie" markdown>El aislamiento sale de que no hay ruta, no de que haya una regla. Lo que dev no alcanza, no lo puede romper.</p>
 
-**Lo que añade una ruta blackhole.** Ese «se pierde» depende de que nadie en la red del laboratorio sepa llegar a 10.20.0.0/16, y eso no lo controla quien monta el entorno. Por eso cada router rechaza los bloques de los otros entornos antes de que lleguen a la ruta por defecto, con una **ruta blackhole** (agujero negro): en router-dev, `ip route add blackhole 10.20.0.0/16` y `ip route add blackhole 10.30.0.0/16`. Funciona por la regla que ya se vio con la ruta del puesto de administración: cuando varias rutas sirven para un destino, gana la más específica, y un /16 lo es más que la ruta por defecto, que es un /0. El router tira esos paquetes en silencio, sin reenviarlos ni contestar. Es una línea por bloque; en la A2.5 se dejan en una unidad de systemd, con el mismo patrón que la del puesto de administración, para que sobrevivan al reinicio.
+**Lo que añade una ruta blackhole.** Ese «se pierde» depende de que nadie en la red del laboratorio sepa llegar a 10.20.0.0/16, y eso no lo controla quien monta el entorno. Por eso cada router rechaza los bloques de los otros entornos antes de que lleguen a la ruta por defecto, con una **ruta blackhole** (agujero negro): en router-dev, `ip route add blackhole 10.20.0.0/16` y `ip route add blackhole 10.30.0.0/16`. Funciona por la regla que ya se vio con la ruta del puesto de administración: cuando varias rutas sirven para un destino, gana la más específica, y un /16 lo es más que la ruta por defecto, que es un /0. El router tira esos paquetes en silencio, sin reenviarlos ni contestar. Es una línea por bloque; en la A2.3 se dejan en una unidad de systemd, con el mismo patrón que la del puesto de administración, para que sobrevivan al reinicio.
 
 !!! ojo "Sin blackhole, el NAT de salida puede romper el aislamiento"
     Si los tres routers hacen masquerade hacia `vmbr0` y los tres están en la misma red del laboratorio, un paquete de dev hacia `10.20.1.10` sale con la IP de router-dev a esa red y, si algo en ella enrutara 10.20.0.0/16 hacia router-pre, volvería a entrar. En el laboratorio no ocurre, pero en una empresa donde el core conoce esas redes ocurre siempre, y es la prueba de aislamiento que falla en la evaluable.
 
-**Por qué pro se queda en red.** En el curso pro no tiene servicio: sus VNets y su router bastan para probar que dev no lo alcanza, y lo dejan como un entorno vacío donde crear y destruir máquinas sin riesgo. Por eso `router-pro` se crea pero no se configura, y su VM de prueba lleva IP fija.
+**Por qué pro se queda en red.** En el curso pro no tiene servicio: sus VNets y su router bastan para probar que dev no lo alcanza, y lo dejan como un entorno vacío donde crear y destruir máquinas sin riesgo. Por eso `router-pro` se crea pero no se configura, y su VM de prueba lleva IP fija. Cuando las pruebas de aislamiento están hechas, las dos VM de pro se destruyen y pro se queda solo con sus VNets.
 
 **Separar clientes.** Cuando varios clientes comparten hardware (multi-tenant), se sigue el mismo planteamiento, con una red por cliente.
 
-**Y dentro de cada entorno.** Las zonas están en subredes distintas precisamente para poder filtrar entre ellas: front hablará con back solo por el 28080 de la API, back con data solo por el 5432, gestión llegará a todo por el 22 y nadie más llegará a gestión. Si las zonas estuvieran en un único /24, o en varias subredes dentro de la misma VNet, no habría dónde filtrar: el tráfico entre ellas no pasaría por el router. En esta unidad las zonas todavía se ven completas, porque el router reenvía todo. Esas reglas las pone el cortafuegos que ocupa el sitio del router el 20 de noviembre.
-
-### A2.5 pre, pro y aislamiento (sesión 11)
-
-<span class="et et-obj">Objetivo</span> Tener pre montado como dev (VNets y router con reenvío, NAT y dnsmasq), las VNets y el router de pro, y demostrar con pruebas documentadas que desde dev no se alcanza nada de pre ni de pro. Es el criterio de VPC diferenciadas por entorno y aisladas de la evaluable, y lo que montas de pre no se tira: `router-pre` y sus VNets son los que se usan en enero, cuando se despliegan en pre las máquinas del servicio.
-
-<span class="et et-pre">Antes de empezar</span>
-
-- dev completo: las cuatro VNets, `router-dev` con dnsmasq y NAT, `web01` y `db01`.
-- pre es `10.20.0.0/16` con la franja de ID 200, y pro, `10.30.0.0/16` con la 300 ([convenciones del laboratorio](../laboratorio.md#convenciones)).
-- Hoy se encienden dos routers y dos VM de prueba, todos a 512 MB: para dejar memoria, apaga `db01` (130) al empezar. No hace falta hasta la evaluable.
-- Explicado en esta sesión: [aislamiento y separación](#aislamiento-y-separacion). De la sesión 10: `nmap -sn` en [qué demuestra cada herramienta](#que-demuestra-cada-herramienta) y [la plantilla de pruebas](#la-plantilla-de-pruebas). De la sesión 8: las VNets y subredes de la [A2.2](#a22-crear-la-vpc-dev-con-sdn-sesion-8).
-
-<span class="et et-pas">Pasos</span>
-
-Vas a replicar primero y a aislar después. Montas las redes y los routers de los dos entornos nuevos, dejas pre funcionando como dev y pones las rutas blackhole; solo entonces creas una VM de prueba en cada entorno, porque sin máquinas al otro lado una prueba de aislamiento no demostraría nada. Al final lanzas las pruebas desde dev, separas lo que demuestra de verdad que no hay camino de lo que solo lo sugiere, y lo pasas a la plantilla.
-
-1. **Monta las redes y los routers de pre y pro.** En `Datacenter → SDN → VNets`, las cuatro VNets de cada entorno en la zona `lab` (`premgmt`, `prefront`, `preback`, `predata` y sus cuatro de `pro`), con una subred cada una sin gateway ni rango DHCP, porque de eso se encarga el router, y aplicadas; después, `router-pre` (200) y `router-pro` (300), como `router-dev` en el paso 2 de la A2.3. Es la estructura de dev con otro prefijo: lo que cambia es el nombre, el alias y el segundo octeto.
-
-    *Pista:* la subred se crea en el panel Subnets de cada VNet con Gateway y DHCP Ranges vacíos, y un solo Apply al final aplica las ocho. Los routers salen de la plantilla 9000, no de `router-dev`, que les pasaría `dev.conf` y el resto de su configuración de dev.
-
-2. **Deja pre funcionando como dev.** Configura `router-pre` como `router-dev`: el reenvío y el NAT del paso 3 de la A2.3, y un `pre.conf` sacado del `dev.conf` del apartado [dnsmasq](#dnsmasq-dhcp-y-dns-en-uno), con el dominio y el prefijo de pre y sin las cuatro reservas, que son de máquinas de dev. `router-pro` no se configura hoy: pro se queda en red, y la VM de pro del paso 4 lleva IP fija.
-
-    *Pista:* un `sed` saca `pre.conf` de una copia de `dev.conf`, que no puede quedarse en `/etc/dnsmasq.d/`: dnsmasq lee todos los ficheros de esa carpeta.
-
-3. **Cierra el paso con rutas blackhole.** Pon las rutas blackhole de [aislamiento y separación](#aislamiento-y-separacion) en una unidad de systemd `blackhole.service` en cada router, para que sobrevivan al reinicio: en `router-dev`, hacia `10.20.0.0/16` y `10.30.0.0/16`; en `router-pre`, hacia `10.10.0.0/16` y `10.30.0.0/16`. Sin ellas, el aislamiento dependería de que nadie en la red del laboratorio supiera llegar a esos bloques.
-
-    *Pista:* es el patrón de `ruta-lab.service` (A2.4, paso 1), con una línea `ExecStart=/sbin/ip route replace blackhole <bloque>` por bloque.
-
-4. **Pon una máquina al otro lado.** Crea en front la `web01` de prueba de cada entorno, a 512 MB: la 210 de pre, por DHCP, y la 310 de pro, con la `10.30.1.10/24` y gateway `10.30.1.1` fijos, porque `router-pro` no reparte direcciones. Apunta la IP que coge la 210 en el DORA del journal de `router-pre`: es la evidencia de la concesión DHCP que pide la memoria.
-
-5. **Lanza las pruebas de aislamiento desde dev.** Guarda las salidas de estas pruebas, lanzadas desde la `web01` de dev: `nmap -sn` contra `10.20.1.0/24` y `10.30.1.0/24`, `ping` a `10.20.1.1`, a `10.30.1.1` y a la 210, y `traceroute` a `10.20.1.1`, más el `ip r` de `router-dev`. Después destruye la 310, para que la A2.6 encuentre pro sin ninguna VM; la 210 se queda hasta la evaluable, porque su DORA es evidencia de la memoria.
-
-6. **Explica qué demuestra cada salida.** Escribe en tres o cuatro líneas por qué un `0 hosts up` o un `ping` sin respuesta no bastan por sí solos y cuál de tus salidas demuestra de verdad que no hay camino. Después rellena la [plantilla de pruebas](#la-plantilla-de-pruebas) para el aislamiento inter-entorno y para la concesión DHCP, con el DORA de la 210.
-
-<span class="et et-com">Comprobación</span> `ip -br link show type bridge` en el nodo muestra las doce VNets en `UP` (`dev*`, `pre*` y `pro*`); la `web01` de pre tiene una IP de `10.20.1.0/24` dada por `router-pre`; ningún `ping` ni `traceroute` desde dev llega a pre ni a pro; en `router-dev` y en `router-pre`, `ip r` muestra los dos blackhole; al terminar, la 310 ya no aparece en el árbol de recursos.
-
-<span class="et et-ent">Para practicar</span> Guarda en `ut2/a25` del repositorio `pre.conf`, el `ip r` de `router-dev` y de `router-pre`, las salidas del paso 5, lo que escribiste en el paso 6 y las dos plantillas de prueba.
-
-<span class="et et-ext">Si te sobra tiempo</span> Quita el blackhole de `router-dev` (`ip route del blackhole 10.20.0.0/16`), repite el `ping` a `10.20.1.1` y captura con `tcpdump -ni ens18 icmp`: el paquete sale masqueradeado a la red del laboratorio. Vuelve a ponerlo con `systemctl restart blackhole.service`. Después, configura `router-pro` como `router-pre` (pasos 2 y 3, con `pro` y `10.30`).
-
-## Sesión 12 · Automatizar con la CLI de Proxmox
-
-<p class="ut-meta" markdown>13 de noviembre · Teoría y práctica · <span class="dur" tabindex="0" aria-label="Automatizar con la CLI y la API · 20 min&#10;A2.6 Script de creación · 90 min" data-dur="Automatizar con la CLI y la API · 20 min&#10;A2.6 Script de creación · 90 min">:material-school:<i class="dur-barra" style="--teoria:18%"></i>:material-flask:</span></p>
-
-Hasta ahora la red se ha construido a clics en la consola web: dev, pre y pro. Repetirlo para otro entorno costaría otra tarde, y cada repetición saldría un poco distinta. Automatizar es escribirlo una vez como un programa que cualquiera puede ejecutar y que da siempre el mismo resultado; pero un script que falla o duplica las máquinas si se ejecuta dos veces es peligroso, porque nadie se atreve a relanzarlo cuando se queda a medias, así que tiene que ser idempotente. La teoría recorre las formas de hablar con Proxmox sin la consola web, de la más concreta a la más general: `qm` y `pct` para las máquinas, `pvesh` para cualquier otra cosa de la API (el SDN incluido) y la API REST con un token, que es la única que funciona desde fuera del nodo. Es la única sesión en la que Proxmox se maneja con órdenes, porque su objetivo es justo automatizar, y se trabaja en la Shell del nodo, que se abre desde la propia consola (nodo → `>_ Shell`). La hoja escribe los dos scripts, los prueba contra pro y reproduce dos llamadas a la API con `curl` desde el puesto de administración. Es la antesala de diciembre, cuando la unidad de infraestructura como código (UT5) describe las máquinas en ficheros y las crea con OpenTofu, que llama a esta misma API a través de un complemento para Proxmox, el provider.
+**Y dentro de cada entorno.** Las zonas están en subredes distintas precisamente para poder filtrar entre ellas: front hablará con back solo por el 28080 de la API, back con data solo por el 5432, gestión llegará a todo por el 22 y nadie más llegará a gestión. Si las zonas estuvieran en un único /24, o en varias subredes dentro de la misma VNet, no habría dónde filtrar: el tráfico entre ellas no pasaría por el router. En esta unidad las zonas todavía se ven completas, porque el router reenvía todo. Esas reglas las pone el cortafuegos que ocupa el sitio del router el 25 de noviembre.
 
 ### Automatizar con la CLI y la API
 
@@ -856,69 +755,15 @@ Hasta ahora la red se ha construido a clics en la consola web: dev, pre y pro. R
 
 #### qm y pct
 
-**Qué tiene que hacer el script.** Crear un entorno es clonar tres VM de la plantilla, conectar cada una a la VNet de su zona y arrancarlas. Lo difícil no es eso, sino que se pueda ejecutar dos veces sin romper nada: **idempotente** quiere decir que ejecutarlo dos veces deja lo mismo que ejecutarlo una, sin errores ni duplicados. Es lo que permite relanzarlo con tranquilidad cuando falla a medias. Este script lo consigue preguntando antes de actuar: comprueba con `qm status` si cada VM existe y solo la clona si no. Recibe el nombre del entorno como argumento:
+**Las órdenes de una VM.** `qm` hace desde la Shell del nodo lo mismo que la consola web con una VM, con un subcomando por acción y el ID de la VM detrás: `qm clone 9000 210 --name web01 --full` clona la plantilla, `qm set 210 --memory 512 --net0 virtio,bridge=prefront --ipconfig0 ip=dhcp` cambia su hardware y su configuración de cloud-init (las mismas opciones que las pestañas Hardware y Cloud-Init), `qm start`, `qm stop` y `qm destroy` la arrancan, la paran y la borran, y `qm status 210` dice si está en marcha o parada, o termina con error si la VM no existe. `qm list` da la lista de todas.
 
-```bash
-#!/bin/bash
-# crea-entorno.sh dev|pre|pro
-set -euo pipefail
-ENV=${1:?Uso: $0 dev|pre|pro}
-TPL=9000
-case $ENV in
-  dev) BASE=100; NET=10.10 ;;
-  pre) BASE=200; NET=10.20 ;;
-  pro) BASE=300; NET=10.30 ;;
-  *) echo "entorno desconocido: $ENV" >&2; exit 1 ;;
-esac
-
-# host : decena del ID : zona, que es también el final del nombre de la VNet
-for FILA in web01:10:front app01:20:back db01:30:data; do
-  HOST=${FILA%%:*}; RESTO=${FILA#*:}
-  DEC=${RESTO%%:*}; ZONA=${RESTO#*:}
-  ID=$((BASE+DEC))
-  BR=$ENV$ZONA                   # devfront, devback, devdata, prefront...
-  if qm status $ID >/dev/null 2>&1; then
-    echo "$HOST ($ID) ya existe, no se toca"
-  else
-    qm clone $TPL $ID --name $HOST --full
-    qm set $ID --memory 512 --net0 virtio,bridge=$BR --ipconfig0 ip=dhcp \
-               --searchdomain $ENV.lab --tags $ENV
-  fi
-  [ "$(qm status $ID | awk '{print $2}')" = running ] || qm start $ID
-done
-```
-
-Y el de destrucción, que para y borra en orden inverso y tampoco falla si ya no hay nada:
-
-```bash
-#!/bin/bash
-# destruye-entorno.sh dev|pre|pro
-set -euo pipefail
-ENV=${1:?Uso: $0 dev|pre|pro}
-case $ENV in dev) BASE=100 ;; pre) BASE=200 ;; pro) BASE=300 ;; *) exit 1 ;; esac
-for ID in $((BASE+30)) $((BASE+20)) $((BASE+10)); do
-  if qm status $ID >/dev/null 2>&1; then
-    qm stop $ID --timeout 30 || true
-    qm destroy $ID --purge
-  fi
-done
-```
-
-**Las decisiones de los dos scripts.**
-
-- `set -euo pipefail` corta al primer error (`-e`), trata como error usar una variable sin definir (`-u`) y no deja que un fallo se esconda dentro de una tubería (`pipefail`): un script de infraestructura que sigue adelante después de un fallo deja las cosas a medias.
-- La comprobación con `qm status` antes de clonar es lo que da la idempotencia. En el de destrucción, la misma comprobación hace que la segunda ejecución no encuentre nada que borrar y termine bien.
-- `--full` hace un clon completo en vez de enlazado: más lento y más disco, pero la VM no depende de la plantilla y se puede migrar.
-- `--memory 512` es lo justo para arrancar: son VM de prueba, y tres más con la memoria de la plantilla no caben junto a lo que ya está encendido.
-- `--purge` quita además la VM de los trabajos de copia, de replicación y de alta disponibilidad que la mencionen, para que no quede ninguna referencia a un ID que se va a reutilizar.
-- `NET`, el prefijo del bloque, todavía no se usa: lo necesita la ampliación de la A2.6 que crea también la red.
-- Los ID siguen la [convención de números de VM](#por-que-16-por-entorno-y-24-por-subred): la centena es el entorno y la decena, la zona.
+**Idempotente.** Un script que crea infraestructura con esas órdenes es fácil de escribir; lo difícil es que se pueda ejecutar dos veces sin romper nada. **Idempotente** quiere decir que ejecutarlo dos veces deja lo mismo que ejecutarlo una, sin errores ni duplicados, y es lo que permite relanzarlo con tranquilidad cuando falla a medias: un script que falla o duplica las máquinas si se ejecuta dos veces es peligroso, porque nadie se atreve a relanzarlo. La forma de conseguirlo con órdenes sueltas es preguntar antes de actuar: comprobar con `qm status` si la VM existe y clonarla solo si no. Es lo que hace el script de la [demostración](#demostracion-crear-un-entorno-con-un-script).
 
 **pct, para contenedores.** `pct` es equivalente para contenedores LXC (`pct create`, `pct set --net0 name=eth0,bridge=devback,ip=dhcp`, `pct start`). En este módulo se trabaja sobre VM porque los contenedores de aplicación van dentro con Docker, pero para un dnsmasq o un proxy un LXC gasta la décima parte de RAM y arranca en un segundo.
 
 #### pvesh: la API desde el nodo
 
-**Para lo que no tiene comando.** El SDN no tiene un `qm` propio: se maneja con `pvesh`, que recorre la API como si fuera un sistema de ficheros: `get` lee, `create` es POST, `set` es PUT y `delete` es DELETE. Se ejecuta como root en el propio nodo, así que no pide credenciales. Lo que hace la A2.2 en la consola web, para dos de las cuatro VNets:
+**Para lo que no tiene comando.** El SDN no tiene un `qm` propio: se maneja con `pvesh`, que recorre la API como si fuera un sistema de ficheros: `get` lee, `create` es POST, `set` es PUT y `delete` es DELETE. Se ejecuta como root en el propio nodo, así que no pide credenciales. Lo que hace la A2.1 en la consola web, para dos de las cuatro VNets:
 
 ```bash
 pvesh create /cluster/sdn/zones --zone lab --type simple --dhcp dnsmasq --ipam pve
@@ -931,7 +776,7 @@ pvesh create /cluster/sdn/vnets/devback/subnets --subnet 10.10.2.0/24 --type sub
 pvesh set /cluster/sdn        # el Apply
 ```
 
-Las otras dos VNets de dev, `devmgmt` y `devdata`, salen igual cambiando el nombre y el tercer octeto. Es el bloque que la A2.5 repite para pre y pro sin gateway ni rango DHCP, y el que la A2.6 mete en el script.
+Las otras dos VNets de dev, `devmgmt` y `devdata`, salen igual cambiando el nombre y el tercer octeto. Es el bloque que el script de la demostración repite para pre y pro, sin gateway ni rango DHCP.
 
 **Para inspeccionar.** `pvesh get /cluster/sdn/vnets --output-format json`, `pvesh get /nodes/pve1/qemu`, `pvesh get /cluster/resources --type vm`. `pvesh usage /cluster/sdn/zones -v` muestra todos los parámetros que acepta cada ruta, que es la documentación de la API en el propio nodo. La referencia completa y navegable está en el [API Viewer](https://pve.proxmox.com/pve-docs/api-viewer/).
 
@@ -939,7 +784,7 @@ Las otras dos VNets de dev, `devmgmt` y `devdata`, salen igual cambiando el nomb
 
 **Desde fuera hay que identificarse.** `pvesh` funciona porque lo ejecuta root en el nodo. Desde fuera, sea desde el puesto de administración o desde OpenTofu, hay que autenticarse contra `https://nodo:8006/api2/json/`, y la forma correcta es un token de API, no la contraseña de root. Con la contraseña de root, un script tendría todo el poder del nodo y, si el secreto se filtrara, habría que cambiar la contraseña de la que depende todo lo demás. Un token, en cambio, se crea para un usuario, tiene su propio secreto y se puede revocar sin cambiar ninguna contraseña.
 
-**Un usuario con lo justo.** Primero, un usuario con los permisos justos para lo que va a hacer: para leer y crear VNets basta el rol `PVESDNAdmin` sobre `/sdn`, la parte de la API que gestiona el SDN. En el laboratorio es un usuario de prácticas, `cli@pve`, que la A2.6 borra al terminar.
+**Un usuario con lo justo.** Primero, un usuario con los permisos justos para lo que va a hacer: para leer y crear VNets basta el rol `PVESDNAdmin` sobre `/sdn`, la parte de la API que gestiona el SDN. En el laboratorio es un usuario de prácticas, `cli@pve`, que la demostración crea y borra al terminar.
 
 ```bash
 pveum user add cli@pve --comment "Practicas de la API"
@@ -961,7 +806,7 @@ curl -sk -H "Authorization: $PVE_TOKEN" -X POST \
      https://192.168.100.150:8006/api2/json/cluster/sdn/zones
 ```
 
-La primera llamada lee las VNets; la segunda es la que creó la zona `lab` en la A2.2, y repetida ahora contestaría que ya existe. `-k` salta la verificación del certificado autofirmado del nodo; en el provider de OpenTofu el equivalente es `insecure = true`, escrito a la vista en el código para que se vea que la verificación está desactivada. Lo correcto fuera del laboratorio es que el cliente confíe en la CA del clúster (`/etc/pve/pve-root-ca.pem`). La segunda llamada, escrita en OpenTofu, para comparar:
+La primera llamada lee las VNets; la segunda es la que creó la zona `lab` en la A2.1, y repetida ahora contestaría que ya existe. `-k` salta la verificación del certificado autofirmado del nodo; en el provider de OpenTofu el equivalente es `insecure = true`, escrito a la vista en el código para que se vea que la verificación está desactivada. Lo correcto fuera del laboratorio es que el cliente confíe en la CA del clúster (`/etc/pve/pve-root-ca.pem`). La segunda llamada, escrita en OpenTofu, para comparar:
 
 ```hcl
 provider "proxmox" {
@@ -1003,87 +848,196 @@ flowchart TD
 
 <p class="pie" markdown>Las cuatro puertas acaban en los mismos métodos de la API: tres por HTTP, identificándose, y las órdenes del nodo directamente, como root. Por eso lo que aquí se aprende a mano es lo mismo que automatiza OpenTofu.</p>
 
-### A2.6 Script de creación (sesión 12)
+### Demostración: crear un entorno con un script
 
-<span class="et et-obj">Objetivo</span> Dos scripts, `crea-entorno.sh` y `destruye-entorno.sh`, que dado el nombre del entorno crean o borran su red y sus tres VM y se pueden ejecutar dos veces seguidas sin error, y una lectura y una creación reproducidas con `curl` desde el puesto de administración con el token de un usuario de prácticas, que borras al terminar. Son la primera vez que el curso crea infraestructura con un programa y no a mano, y lo que pide el criterio de los scripts de la evaluable.
+**Qué se busca.** Crear pre o pro es siempre lo mismo con otro prefijo: cuatro VNets con su subred, un router con una pata en cada una y una máquina de prueba en front. El script de este apartado lo hace con las órdenes de los apartados anteriores (`pvesh` para la red, `qm` para las VM) y, sobre todo, lo hace de forma idempotente. El profesor lo explica y lo ejecuta en su laboratorio, proyectado, al principio de la sesión; la hoja lo usa tal cual, así que los dos scripts están aquí íntegros para copiarlos.
+
+**Qué se hace, en este orden, y qué se observa.**
+
+1. **Se lee el script de arriba abajo.** Tiene cuatro bloques, uno por cosa que crea (la red, el router, la VM de prueba) y uno final que arranca lo que esté parado. Delante de cada creación hay una pregunta: `pvesh get` para la VNet, `qm status` para la VM. Es la parte que hay que entender, porque es la que lo hace idempotente.
+2. **Se ejecuta contra pro.** En la salida se ven las cuatro VNets creadas, el Apply y los dos clones, que son lo que más tarda. En la consola web aparecen `promgmt`, `profront`, `proback` y `prodata` en la zona `lab`, y las VM 300 (`router-pro`) y 310 (`web01`) arrancando.
+3. **Se ejecuta otra vez, sin cambiar nada.** Ahora la salida son seis líneas «ya existe, no se toca» (cuatro VNets y dos VM), no hay Apply, y el código de salida es 0. Esa segunda ejecución es la prueba de idempotencia que pide la evaluable.
+4. **Se destruye dos veces.** `destruye-entorno.sh pro` para y borra la 310 y la 300; la segunda vez no encuentra nada, no escribe nada y termina con 0. Las VNets de pro siguen en la consola: el script de destrucción no toca la red.
+5. **Se llama a la API desde fuera.** Con el usuario de prácticas `cli@pve` y su token de [la API REST con token](#la-api-rest-con-token-la-antesala-de-opentofu), desde el puesto de administración y contra la IP del nodo en la red del laboratorio (`10.99.0.1`), un `curl` lee las VNets y devuelve en JSON las de los tres entornos. Después se borra el usuario, que se lleva su token y sus permisos, y el mismo `curl` devuelve `401`: un acceso se revoca sin cambiar ninguna contraseña.
+
+El script de creación recibe el entorno como argumento. Solo admite pre y pro: dev se montó a mano en las sesiones anteriores y no se toca, porque el de destrucción, lanzado contra dev, se llevaría `router-dev` y `web01`.
+
+```bash
+#!/bin/bash
+# crea-entorno.sh pre|pro
+# Crea la red de un entorno, su router y su web01 de prueba. Lo que ya existe no se toca.
+set -euo pipefail
+ENV=${1:?Uso: $0 pre|pro}
+TPL=9000
+case $ENV in
+  pre) BASE=200; NET=10.20 ;;
+  pro) BASE=300; NET=10.30 ;;
+  *) echo "entorno no válido: $ENV (dev se montó a mano y no se toca)" >&2; exit 1 ;;
+esac
+
+# 1. La red: una VNet por zona, con su /24 sin gateway ni DHCP, que los pone el router
+NUEVAS=0
+for FILA in mgmt:0:gestion front:1:front back:2:back data:3:data; do
+  IFS=: read -r ZONA OCT ALIAS <<< "$FILA"
+  VNET=$ENV$ZONA                     # premgmt, prefront...: caben en 8 caracteres
+  if pvesh get /cluster/sdn/vnets/$VNET >/dev/null 2>&1; then
+    echo "VNet $VNET ya existe, no se toca"
+  else
+    pvesh create /cluster/sdn/vnets --vnet $VNET --zone lab --alias "$ENV $ALIAS"
+    pvesh create /cluster/sdn/vnets/$VNET/subnets --subnet $NET.$OCT.0/24 --type subnet
+    NUEVAS=$((NUEVAS+1))
+  fi
+done
+if [ $NUEVAS -gt 0 ]; then
+  pvesh set /cluster/sdn             # el Apply, solo si hay algo nuevo
+  sleep 10                           # el Apply termina en segundo plano
+fi
+
+# 2. El router (ID BASE): net0 a la red del laboratorio por DHCP y el .1 en cada VNet
+if qm status $BASE >/dev/null 2>&1; then
+  echo "router-$ENV ($BASE) ya existe, no se toca"
+else
+  qm clone $TPL $BASE --name router-$ENV --full
+  qm set $BASE --memory 512 --nameserver 1.1.1.1 --tags $ENV \
+    --net0 virtio,bridge=vmbr0       --ipconfig0 ip=dhcp \
+    --net1 virtio,bridge=${ENV}mgmt  --ipconfig1 ip=$NET.0.1/24 \
+    --net2 virtio,bridge=${ENV}front --ipconfig2 ip=$NET.1.1/24 \
+    --net3 virtio,bridge=${ENV}back  --ipconfig3 ip=$NET.2.1/24 \
+    --net4 virtio,bridge=${ENV}data  --ipconfig4 ip=$NET.3.1/24
+fi
+
+# 3. La web01 de prueba (ID BASE+10), en front: por DHCP en pre;
+#    con IP fija en pro, cuyo router no reparte direcciones
+WEB=$((BASE+10))
+if qm status $WEB >/dev/null 2>&1; then
+  echo "web01 ($WEB) ya existe, no se toca"
+else
+  if [ "$ENV" = pre ]; then IPC=ip=dhcp; else IPC=ip=$NET.1.10/24,gw=$NET.1.1; fi
+  qm clone $TPL $WEB --name web01 --full
+  qm set $WEB --memory 512 --tags $ENV --searchdomain $ENV.lab \
+    --net0 virtio,bridge=${ENV}front --ipconfig0 $IPC
+fi
+
+# 4. Arrancar lo que esté parado
+for ID in $BASE $WEB; do
+  [ "$(qm status $ID | awk '{print $2}')" = running ] || qm start $ID
+done
+```
+
+Y el de destrucción, que para y borra las VM en orden inverso al de creación y tampoco falla si ya no hay nada:
+
+```bash
+#!/bin/bash
+# destruye-entorno.sh pre|pro
+# Para y borra las VM de un entorno, en orden inverso. La red se queda.
+set -euo pipefail
+ENV=${1:?Uso: $0 pre|pro}
+case $ENV in
+  pre) BASE=200 ;;
+  pro) BASE=300 ;;
+  *) echo "entorno no válido: $ENV" >&2; exit 1 ;;
+esac
+for ID in $((BASE+10)) $BASE; do
+  if qm status $ID >/dev/null 2>&1; then
+    qm stop $ID --timeout 30 || true
+    qm destroy $ID --purge
+  fi
+done
+```
+
+**Las decisiones de los dos scripts.**
+
+- `set -euo pipefail` corta al primer error (`-e`), trata como error usar una variable sin definir (`-u`) y no deja que un fallo se esconda dentro de una tubería (`pipefail`): un script de infraestructura que sigue adelante después de un fallo deja las cosas a medias.
+- La pregunta antes de cada creación (`pvesh get` de la VNet, `qm status` de la VM) es lo que da la idempotencia. `pvesh get` de una ruta que no existe termina con error, igual que `qm status` de una VM que no existe, y por eso los dos sirven de condición del `if`. En el de destrucción, la misma comprobación hace que la segunda ejecución no encuentre nada que borrar y termine bien.
+- El Apply solo se lanza si se ha creado alguna VNet, y la espera que le sigue da tiempo a que los bridges existan antes de arrancar ninguna VM.
+- Las subredes van sin gateway ni rango DHCP: el `.1` de cada una es del router del entorno, como en dev desde que llegó `router-dev`.
+- El router sale igual que `router-dev`: cinco tarjetas en el orden de la convención (`ens18` exterior, `ens19` a `ens22` las cuatro zonas), el `.1` fijo en cada pata y un DNS público para poder instalar dnsmasq antes de tenerlo.
+- `--full` hace un clon completo en vez de enlazado: más lento y más disco, pero la VM no depende de la plantilla y se puede migrar.
+- `--memory 512` es lo justo para arrancar: son máquinas de prueba, y con más no caben junto a lo que ya está encendido.
+- `--purge` quita además la VM de los trabajos de copia, de replicación y de alta disponibilidad que la mencionen, para que no quede ninguna referencia a un ID que se va a reutilizar.
+- La destrucción deja la red. Las VNets no gastan memoria, pro se queda como red vacía para el resto del curso y pre conserva las suyas para enero; además, una VNet no se puede borrar mientras alguna VM la use.
+- Los ID siguen la [convención de números de VM](#por-que-16-por-entorno-y-24-por-subred): la centena es el entorno, y el router se queda el primer número de la franja.
+
+### A2.3 pre, pro y aislamiento (sesión 13)
+
+<span class="et et-obj">Objetivo</span> Tener pre montado como dev (VNets y router con reenvío, NAT y dnsmasq) y pro como red, los dos creados con el script de la demostración, y demostrar con pruebas documentadas que desde dev no se alcanza nada de pre ni de pro. Es el criterio de VPC diferenciadas por entorno y aisladas, y el de los scripts idempotentes, de la evaluable. Lo que montas de pre no se tira: `router-pre` y sus VNets son los que se usan en enero, cuando se despliegan en pre las máquinas del servicio.
 
 <span class="et et-pre">Antes de empezar</span>
 
-- pre y la red de pro de la A2.5. Las pruebas de hoy se hacen contra `pro`, que tiene sus VNets y ninguna VM desde que la A2.5 destruyó la 310: si los ID que crea el script (310, 320 y 330) estuvieran ocupados, los respetaría y la creación no se probaría de verdad.
-- `db01` sigue apagada, como en la A2.5, porque hoy se encienden tres VM de prueba más.
-- Tu repositorio `entregas-5166` en el puesto de administración (A2.4, paso 2).
-- Explicado en esta sesión: [qm y pct](#qm-y-pct), [pvesh](#pvesh-la-api-desde-el-nodo) y [la API REST con token](#la-api-rest-con-token-la-antesala-de-opentofu).
+- dev completo de la A2.2: las cuatro VNets, `router-dev` con dnsmasq y NAT, `web01`, `db01` y el puesto de administración con tu repositorio `entregas-5166`.
+- pre es `10.20.0.0/16` con la franja de ID 200, y pro, `10.30.0.0/16` con la 300 ([convenciones del laboratorio](../laboratorio.md#convenciones)).
+- Hoy se encienden dos routers y dos VM de prueba, todos a 512 MB: para dejar memoria, apaga `db01` (130) al empezar. No hace falta hasta la evaluable.
+- Explicado en esta sesión: [aislamiento y separación](#aislamiento-y-separacion) y [la demostración del script](#demostracion-crear-un-entorno-con-un-script). De consulta: [qm y pct](#qm-y-pct) y [pvesh](#pvesh-la-api-desde-el-nodo). De la sesión 12: [dnsmasq](#dnsmasq-dhcp-y-dns-en-uno), `nmap -sn` en [qué demuestra cada herramienta](#que-demuestra-cada-herramienta) y [la plantilla de pruebas](#la-plantilla-de-pruebas).
 
 <span class="et et-pas">Pasos</span>
 
-Primero las máquinas y después la red: el script de máquinas ya está en la teoría, y lo nuevo es añadirle la red. Luego pruebas los dos scripts como se prueba la idempotencia, ejecutando dos veces cada uno contra un entorno donde no pueden romper nada. La segunda mitad es la API desde fuera: un usuario de prácticas con su token, dos llamadas con `curl` desde el puesto de administración y la baja del usuario, que demuestra que un token se revoca sin tocar nada más.
+Vas a crear primero, configurar después y aislar al final. El script levanta los dos entornos de una vez; luego dejas pre funcionando como dev y pones las rutas blackhole, y solo con máquinas al otro lado lanzas las pruebas de aislamiento, porque sin nadie que pudiera contestar no demostrarían nada. Al final destruyes las VM de pro con el otro script, que es a la vez su prueba de idempotencia.
 
-1. **Copia los dos scripts.** En el nodo, crea `crea-entorno.sh` y `destruye-entorno.sh` copiando tal cual los dos scripts de [qm y pct](#qm-y-pct), que ya siguen la convención de ID del curso.
+1. **Crea pre y pro con el script.** Copia en el nodo los dos scripts de [la demostración](#demostracion-crear-un-entorno-con-un-script) tal cual y ejecuta `crea-entorno.sh` dos veces para `pre` y dos veces para `pro`, guardando la salida de cada ejecución en `crea-pre-1.log`, `crea-pre-2.log`, `crea-pro-1.log` y `crea-pro-2.log` y apuntando su código de salida. La primera ejecución demuestra que el script funciona; la segunda, que es idempotente. Al terminar tienes las ocho VNets nuevas y las VM 200, 210, 300 y 310 en marcha.
 
-2. **Haz que el script cree también la red.** Amplía `crea-entorno.sh` para que, justo después del `case` y antes de clonar, cree la zona `lab` y las cuatro VNets del entorno con su subred si no existen, y aplique el SDN. Con eso el script hace lo que pide la evaluable, crear la red y las VM de un entorno. Las subredes van sin gateway ni rango DHCP, como en la A2.5, y la comprobación previa es la misma idea que `qm status`: preguntar antes de crear.
+    *Pista:* los clones completos tardan varios minutos cada uno; mientras corre el de `pro`, ya puedes empezar el paso 2 en `router-pre`.
 
-    *Pista:* `pvesh get` de una ruta que no existe termina con error, como `qm status`: es la condición del `if`. `$NET`, el prefijo del bloque, ya lo define el `case`.
+2. **Deja pre funcionando como dev.** Configura `router-pre` como `router-dev`: el reenvío y el NAT del paso 2 de la A2.2, y un `pre.conf` sacado del `dev.conf` de [dnsmasq](#dnsmasq-dhcp-y-dns-en-uno), con el dominio y el prefijo de pre y sin las cuatro reservas, que son de máquinas de dev. Después reinicia la 210 y apunta en el journal de `router-pre` el DORA y la IP que recibe: es la evidencia de la concesión DHCP que pide la memoria. `router-pro` no se configura: pro se queda en red, y su `web01` lleva IP fija.
 
-3. **Prueba la idempotencia contra pro.** Ejecuta dos veces cada script contra `pro`, guardando la salida de cada ejecución en `crea-1.log`, `crea-2.log`, `destruye-1.log` y `destruye-2.log`, y apunta el código de salida de la segunda destrucción. La primera ejecución de cada uno demuestra que funciona; la segunda, que es idempotente. Al terminar, comprueba con `qm list` que no queda ninguna VM de la franja 310 a 330.
+    *Pista:* entras en `router-pre` por su IP en `vmbr0`, como en `router-dev`. Un `sed` saca `pre.conf` de una copia de `dev.conf`, que no puede quedarse en `/etc/dnsmasq.d/`: dnsmasq lee todos los ficheros de esa carpeta. La 210 arrancó cuando nadie repartía direcciones, y por eso hay que reiniciarla.
 
-    **`destruye-entorno.sh dev` no se ejecuta nunca**: borraría `web01`, `app01` y `db01`, y `app01` es la VM que Mantenimiento usa a diario desde el 15 de octubre. Tampoco `destruye-entorno.sh pre`, que se llevaría la `web01` de prueba de la A2.5, evidencia de la evaluable.
+3. **Cierra el paso con rutas blackhole.** Pon las rutas blackhole de [aislamiento y separación](#aislamiento-y-separacion) en una unidad de systemd `blackhole.service` en cada router configurado, para que sobrevivan al reinicio: en `router-dev`, hacia `10.20.0.0/16` y `10.30.0.0/16`; en `router-pre`, hacia `10.10.0.0/16` y `10.30.0.0/16`. Sin ellas, el aislamiento dependería de que nadie en la red del laboratorio supiera llegar a esos bloques.
 
-4. **Crea un usuario de prácticas con su token.** En el nodo, `cli@pve` y su token `lab`, como en [la API REST con token](#la-api-rest-con-token-la-antesala-de-opentofu), con los permisos justos para el SDN. Guarda el token en el puesto de administración, fuera del repositorio, en `~/.env-pve`: una línea `PVE_TOKEN='PVEAPIToken=cli@pve!lab=<secreto>'` que cargas con `source`.
+    *Pista:* es el patrón de `ruta-lab.service` (A2.2, paso 3), con una línea `ExecStart=/sbin/ip route replace blackhole <bloque>` por bloque.
 
-    *Pista:* el secreto se imprime una sola vez. Escribe el fichero con un editor y con las comillas simples, que protegen el `!`.
+4. **Lanza las pruebas de aislamiento desde dev.** Guarda las salidas de estas pruebas, lanzadas desde la `web01` de dev: `nmap -sn` contra `10.20.1.0/24` y `10.30.1.0/24`, `ping` a `10.20.1.1`, a `10.30.1.1`, a la 210 y a la 310, y `traceroute` a `10.20.1.1`, más el `ip r` de `router-dev`.
 
-5. **Reproduce dos llamadas desde fuera.** Con `curl`, desde el puesto de administración y contra la IP del nodo en la red del laboratorio, haz la lectura de las VNets y la creación de una VNet de prueba `devtest` en la zona `lab`, con su Apply. Cuando la veas en la consola web, bórrala con el mismo token y vuelve a aplicar. Es lo mismo que hará OpenTofu, y la forma de depurarlo cuando falle.
+    *Pista:* `nmap` se instala en la `web01` de dev con `apt`, que sale por `router-dev`.
 
-    *Pista:* el Apply es un `PUT` a `/cluster/sdn` y el borrado, un `DELETE` a la ruta de la VNet, como `pvesh set` y `pvesh delete`.
+5. **Explica qué demuestra cada salida.** Escribe en tres o cuatro líneas por qué un `0 hosts up` o un `ping` sin respuesta no bastan por sí solos y cuál de tus salidas demuestra de verdad que no hay camino. Después rellena la [plantilla de pruebas](#la-plantilla-de-pruebas) para el aislamiento inter-entorno y para la concesión DHCP, con el DORA de la 210.
 
-6. **Revoca el acceso y recoge las evidencias.** Borra `cli@pve`, que se lleva su token y sus permisos, comprueba que el mismo `curl` de lectura devuelve ahora 401 y borra `~/.env-pve`: un acceso que ya no hace falta no se deja vivo. Lleva a `ut2/a26` los dos scripts, los cuatro `.log`, las salidas de los `curl` y el 401, y comprueba antes del commit que `PVEAPIToken` no aparece en el repositorio.
+6. **Destruye las VM de pro.** Ejecuta `destruye-entorno.sh pro` dos veces, guardando la salida en `destruye-1.log` y `destruye-2.log` y apuntando el código de salida de la segunda: es la prueba de idempotencia del script de destrucción. pro se queda solo con sus VNets, que es lo que necesita el resto del curso.
 
-    *Pista:* el nodo copia con `scp` al puesto de administración sin contraseña, porque su clave va en la plantilla.
+    **`destruye-entorno.sh pre` no se ejecuta**: se llevaría `router-pre`, que se usa en enero, y la 210, cuyo DORA es evidencia de la evaluable.
 
-<span class="et et-com">Comprobación</span> La segunda ejecución de `crea-entorno.sh` imprime "ya existe, no se toca" tres veces; la segunda de `destruye-entorno.sh` termina con código 0 sin salida; el `curl` de lectura devuelve JSON con las VNets de los tres entornos; `devtest` aparece y después desaparece de la consola web; ningún secreto está en el repositorio; después de borrar `cli@pve`, el mismo `curl` devuelve 401.
+<span class="et et-com">Comprobación</span> La segunda ejecución de `crea-entorno.sh` imprime «ya existe, no se toca» seis veces para cada entorno y termina con código 0; la `web01` de pre tiene una IP de `10.20.1.0/24` dada por `router-pre`; ningún `ping` ni `traceroute` desde dev llega a pre ni a pro; en `router-dev` y en `router-pre`, `ip r` muestra los dos blackhole; la segunda ejecución de `destruye-entorno.sh pro` termina con código 0 sin salida, y en el árbol de recursos ya no están la 300 ni la 310, pero las cuatro VNets de pro sí.
 
-<span class="et et-ent">Para practicar</span> Guarda en `ut2/a26` del repositorio los dos scripts, los cuatro `.log`, las salidas de los `curl` y el 401 del paso 6: la memoria de la evaluable los usa tal cual.
+<span class="et et-ent">Para practicar</span> Guarda en `ut2/a23` del repositorio los dos scripts, los seis `.log` con sus códigos de salida, `pre.conf`, el `ip r` de `router-dev` y de `router-pre`, las salidas del paso 4, lo que escribiste en el paso 5 y las dos plantillas de prueba: la memoria de la evaluable los usa tal cual.
 
-<span class="et et-ext">Si te sobra tiempo</span> Haz que `crea-entorno.sh` cree también el router del entorno con sus patas e IP fijas.
+<span class="et et-ext">Si te sobra tiempo</span> Quita el blackhole de `router-dev` (`ip route del blackhole 10.20.0.0/16`), repite el `ping` a `10.20.1.1` y captura con `tcpdump -ni ens18 icmp`: el paquete sale masqueradeado a la red del laboratorio. Vuelve a ponerlo con `systemctl restart blackhole.service`.
 
-## Sesión 13 · Práctica evaluable
+## Sesión 14 · Práctica evaluable
 
-<p class="ut-meta" markdown>18 de noviembre · Práctica evaluable · <span class="dur" tabindex="0" aria-label="Explicación · 10 min&#10;Trabajo en la práctica · 100 min" data-dur="Explicación · 10 min&#10;Trabajo en la práctica · 100 min">:material-school:<i class="dur-barra" style="--teoria:9%"></i>:material-flask:</span></p>
+<p class="ut-meta" markdown>20 de noviembre · Práctica evaluable · <span class="dur" tabindex="0" aria-label="Explicación · 10 min&#10;Trabajo en la práctica · 100 min" data-dur="Explicación · 10 min&#10;Trabajo en la práctica · 100 min">:material-school:<i class="dur-barra" style="--teoria:9%"></i>:material-flask:</span></p>
 
-Hoy cierras la memoria de la unidad: esquema, direccionamiento, configuración, scripts y las cinco pruebas documentadas. La memoria demuestra los dos criterios de la unidad, que las VPC están creadas, diferenciadas por entorno y aisladas, y que las direcciones, los nombres y la comunicación entre zonas son correctos. No pide nada nuevo: cada punto sale de un paso de las hojas A2.1 a A2.6, indicado entre paréntesis. Los diez primeros minutos son para aclarar dudas del enunciado. Empieza por recorrer la lista de comprobación de abajo, porque lo que falle hay que rehacerlo repitiendo su paso antes de escribir nada; después reúne las evidencias punto por punto y redacta. Enciende `db01` al empezar (Start en la VM 130), que está apagada desde la A2.5.
+Hoy cierras la memoria de la unidad: esquema, direccionamiento, configuración, scripts y las cinco pruebas documentadas. La memoria demuestra los dos criterios de la unidad, que las VPC están creadas, diferenciadas por entorno y aisladas, y que las direcciones, los nombres y la comunicación entre zonas son correctos. No pide nada nuevo: cada punto sale de un paso de las hojas A2.1 a A2.3, indicado entre paréntesis. Los diez primeros minutos son para aclarar dudas del enunciado. Empieza por recorrer la lista de comprobación de abajo, porque lo que falle hay que rehacerlo repitiendo su paso antes de escribir nada; después reúne las evidencias punto por punto y redacta. Enciende `db01` al empezar (Start en la VM 130), que está apagada desde la A2.3.
 
 Entrega una memoria (máximo 6 páginas, PDF) con:
 
-1. Esquema de red de los tres entornos y tabla de direccionamiento con la justificación de tamaños (A2.1, pasos 1 a 3).
-2. Configuración del SDN: `/etc/network/interfaces.d/sdn` (A2.2, paso 5) y las VNets de pre y pro (A2.5, paso 1).
-3. Configuración de dnsmasq de un entorno, comentada (A2.3, paso 4).
-4. Scripts de creación y destrucción, con la salida de la segunda ejecución consecutiva (A2.6, pasos 1 a 3): enlace a `ut2/a26` de tu repositorio de entregas, o anexo.
-5. Cinco pruebas documentadas con la plantilla: conectividad intra-entorno, captura de tráfico y resolución DNS (A2.4, paso 6), y aislamiento inter-entorno y concesión DHCP (A2.5, paso 6).
+1. Esquema de red de los tres entornos y tabla de direccionamiento con la justificación de tamaños (A2.1, paso 1).
+2. Configuración del SDN: `/etc/network/interfaces.d/sdn` (A2.1, paso 4) y las VNets de pre y pro (A2.3, paso 1).
+3. Configuración de dnsmasq de un entorno, comentada (A2.2, paso 4).
+4. Scripts de creación y destrucción, con la salida de la segunda ejecución consecutiva de cada uno (A2.3, pasos 1 y 6): enlace a `ut2/a23` de tu repositorio de entregas, o anexo.
+5. Cinco pruebas documentadas con la plantilla: conectividad intra-entorno, captura de tráfico y resolución DNS (A2.2, paso 6), y aislamiento inter-entorno y concesión DHCP (A2.3, paso 5).
 
 Checklist antes de entregar:
 
-- [ ] Los tres bloques no se solapan entre sí ni con la red del laboratorio (A2.1, paso 4).
-- [ ] `ip -br link show type bridge` en el nodo muestra las cuatro VNets de cada entorno en `UP` (A2.5, paso 1).
-- [ ] Cada VM recibe IP, gateway, DNS y dominio de búsqueda por DHCP (A2.3, pasos 5 y 6).
-- [ ] El `web01` de dev resuelve y alcanza `db01.dev.lab` por el 5432 (A2.4, paso 3).
-- [ ] Desde dev no se alcanza ningún router ni VM de pre ni de pro (A2.5, pasos 3 y 5).
-- [ ] Los scripts se ejecutan dos veces seguidas sin errores (A2.6, paso 3).
-- [ ] Ningún token ni contraseña aparece en la memoria ni en el repositorio, y el usuario de prácticas ya no existe (A2.6, paso 6).
+- [ ] Los tres bloques de tu plano no se solapan entre sí ni con las redes del nodo (A2.1, paso 2).
+- [ ] `ip -br link show type bridge` en el nodo lista las doce VNets: las de dev y pre en `UP`, y las de pro en `DOWN`, porque desde la A2.3 no tienen ninguna VM conectada (A2.1, paso 4, y A2.3, paso 1).
+- [ ] Cada VM de dev recibe IP, gateway, DNS y dominio de búsqueda por DHCP (A2.2, paso 4).
+- [ ] El `web01` de dev resuelve y alcanza `db01.dev.lab` por el 5432 (A2.2, paso 5).
+- [ ] Desde dev no se alcanza ningún router ni VM de pre (A2.3, pasos 3 y 4).
+- [ ] Los dos scripts se ejecutan dos veces seguidas sin errores (A2.3, pasos 1 y 6).
 
 | Criterio | RA1 | Peso | Sale de |
 |---|---|---|---|
-| VPC creadas, diferenciadas por entorno y aisladas | b | 35 % | A2.2 y A2.5 |
-| IP, DNS y comunicación entre zonas correctas | c | 35 % | A2.3 y A2.4 |
-| Pruebas documentadas con evidencias | b, c | 20 % | A2.4, paso 6, y A2.5, paso 6 |
-| Scripts funcionales e idempotentes, que crean la red y las VM de un entorno | b | 10 % | A2.6, pasos 1 a 3 |
+| VPC creadas, diferenciadas por entorno y aisladas | b | 35 % | A2.1 y A2.3 |
+| IP, DNS y comunicación entre zonas correctas | c | 35 % | A2.2 |
+| Pruebas documentadas con evidencias | b, c | 20 % | A2.2, paso 6, y A2.3, paso 5 |
+| Scripts funcionales e idempotentes, que crean la red y las VM de un entorno | b | 10 % | A2.3, pasos 1 y 6 |
 
-Cuando la memoria esté entregada, destruye la VM de prueba de pre (210), cuyo DORA ya está en la memoria, y `router-pro` (300): pro se queda solo como red. Así, en enero, OpenTofu crea las VM de pre sin choques de ID.
+Cuando la memoria esté entregada, destruye la VM de prueba de pre (210), cuyo DORA ya está en la memoria, desde la consola web y no con `destruye-entorno.sh pre`, que se llevaría también `router-pre`. pre se queda con su red y su router, y pro solo con su red. Así, en enero, OpenTofu crea las VM de pre sin choques de ID.
 
 ## Errores frecuentes en el laboratorio
 
 - Apply del SDN dice OK y no aparece ningún bridge. Falta `source /etc/network/interfaces.d/*` en `/etc/network/interfaces`, o el nodo no usa ifupdown2. Se comprueba con `ip link show devfront` y con `cat /etc/network/interfaces.d/sdn`.
 - La VM no recibe IP. Orden de comprobación: la pestaña Hardware de la VM (¿su net0 está en el bridge correcto?), `journalctl -u dnsmasq` en el router (¿llega el DISCOVER?), `dnsmasq --test` (¿sintaxis?), y `ss -ulnp | grep :67` (¿escucha en la interfaz de esa subred?). El 80 % de las veces es una VM conectada a `vmbr0` en vez de a la VNet, o dnsmasq escuchando en `ens20` cuando la subred está en `ens21`.
-- El DHCP del SDN y el dnsmasq del router compiten. Si queda activo el DHCP de la zona y además el router responde, las VM reciben dos ofertas y cogen la primera que llega; unas veces el gateway es el nodo y otras el router. Al pasar a la A2.3 hay que borrar el rango DHCP **y el gateway** de las cuatro subnets del SDN y aplicar: mientras la subnet tenga gateway, el nodo mantiene el `.1` en su bridge y hay dos máquinas con la misma IP.
+- El DHCP del SDN y el dnsmasq del router compiten. Si queda activo el DHCP de la zona y además el router responde, las VM reciben dos ofertas y cogen la primera que llega; unas veces el gateway es el nodo y otras el router. Al montar `router-dev` (A2.2) hay que borrar el rango DHCP **y el gateway** de las cuatro subnets del SDN y aplicar: mientras la subnet tenga gateway, el nodo mantiene el `.1` en su bridge y hay dos máquinas con la misma IP.
 - front llega a back por ping pero no a un puerto. `ip_forward` está bien (el ping cruza), así que es el servicio: `ss -tlnp` en el destino, y comprobar si escucha en `127.0.0.1` o en `0.0.0.0`. PostgreSQL trae `listen_addresses = 'localhost'` por defecto.
 - ping funciona y las transferencias grandes se cuelgan. MTU. Ocurre con zonas VXLAN sin ajustar la MTU de las VM a 1450. Se confirma con `ping -M do -s 1472 destino` (fragmentación prohibida, 1500 bytes totales): si falla, hay que bajar la MTU.
 - `dig` resuelve pero la aplicación no. La aplicación usa el `/etc/resolv.conf` de la VM, no el servidor pasado a `dig` con `@`. Conviene mirar `resolvectl status` o `cat /etc/resolv.conf`: si cloud-init dejó el DNS de la red del laboratorio, el DHCP no está enviando `option:dns-server`.

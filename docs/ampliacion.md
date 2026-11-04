@@ -25,7 +25,7 @@ Además de los puertos de uso diario (8006 para la web y la API, 22 para SSH y 5
 
 ### Dentro de KVM y QEMU
 
-Detalle de [Cómo funciona KVM/QEMU por debajo](ut/ut1-virtualizacion.md#como-funciona-kvmqemu-por-debajo), en la sesión 4. Nada de esto cambia una decisión de configuración, pero explica de dónde sale el coste de cada salida de la VM.
+Detalle de [Cómo funciona KVM/QEMU por debajo](ut/ut1-virtualizacion.md#como-funciona-kvmqemu-por-debajo), en la sesión 9. Nada de esto cambia una decisión de configuración, pero explica de dónde sale el coste de cada salida de la VM.
 
 **El modo invitado de la CPU.** Se dice a menudo que el hipervisor corre en "ring -1": la CPU tiene un modo adicional (VMX root en Intel) en el que corre el kernel del host con KVM, y un modo invitado (VMX non-root) en el que corre la VM con sus propios anillos 0 a 3. El kernel del invitado cree que está en ring 0 y ejecuta instrucciones privilegiadas con normalidad; cuando hace algo que el hipervisor necesita controlar (tocar una tabla de páginas, acceder a un puerto de E/S, ejecutar `cpuid`, recibir una interrupción) la CPU sale del modo invitado, KVM atiende la petición y vuelve a entrar.
 
@@ -37,7 +37,7 @@ Detalle de [Cómo funciona KVM/QEMU por debajo](ut/ut1-virtualizacion.md#como-fu
 
 ### Proxmox Backup Server
 
-Detalle de [Backups con vzdump y Proxmox Backup Server](ut/ut1-virtualizacion.md#backups-con-vzdump-y-proxmox-backup-server), en la sesión 4. En el laboratorio del curso no se monta.
+Detalle de [Backups con vzdump y Proxmox Backup Server](ut/ut1-virtualizacion.md#backups-con-vzdump-y-proxmox-backup-server), en la sesión 9. En el laboratorio del curso no se monta.
 
 El problema de los backups normales de Proxmox, los que hace vzdump (la herramienta que hay detrás del botón Backup de la consola) a ficheros, es que cada backup es completo: 20 VM de 20 GB con backup diario y retención de 14 días son 5,6 TB. **Proxmox Backup Server** (PBS) es un producto aparte, también libre, que resuelve eso: parte los discos en trozos de 4 MB, guarda cada trozo una sola vez (deduplicación entre backups y entre VM), aprovecha el mapa de bloques modificados que QEMU mantiene desde el último backup (*dirty bitmap*) para leer solo lo cambiado, y añade verificación de integridad, cifrado en el cliente, retención con reglas (`keep-daily`, `keep-weekly`...) y sincronización a un segundo PBS remoto.
 
@@ -63,7 +63,7 @@ flowchart LR
 
 ### Bond: modos y configuración
 
-Detalle de [Modalidades de red](ut/ut1-virtualizacion.md#modalidades-de-red-bridge-nat-vlan-y-bond), en la sesión 5. La VM de Proxmox del laboratorio tiene una sola tarjeta, así que en el curso no se monta un bond.
+Detalle de [Modalidades de red](ut/ut1-virtualizacion.md#modalidades-de-red-bridge-nat-vlan-y-bond), en la sesión 9. La VM de Proxmox del laboratorio tiene una sola tarjeta, así que en el curso no se monta un bond.
 
 Varias tarjetas físicas agrupadas para redundancia o ancho de banda. Modos que se ven en producción: `active-backup` (no requiere nada en el switch; una tarjeta activa y otra en espera), `802.3ad` o LACP (requiere configurar el agregado en el switch; reparte tráfico y suma ancho de banda entre conexiones distintas, nunca dentro de una misma) y `balance-xor`. El bond se crea como interfaz `bond0` y es `bond0`, no las tarjetas, lo que se pone como puerto del bridge.
 
@@ -86,7 +86,7 @@ iface vmbr0 inet static
 
 ### Fusión de páginas iguales
 
-Detalle de [Capacidades y limitaciones](ut/ut1-virtualizacion.md#capacidades-y-limitaciones-y-como-medirlas), en la sesión 5. En el laboratorio no se toca.
+Detalle de [Capacidades y limitaciones](ut/ut1-virtualizacion.md#capacidades-y-limitaciones-y-como-medirlas), en la sesión 9. En el laboratorio no se toca.
 
 El kernel del host puede buscar páginas de memoria idénticas entre VM (mismo sistema operativo, mismas bibliotecas) y dejar una sola copia compartida; en Linux se llama KSM (fusión de páginas iguales del kernel). Ahorra memoria, pero consume CPU en el host y puede filtrar información entre VM por canales laterales, así que en entornos con clientes distintos sobre el mismo host se desactiva.
 
@@ -116,7 +116,7 @@ En el laboratorio la zona de disponibilidad es el nodo Proxmox: si un nodo se ap
 
 ### VLAN frente a VXLAN
 
-Comparación completa de los dos tipos de zona que se usan fuera del laboratorio; en la sesión 8, [VLAN 802.1Q frente a VXLAN](ut/ut2-vpc.md#vlan-8021q-frente-a-vxlan) se queda con la consecuencia práctica, la MTU.
+Comparación completa de los dos tipos de zona que se usan fuera del laboratorio; en la sesión 11, [VLAN 802.1Q frente a VXLAN](ut/ut2-vpc.md#vlan-8021q-frente-a-vxlan) se queda con la consecuencia práctica, la MTU.
 
 Una VLAN añade 4 bytes a la trama Ethernet con un identificador de 12 bits: 4094 redes posibles. Es un estándar de capa 2 que entienden todos los switches gestionables, es barato de procesar y se depura con `tcpdump -e` viendo el tag. Su limitación es que la VLAN tiene que existir en cada switch por el que pasa el tráfico, así que depende de que el equipo de redes la configure, y no cruza un router (por definición de capa 2).
 
@@ -153,7 +153,7 @@ flowchart TB
 
 ### Enlaces
 
-- [Proxmox VE Administration Guide, capítulo SDN](https://pve.proxmox.com/pve-docs/chapter-pvesdn.html): la referencia de zonas, VNets, subnets, IPAM y DHCP integrado; conviene leer la parte de "Simple zone" y "DHCP" antes de la sesión 8.
+- [Proxmox VE Administration Guide, capítulo SDN](https://pve.proxmox.com/pve-docs/chapter-pvesdn.html): la referencia de zonas, VNets, subnets, IPAM y DHCP integrado; conviene leer la parte de "Simple zone" y "DHCP" antes de la sesión 11.
 - [Proxmox VE API Viewer](https://pve.proxmox.com/pve-docs/api-viewer/): todas las rutas de la API con sus parámetros; es lo que `pvesh usage` muestra, pero navegable.
 - [Proxmox wiki: Proxmox VE API](https://pve.proxmox.com/wiki/Proxmox_VE_API): autenticación con tickets y con tokens, y ejemplos con curl.
 - [RFC 1918, Address Allocation for Private Internets](https://www.rfc-editor.org/rfc/rfc1918): cuatro páginas; explica por qué existen los rangos privados y qué obligaciones tiene quien los usa.
@@ -174,13 +174,13 @@ El cortafuegos decide por puertos y direcciones. No sabe si lo que entra por el 
 
 ### Qué frena cada capa
 
-Ampliación de [Defensa en profundidad y zonas](ut/ut3-seguridad-por-capas.md#defensa-en-profundidad-y-zonas), en la sesión 14.
+Ampliación de [Defensa en profundidad y zonas](ut/ut3-seguridad-por-capas.md#defensa-en-profundidad-y-zonas), en la sesión 15.
 
-Para que el modelo no se quede en una tabla bonita, conviene saber qué ataque concreto para cada zona. Un escaneo de puertos desde Internet contra la IP pública solo ve el 443 del proxy; los puertos 28080 de la aplicación y 5432 de PostgreSQL ni siquiera aparecen como cerrados, aparecen como filtrados, que es distinto y se explica con nmap en las [pruebas de seguridad](ut/ut3-seguridad-por-capas.md#pruebas-de-seguridad) de la sesión 18. Si un atacante explota una vulnerabilidad del proxy y consigue ejecutar código en él, se encuentra en la DMZ externa: puede llegar al 28080 de app01 porque es lo que el proxy necesita, pero no puede abrir una sesión a la base de datos, ni hacer SSH a nada, ni salir a Internet a descargarse herramientas si la regla de salida de la DMZ externa está cerrada. Si además compromete la aplicación (inyección SQL, deserialización, dependencia vulnerable), llega a la base de datos, pero con el usuario de aplicación, que no puede hacer `COPY ... TO PROGRAM` (una orden de PostgreSQL que ejecuta programas en el servidor) ni leer otras bases. Para llegar a la zona de gestión no hay ningún camino permitido desde ninguna zona de servicio, así que tendría que atacar el propio cortafuegos. Cada uno de esos saltos deja intentos denegados en el log, que es justo lo que un sistema de detección busca.
+Para que el modelo no se quede en una tabla bonita, conviene saber qué ataque concreto para cada zona. Un escaneo de puertos desde Internet contra la IP pública solo ve el 443 del proxy; los puertos 28080 de la aplicación y 5432 de PostgreSQL ni siquiera aparecen como cerrados, aparecen como filtrados, que es distinto y se explica con nmap en las [pruebas de seguridad](ut/ut3-seguridad-por-capas.md#pruebas-de-seguridad) de la sesión 17. Si un atacante explota una vulnerabilidad del proxy y consigue ejecutar código en él, se encuentra en la DMZ externa: puede llegar al 28080 de app01 porque es lo que el proxy necesita, pero no puede abrir una sesión a la base de datos, ni hacer SSH a nada, ni salir a Internet a descargarse herramientas si la regla de salida de la DMZ externa está cerrada. Si además compromete la aplicación (inyección SQL, deserialización, dependencia vulnerable), llega a la base de datos, pero con el usuario de aplicación, que no puede hacer `COPY ... TO PROGRAM` (una orden de PostgreSQL que ejecuta programas en el servidor) ni leer otras bases. Para llegar a la zona de gestión no hay ningún camino permitido desde ninguna zona de servicio, así que tendría que atacar el propio cortafuegos. Cada uno de esos saltos deja intentos denegados en el log, que es justo lo que un sistema de detección busca.
 
 ### La tabla de estados por dentro
 
-Ampliación de [Cortafuegos con estado](ut/ut3-seguridad-por-capas.md#cortafuegos-con-estado), en la sesión 14.
+Ampliación de [Cortafuegos con estado](ut/ut3-seguridad-por-capas.md#cortafuegos-con-estado), en la sesión 15.
 
 La tabla de estados tiene tamaño finito. En Debian `sysctl net.netfilter.nf_conntrack_max` suele valer 65536 o más según la RAM; en OPNsense el límite está en Firewall → Settings → Advanced (Firewall Maximum States). Un ataque de inundación de SYN busca precisamente llenarla; cuando se llena, el cortafuegos descarta conexiones nuevas legítimas y en el log aparece `nf_conntrack: table full, dropping packet`. Los tiempos de expiración también se configuran: una conexión TCP establecida sin tráfico vive por defecto 5 días en conntrack de Linux, y por eso una sesión SSH aguanta horas abierta sin que el cortafuegos la olvide.
 
@@ -859,7 +859,7 @@ basic_auth_users:
   scraper: "$2y$10$Q8v7...hash bcrypt..."
 ```
 
-Si se pone basic auth en los exporters, Prometheus tiene que presentarla al leer: en cada `scrape_config`, `scheme: https`, `tls_config: { ca_file: /etc/prometheus/tls/ca.crt }` y `basic_auth: { username: scraper, password_file: /etc/prometheus/secrets/scraper.pass }`. La CA es la del curso, la de la A3.2, y el certificado del servidor lleva el nombre `mon01` en el SAN (el campo del certificado donde van los nombres de host que cubre). Alertmanager y Grafana también hablan con Prometheus: si Prometheus pide contraseña, hay que darles las mismas credenciales. En el laboratorio del curso, el módulo 5169 cifra así el node_exporter de `app01` en su A3.2, y el job `node-tls` de la UT7 lo lee con esas credenciales.
+Si se pone basic auth en los exporters, Prometheus tiene que presentarla al leer: en cada `scrape_config`, `scheme: https`, `tls_config: { ca_file: /etc/prometheus/tls/ca.crt }` y `basic_auth: { username: scraper, password_file: /etc/prometheus/secrets/scraper.pass }`. La CA es la del curso, la de la preparación de la A3.1, y el certificado del servidor lleva el nombre `mon01` en el SAN (el campo del certificado donde van los nombres de host que cubre). Alertmanager y Grafana también hablan con Prometheus: si Prometheus pide contraseña, hay que darles las mismas credenciales. En el laboratorio del curso, el módulo 5169 cifra así el node_exporter de `app01` en su A3.2, y el job `node-tls` de la UT7 lo lee con esas credenciales.
 
 ### El repositorio de datos de la pila
 

@@ -47,9 +47,9 @@ Ese es el entorno **dev**, el único que llega al final. **pre** tiene la misma 
 
 ## Las dos asignaturas comparten este laboratorio
 
-La asignatura hermana, [Mantenimiento del sistema de contenedores](https://victor-educ.github.io/apuntes-5169/), vigila, prueba, actualiza y retira el mismo servicio, y empieza a hacerlo el 1 de octubre, cuando aquí todavía se está instalando Proxmox. Sus tres primeras sesiones trabajan con Docker en el puesto del alumno, porque el hipervisor se está montando todavía y la plantilla de la que salen las VM no existe hasta el 14 de octubre. Para que eso cuadre, en la sesión 3 (14 de octubre), nada más tener la plantilla cloud-init, junto a `web01` se clonan dos VM pensadas para la otra asignatura: `app01`, que aloja el servicio del curso en Docker Compose, y `mon01`, que aloja la pila de monitorización. Las dos van en vmbr0, la red del laboratorio, con IP por DHCP del propio Proxmox y sin subredes ni cortafuegos, y se entregan con Docker Engine y el plugin compose instalados, con el usuario `ops` en el grupo `docker` y con la clave pública del puesto del alumno dentro, porque Mantenimiento entra en ellas desde su puesto al día siguiente. Los ficheros compose que corren encima los entrega la otra asignatura y se despliegan allí a partir de su sesión 4 (15 de octubre).
+La asignatura hermana, [Mantenimiento del sistema de contenedores](https://victor-educ.github.io/apuntes-5169/), vigila, prueba, actualiza y retira el mismo servicio, y empieza a hacerlo el 1 de octubre, cuando aquí todavía se está instalando Proxmox. Hasta el 3 de noviembre trabaja con Docker en el puesto del alumno: al principio porque el hipervisor se está montando todavía y la plantilla de la que salen las VM no existe hasta el 14 de octubre, y después porque sus primeras hojas se terminan allí antes de trasladarlas. Para que eso cuadre, en la sesión 3 (14 de octubre), nada más tener la plantilla cloud-init, junto a `web01` se clonan dos VM pensadas para la otra asignatura: `app01`, que aloja el servicio del curso en Docker Compose, y `mon01`, que aloja la pila de monitorización. Las dos van en vmbr0, la red del laboratorio, con IP por DHCP del propio Proxmox y sin subredes ni cortafuegos, y se entregan con Docker Engine y el plugin compose instalados, con el usuario `ops` en el grupo `docker` y con la clave pública del puesto del alumno dentro, porque Mantenimiento entra en ellas desde su puesto. Los ficheros compose que corren encima los entrega la otra asignatura y se despliegan allí a partir de su sesión 10 (5 de noviembre).
 
-El 27 de noviembre, en la [A3.3](ut/ut3-seguridad-por-capas.md#a33-aplicacion-y-datos-sesion-16), esta asignatura traslada las dos VM a su sitio definitivo, ya detrás del cortafuegos: app01 a la subred back con la 10.10.2.10 y mon01 a la de gestión con la 10.10.0.20. Mantenimiento audita su pila el 26 de noviembre, con las VM todavía en el aula, y la protege desde el 1 de diciembre, ya en la VPC. En marzo, la UT7 de monitorización no levanta una segunda pila: trabaja sobre la de `/opt/monitoring` de mon01 y en el mismo repositorio `monitoring`, y solo le añade ficheros propios que Mantenimiento no toca (los targets que genera Ansible, sus reglas, el job de Jenkins y el panel de la plataforma). PromQL, las reglas, Alertmanager, Grafana y los indicadores se repasan en pocos minutos, porque la otra asignatura ya los ha dado a fondo.
+El 27 de noviembre, en la [A3.2](ut/ut3-seguridad-por-capas.md#a32-aplicacion-y-datos-sesion-16), esta asignatura traslada las dos VM a su sitio definitivo, ya detrás del cortafuegos: app01 a la subred back con la 10.10.2.10 y mon01 a la de gestión con la 10.10.0.20. Mantenimiento audita su pila el 26 de noviembre, con las VM todavía en el aula, y la protege desde el 1 de diciembre, ya en la VPC. En marzo, la UT7 de monitorización no levanta una segunda pila: trabaja sobre la de `/opt/monitoring` de mon01 y en el mismo repositorio `monitoring`, y solo le añade ficheros propios que Mantenimiento no toca (los targets que genera Ansible, sus reglas, el job de Jenkins y el panel de la plataforma). PromQL, las reglas, Alertmanager, Grafana y los indicadores se repasan en pocos minutos, porque la otra asignatura ya los ha dado a fondo.
 
 ## Dónde se trabaja
 
@@ -68,7 +68,7 @@ Se llega siempre igual: se entra en el Proxmox del centro con tu usuario, se abr
 |----|----|----|----|
 | `vmbr9` | La red del aula, 192.168.100.0/24 | El propio Proxmox, con la tarjeta física (`ens18`) como puerto | El DHCP del Proxmox del centro |
 | `vmbr0` | La red del laboratorio, 10.99.0.0/24, con el Proxmox en la `.1` | Las VM que se crean dentro: la plantilla y todos los clones | El propio Proxmox: un dnsmasq (`dnsmasq-vmbr0.service`) reparte de la `.100` a la `.250` y hace de DNS, y el nodo les da salida a Internet con NAT por `vmbr9` |
-| `vmbr1` | Red interna, 10.10.10.0/24, con el Proxmox en la `.1` | Las redes internas y las VLAN de las pruebas, desde la A1.5 | Nadie: IP fija |
+| `vmbr1` | Red interna, 10.10.10.0/24, con el Proxmox en la `.1` | Las VLAN de las pruebas: la VLAN 30 de la práctica evaluable de la UT1 (6 nov), que lo marca como VLAN aware | Nadie: IP fija |
 
 Que todas las copias usen la misma 10.99.0.0/24 no es un problema, porque cada una vive dentro de su Proxmox y no sale de él: hacia fuera, todo lo que sale de las VM lleva la IP del Proxmox en el aula. Lo que esto cambia es la entrada: el puesto está en la red del aula y no sabe llegar a la 10.99.0.0/24 si no se le dice que pase por tu Proxmox. Por eso el puesto lleva una ruta fija a la 10.99.0.0/24 por la IP de tu `pve` en el aula, que se pone en la [A1.3](ut/ut1-virtualizacion.md#a13-plantilla-cloud-init-y-clonado-sesion-3). Con ella, el SSH desde el puesto a cualquier VM de `vmbr0` va directo. Cuando los apuntes dicen «el puesto del alumno», es la VM `puesto`; cuando dicen «la red del laboratorio», es la `vmbr0` de tu Proxmox, la 10.99.0.0/24.
 
@@ -89,9 +89,9 @@ Cuatro bloques se repiten en la cuenta:
 
 | Tramo | Encendido | Suma | Qué se apaga para no pasar de 14 GB |
 |---|---|--:|---|
-| 14 oct a 3 nov | `web01`, `app01` y `mon01`; `db01` desde el 30 oct; las VM de prueba de la UT1 | 8 GB y las pruebas | Cada VM de prueba al terminar su hoja; en la evaluable de la UT1, todo menos `app01`, `mon01` y `app-eval` |
-| 4 a 19 nov | Lo anterior, `router-dev`, `admin01`, `router-pre`, `router-pro` y las dos `web01` de prueba de la A2.5 | 11,5 GB | Nada; la A2.5 apaga `db01` hasta la evaluable para caber también en 12 GB |
-| 20 nov a 7 ene | La base, el servicio en dev y `router-pre`; `cli-a` y `cli-b` del 2 al 9 dic | 11,5 GB | Nada |
+| 14 oct a 10 nov | `web01`, `app01` y `mon01`; las VM de prueba de la UT1 | 6 GB y las pruebas | Cada VM de prueba al terminar su hoja; en la evaluable de la UT1 (6 nov), todo menos `app01`, `mon01` y `app-eval` |
+| 11 a 19 nov | Lo anterior, `db01` (11 nov), `router-dev` y `admin01` (13 nov), y `router-pre`, `router-pro` y las dos `web01` de prueba de la A2.3 (18 nov) | 11,5 GB | Nada; la A2.3 apaga `db01` hasta la evaluable para caber también en 12 GB |
+| 20 nov a 7 ene | La base, el servicio en dev y `router-pre`; `router-dev` hasta el 25 nov, cuando lo releva OPNsense | 10,5 GB | Nada |
 | 8 ene a 2 feb | La base, el servicio en dev y pre | 13,5 GB | Nada |
 | 3 feb a 11 mar | La base, el servicio en dev, pre y la integración continua | 18,5 GB | En las sesiones de Despliegue, dev y pre salvo lo que use la hoja: la A6.8 (26 feb) enciende `router-pre`, `web01-pre`, `app01-pre` y `db01-pre`, porque `test.sh` comprueba las tres VM del servicio, y se queda en 13,5 GB. En las de Mantenimiento, `jenkins01`, `agent01` y `web01-pre`, que no corre nada, y pre entera los días que la hoja no la usa; cuando la hoja necesita Jenkins (A7.6, A8.1, A8.2 y A8.3), se enciende y a cambio se apagan `web01` y `db01` de dev; la A8.1 y la A8.2 necesitan además `router-pre`, `app01-pre` y `db01-pre` encendidas |
 | 12 a 24 mar | La base, el servicio en dev y la integración continua | 15 GB | `web01` en las sesiones de la UT7, porque `mon01` no la vigila; `agent01` en las de Mantenimiento |
@@ -119,9 +119,9 @@ Cada entorno tiene **cuatro VNets del SDN, una por zona, y cada VNet lleva una s
 
 **El ID de una VNet admite como máximo 8 caracteres y solo alfanuméricos. Es un límite de Proxmox, no una manía del curso**: nombres como `vdev-front` no se pueden crear. El ID de zona tiene el mismo límite; la zona del laboratorio se llama `lab`, es de tipo Simple y usa el IPAM `pve`.
 
-El **router del entorno** tiene una pata en cada VNet y es el `.1` de las cuatro subredes. En dev lo es la VM `router-dev` (100), con dnsmasq, desde la sesión 9, y OPNsense (109) desde la sesión 14, que ocupa su sitio con esas mismas direcciones; `router-dev` se apaga ese día y se destruye al cerrar la evaluable de la UT3. En pre y pro son `router-pre` (200) y `router-pro` (300). Orden de interfaces en los routers Debian: `ens18` exterior (vmbr0), `ens19` gestión, `ens20` front, `ens21` back y `ens22` data, y en `router-pre`, desde la A5.3, `ens23`, su pata en `devmgmt`. Las de OPNsense están en la [A3.1](ut/ut3-seguridad-por-capas.md#a31-instalar-el-firewall-sesion-14).
+El **router del entorno** tiene una pata en cada VNet y es el `.1` de las cuatro subredes. En dev lo es la VM `router-dev` (100), con dnsmasq, desde la sesión 12 (13 de noviembre), y OPNsense (109) desde la sesión 15 (25 de noviembre), que ocupa su sitio con esas mismas direcciones; `router-dev` se apaga ese día y se destruye al cerrar la evaluable de la UT3. En pre y pro son `router-pre` (200) y `router-pro` (300). Orden de interfaces en los routers Debian: `ens18` exterior (vmbr0), `ens19` gestión, `ens20` front, `ens21` back y `ens22` data, y en `router-pre`, desde la A5.3, `ens23`, su pata en `devmgmt`. Las de OPNsense están en [Instalación en Proxmox](ut/ut3-seguridad-por-capas.md#instalacion-en-proxmox).
 
-Quién reparte direcciones cambia una sola vez en todo el curso. En la **sesión 8** las subredes del SDN se crean con gateway y con rango DHCP del SDN (dnsmasq por zona, unidad `dnsmasq@lab`), porque es lo que se explica ese día. En la **sesión 9**, al entrar `router-dev`, se quita el gateway y el rango DHCP de cada subred del SDN y el router pasa a hacer DHCP, DNS y NAT. Dos `.1` distintos en la misma red no funcionan, así que ese paso no es opcional.
+Quién reparte direcciones cambia una sola vez en todo el curso. En la **sesión 11** (11 de noviembre) las subredes del SDN se crean con gateway y con rango DHCP del SDN (dnsmasq por zona, unidad `dnsmasq@lab`), porque es lo que se explica ese día. En la **sesión 12** (13 de noviembre), al entrar `router-dev`, se quita el gateway y el rango DHCP de cada subred del SDN y el router pasa a hacer DHCP, DNS y NAT. Dos `.1` distintos en la misma red no funcionan, así que ese paso no es opcional.
 
 | Rango dentro de cada subred | Uso |
 |------|------------|
@@ -134,7 +134,7 @@ Quién reparte direcciones cambia una sola vez en todo el curso. En la **sesión
 !!! ojo "Una tarjeta que no existe y una red que no es del laboratorio"
     **No hay patas de gestión** en web01, app01 ni db01: cada uno tiene una sola tarjeta, la de su zona, y la monitorización llega hasta ellos atravesando el cortafuegos, con las filas 11 a 13 de la [matriz de reglas](#matriz-de-reglas-de-opnsense). La `10.10.0.11` es gitea01 y la `10.10.0.12` es agent01, no segundas tarjetas de app01 y de db01.
 
-    La red **10.10.10.0/24 no es del laboratorio**: es la del bridge `vmbr1` del nodo, donde el host tiene la `10.10.10.1`. En `vmbr1` no vive ninguna VM de servicio: solo las VLAN de prueba de la UT1 y los dos clientes de la A3.4, en las VLAN 101 y 102 (10.10.101.0/24 y 10.10.102.0/24).
+    La red **10.10.10.0/24 no es del laboratorio**: es la del bridge `vmbr1` del nodo, donde el host tiene la `10.10.10.1`. En `vmbr1` no vive ninguna VM de servicio: solo `app-eval`, en la VLAN 30 de la práctica evaluable de la UT1 (192.168.30.0/24). Las VLAN 10 y 20 de la UT1 y los dos clientes de la UT3, en las VLAN 101 y 102 (10.10.101.0/24 y 10.10.102.0/24), solo existen en las demostraciones del profesor.
 
 ### Máquinas, IDs de VM y direcciones
 
@@ -142,19 +142,19 @@ Una fila por máquina, con la hoja que la crea y la que la retira; las que no ti
 
 | Máquina | ID | Red e IP | RAM al clonar | Qué corre | Nace en | Muere en |
 |---------|---:|----------|--------------:|-----------|---------|----------|
-| OPNsense | 109 | `vmbr0` (WAN) y las cuatro VNets de dev, con el `.1` de cada una; desde la A3.4, también `vmbr1` | 1 GB | Cortafuegos, NAT, DHCP, DNS y hora de dev | A3.1, 20 nov (se instala en casa) | |
-| `router-dev` | 100 | `vmbr0` y las cuatro VNets de dev, con el `.1` de cada una | 512 MB | DHCP, DNS y NAT de dev hasta que llega OPNsense | A2.3, 4 nov | Se apaga en la A3.1 (20 nov) y se destruye al cerrar la evaluable de la UT3 (9 dic) |
+| OPNsense | 109 | `vmbr0` (WAN) y las cuatro VNets de dev, con el `.1` de cada una | 1 GB | Cortafuegos, NAT, DHCP, DNS y hora de dev | A3.1, 25 nov (se instala en casa) | |
+| `router-dev` | 100 | `vmbr0` y las cuatro VNets de dev, con el `.1` de cada una | 512 MB | DHCP, DNS y NAT de dev hasta que llega OPNsense | A2.2, 13 nov (se clona en casa) | Se apaga en la A3.1 (25 nov) y se destruye al cerrar la evaluable de la UT3 (4 dic) |
 | `jenkins01` | 101 | `devmgmt`, 10.10.0.10 | 2 GB | Jenkins con nginx delante | A6.1, 3 feb | |
 | `gitea01` | 102 | `devmgmt`, 10.10.0.11 | 1 GB | Gitea con nginx delante; el registry desde la A6.6 (19 feb) | A6.4, 12 feb | |
-| `mon01` | 103 | `vmbr0` por DHCP hasta el 27 nov; después `devmgmt`, 10.10.0.20, y la 10.10.0.30 de MinIO | 3 GB | La pila de Mantenimiento en `/opt/monitoring`; la Gitea provisional del 17 nov al 12 feb; MinIO desde la A5.2 (18 dic) | A1.3, 14 oct | |
-| `admin01`, el puesto de administración | 105 | `vmbr0` por DHCP y `devmgmt`, 10.10.0.50 | 1 GB | El salto SSH hacia todas las zonas, la CA del curso, `tofu` y `ansible`, y las copias de trabajo de `iac-lab`, `operacion` y `entregas-5166` | A2.4, 6 nov | |
+| `mon01` | 103 | `vmbr0` por DHCP hasta el 27 nov; después `devmgmt`, 10.10.0.20, y la 10.10.0.30 de MinIO | 3 GB | La pila de Mantenimiento en `/opt/monitoring`; la Gitea provisional del 24 nov al 12 feb; MinIO desde la A5.2 (18 dic) | A1.3, 14 oct | |
+| `admin01`, el puesto de administración | 105 | `vmbr0` por DHCP y `devmgmt`, 10.10.0.50 | 1 GB | El salto SSH hacia todas las zonas, la CA del curso, `tofu` y `ansible`, y las copias de trabajo de `iac-lab`, `operacion` y `entregas-5166` | A2.2, 13 nov (se clona en casa) | |
 | `agent01` | 106 | `devmgmt`, 10.10.0.12 | 2 GB | El agente permanente de Jenkins, por SSH, y el Docker de los agentes efímeros; `ansible` y la ruta a pre desde la A6.8 | A6.3, 10 feb | |
-| `web01` | 110 | `vmbr0` hasta el 30 oct; después `devfront`, 10.10.1.10 | 1 GB | nginx con TLS delante de la API | A1.3, 14 oct | |
+| `web01` | 110 | `vmbr0` hasta el 11 nov; después `devfront`, 10.10.1.10 | 1 GB | nginx con TLS delante de la API | A1.3, 14 oct | |
 | `app01` | 120 | `vmbr0` por DHCP hasta el 27 nov; después `devback`, 10.10.2.10 | 2 GB | El compose `servicio` en `/opt/servicio` | A1.3, 14 oct | |
-| `db01` | 130 | `devdata`, 10.10.3.10 | 2 GB | PostgreSQL en su disco `/data` y postgres_exporter, desde la A3.3 (27 nov) | A2.2, 30 oct | |
-| `router-pre` | 200 | `vmbr0` y las cuatro VNets de pre, con el `.1` de cada una; desde la A5.3, también `devmgmt` con la 10.10.0.2 | 512 MB | DHCP, DNS y NAT de pre, y el paso de gestión a pre | A2.5, 11 nov | A8.3 de Mantenimiento, 11 mar |
+| `db01` | 130 | `devdata`, 10.10.3.10 | 2 GB | PostgreSQL en su disco `/data` y postgres_exporter, desde la A3.2 (27 nov) | A2.1, 11 nov | |
+| `router-pre` | 200 | `vmbr0` y las cuatro VNets de pre, con el `.1` de cada una; desde la A5.3, también `devmgmt` con la 10.10.0.2 | 512 MB | DHCP, DNS y NAT de pre, y el paso de gestión a pre | A2.3, 18 nov | A8.3 de Mantenimiento, 11 mar |
 | `web01-pre`, `app01-pre` y `db01-pre` | 210, 220 y 230 | `prefront`, `preback` y `predata`, con la `.10` de cada subred | 1 GB | Lo que dice la [ficha de pre](#el-entorno-pre) | A5.3, 8 ene, con OpenTofu | A8.3 de Mantenimiento, 11 mar |
-| `router-pro` | 300 | `vmbr0` y las cuatro VNets de pro | 512 MB | Nada: pro solo existe como red | A2.5, 11 nov | Al cerrar la evaluable de la UT2 (18 nov), junto con la 210 de prueba |
+| `router-pro` | 300 | `vmbr0` y las cuatro VNets de pro | 512 MB | Nada: pro solo existe como red | A2.3, 18 nov | Al final de la A2.3, con `destruye-entorno.sh pro` |
 | MinIO | contenedor en `mon01` | `devmgmt`, 10.10.0.30, una segunda dirección de `mon01` | unos 300 MB, dentro de los 3 GB de `mon01` | Almacén S3 con los buckets `tfstate` y `backups`; si lo monta el profesor para toda el aula, no ocupa memoria del puesto. El ID 104 queda reservado por si algún curso le da VM propia | A5.2, 18 dic | |
 
 **Reparto de los ID de VM.** La plantilla cloud-init es la **9000** (Debian 13 genericcloud). Las VM se numeran `<entorno><zona><host>`: la centena es el entorno (1 dev, 2 pre, 3 pro) y la decena es la zona, con el mismo número que el tercer octeto de su subred (0 gestión, 1 front, 2 back, 3 data). Así `120` se lee "dev, back, primera máquina" y nunca choca con `220`, que es la misma pieza en pre.
@@ -171,15 +171,14 @@ Los contenedores LXC comparten numeración con las VM, así que salen del rango 
 
 | VM | ID | RAM al clonar | Nace en | Muere en |
 |----|---:|--------------:|---------|----------|
-| `web02`, el clon enlazado de «Si te sobra tiempo» | 150 | 1 GB | A1.3, 14 oct | Al cerrar la evaluable de la UT1 (23 oct) |
-| La copia restaurada de `web01` | 151 | 1 GB | A1.4, 16 oct | Al cerrar la evaluable de la UT1 |
-| `ct01`, el contenedor LXC | 170 | 512 MB | A1.4, 16 oct | Al cerrar la evaluable de la UT1 |
-| `vlan10a`, `vlan10b` y `vlan20a` | 160 a 162 | 512 MB | A1.5, 21 oct | Al terminar la A1.5 o su «Si te sobra tiempo» |
-| `app-eval` | libre entre 150 y 199 | 3 GB, con ballooning | Evaluable de la UT1, 23 oct | Al entregarla |
-| `web01` de prueba de pre | 210 | 512 MB | A2.5, 11 nov | Al cerrar la evaluable de la UT2 (18 nov) |
-| `web01` de prueba de pro | 310 | 512 MB | A2.5, 11 nov | Al final de la A2.5 |
-| Las de los scripts de la A2.6 | 310, 320 y 330 | 512 MB | A2.6, 13 nov | En la propia A2.6, con `destruye-entorno.sh pro` |
-| `cli-a` y `cli-b` | 180 y 181 | 512 MB | A3.4, 2 dic | Al cerrar la evaluable de la UT3 (9 dic) |
+| `web02`, el clon enlazado de «Si te sobra tiempo» | 150 | 1 GB | A1.3, 14 oct | Al cerrar la evaluable de la UT1 (6 nov) |
+| La copia restaurada de `web01`, de «Si te sobra tiempo» | 151 | 1 GB | A1.4, 4 nov | Al cerrar la evaluable de la UT1 |
+| `ct01`, el contenedor LXC | 170 | 512 MB | A1.4, 4 nov | Al cerrar la evaluable de la UT1 |
+| `vlan10a`, `vlan10b` y `vlan20a` | 160 a 162 | 512 MB | Solo en la demostración de VLAN del profesor (4 nov) | Al terminar la demostración |
+| `app-eval` | libre entre 150 y 199 | 3 GB, con ballooning | Evaluable de la UT1, 6 nov | Al entregarla |
+| `web01` de prueba de pre | 210 | 512 MB | A2.3, 18 nov | Al cerrar la evaluable de la UT2 (20 nov) |
+| `web01` de prueba de pro | 310 | 512 MB | A2.3, 18 nov | Al final de la A2.3, con `destruye-entorno.sh pro` |
+| `cli-a` y `cli-b` | 180 y 181 | 512 MB | Solo en la demostración de dos clientes del profesor (2 dic) | Al terminar la demostración |
 | `prueba01` | 150 | 1 GB | A5.1, 16 dic | En la propia A5.1, con `tofu destroy` |
 
 ### El entorno pre
@@ -195,7 +194,7 @@ pre es la copia de dev en la que se ensaya antes de producción. Lo crea esta as
 
 Las tres VM llevan 1 GB y salen de la plantilla, así que traen node_exporter. Lo que corre en `app01-pre` y en `db01-pre` lo deja el playbook de la A5.5; si no cabe en esa hoja, la parte de `db01-pre` pasa a la A5.6.
 
-**Cómo llega gestión a pre.** La A2.5 aísla los entornos con rutas blackhole, y así se quedan. El paso lo da una pata de `router-pre` en `devmgmt`, que monta el paso 1 de la [A5.3](ut/ut5-iac.md#a53-vm-completas-sesion-23):
+**Cómo llega gestión a pre.** La A2.3 aísla los entornos con rutas blackhole, y así se quedan. El paso lo da una pata de `router-pre` en `devmgmt`, que monta el paso 1 de la [A5.3](ut/ut5-iac.md#a53-vm-completas-sesion-23):
 
 - En la web, la VM 200 recibe una sexta tarjeta en `devmgmt` (**Hardware → Add → Network Device**, la `net5`) y, en su pestaña **Cloud-Init**, la IP Config de `net5` con `10.10.0.2/24`; dentro de `router-pre` esa tarjeta es `ens23`. Como 10.10.0.0/24 queda conectada, gana al blackhole de 10.10.0.0/16 y `router-pre` contesta a gestión.
 - En `router-pre`, tres reglas nftables de `forward`: lo establecido y relacionado se acepta, lo que entra por `ens23` se acepta y nada nuevo de pre sale hacia `ens23`.
@@ -229,19 +228,19 @@ No existe ningún `gitea01.dev.lab`: meter un servicio de plataforma en un entor
 
 | Nombre | Apunta a | Lo resuelve | Desde |
 |--------|----------|-------------|-------|
-| `app01` y `mon01` | su IP de la red del laboratorio | `/etc/hosts` del puesto del alumno y de `mon01` | A1.4 de Mantenimiento (15 oct), hasta el 27 nov |
-| `<host>.dev.lab` y `api.dev.lab` | la IP de cada máquina; `api.dev.lab`, la de `web01` | `router-dev`, y OPNsense desde la A3.1 | A2.3 (4 nov) |
-| `gitea.lab` | `mon01`; `gitea01` (10.10.0.11) desde la A6.4 (12 feb) | `/etc/hosts` del puesto, de `mon01`, de `app01` y del puesto de administración hasta el 27 nov; después, OPNsense | A2.6 de Mantenimiento (17 nov) |
-| `mon01.lab`, `grafana.lab` y `prometheus.lab` | 10.10.0.20 | OPNsense | A3.1 (20 nov) |
+| `app01` y `mon01` | su IP de la red del laboratorio | `/etc/hosts` del puesto del alumno y de `mon01` | A1.4 de Mantenimiento (5 nov), hasta el 27 nov |
+| `<host>.dev.lab` y `api.dev.lab` | la IP de cada máquina; `api.dev.lab`, la de `web01` | `router-dev`, y OPNsense desde la A3.1 | A2.2 (13 nov) |
+| `gitea.lab` | `mon01`; `gitea01` (10.10.0.11) desde la A6.4 (12 feb) | `/etc/hosts` del puesto, de `mon01`, de `app01` y del puesto de administración hasta el 27 nov; después, OPNsense | Práctica evaluable de la UT2 de Mantenimiento (24 nov) |
+| `mon01.lab`, `grafana.lab` y `prometheus.lab` | 10.10.0.20 | OPNsense | A3.1 (25 nov) |
 | `jenkins.lab` y `jenkins01.lab` | 10.10.0.10 | OPNsense | A6.1 (3 feb) |
 | `registry.lab` | 10.10.0.11 | OPNsense | A6.4 (12 feb) |
-| `api.dev.lab`, en el puesto del alumno | la IP WAN de OPNsense | `/etc/hosts` del puesto | A3.2 (25 nov) |
+| `api.dev.lab`, en el puesto del alumno | la IP WAN de OPNsense | `/etc/hosts` del puesto | A3.1 (25 nov) |
 | `jenkins.lab` y `grafana.lab`, en el puesto del alumno | 127.0.0.1, por el túnel de cada uno | `/etc/hosts` del puesto | con su túnel |
 | `<host>.pre.lab` | la `.10` de cada subred de pre | solo `router-pre` | A5.3 (8 ene); en las hojas se usa la IP |
 
 El 27 de noviembre, al trasladar `app01` y `mon01`, se borran las líneas del aula del `/etc/hosts` del puesto, de `mon01` y de `app01`: desde ese día los nombres los da OPNsense. Las VM de las zonas y `mon01` reciben el DNS del `.1` de su zona por DHCP; `jenkins01`, `gitea01` y `agent01` lo llevan fijo en su pestaña **Cloud-Init** (DNS servers `10.10.0.1` y DNS domain `lab`), y `admin01` lo recibe en la A3.1 de la misma forma, en la pestaña **Cloud-Init** de la VM 105 y con un reinicio. Con la hora pasa lo mismo: desde la A3.1, OPNsense la sirve a todas las zonas por la regla 0, y cada VM la toma del `.1` de su zona con `systemd-timesyncd`, como `web01` y `db01` en esa hoja.
 
-**Cómo se entra.** Hasta el 27 de noviembre, a app01 y mon01 se entra por SSH desde `puesto`, directamente a su IP de la red del laboratorio gracias a la ruta del puesto a la 10.99.0.0/24 ([Dónde se trabaja](#donde-se-trabaja)), con la clave del puesto que la A1.3 metió en la plantilla; a las que ya están en la VPC (web01 y db01, desde el 30 de octubre), desde el nodo: directamente el 30 de octubre, que el nodo es todavía el `.1` de cada subred, y con salto por `router-dev` desde el 4 de noviembre (`ssh -J ops@<IP de router-dev en la red del laboratorio> ops@10.10.1.10`); desde el 6 de noviembre, desde admin01. Desde el 27 de noviembre todas quedan detrás de OPNsense y solo admin01 tiene un pie en el aula, así que se entra con salto por él:
+**Cómo se entra.** Hasta el 27 de noviembre, a app01 y mon01 se entra por SSH desde `puesto`, directamente a su IP de la red del laboratorio gracias a la ruta del puesto a la 10.99.0.0/24 ([Dónde se trabaja](#donde-se-trabaja)), con la clave del puesto que la A1.3 metió en la plantilla; a las que ya están en la VPC (web01 y db01, desde el 11 de noviembre), desde el nodo el primer día, que el nodo es todavía el `.1` de cada subred, y desde el 13 de noviembre, cuando el `.1` pasa a `router-dev`, desde admin01. Desde el 27 de noviembre todas quedan detrás de OPNsense y solo admin01 tiene un pie en el aula, así que se entra con salto por él:
 
 ```bash
 ssh -J ops@<IP de admin01 en la red del laboratorio> ops@10.10.2.10
@@ -294,15 +293,15 @@ Las consolas web se abren con un túnel a través de admin01, que en el puesto e
 | 5432 | PostgreSQL | db01, abierto solo a back; db01-pre, solo a 10.20.2.0/24 |
 | 8006 | interfaz web de Proxmox | tu `pve`, en la red del aula |
 | 8080 | Jenkins por HTTP, puerto interno | dentro del compose de jenkins01, nunca publicado |
-| 20080 | nginx del compose del servicio | el puesto del alumno hasta el 13 oct y app01 hasta el 27 nov; desde entonces el proxy es el nginx de web01 |
+| 20080 | nginx del compose del servicio | el puesto del alumno hasta el 3 nov y app01 hasta el 27 nov; desde entonces el proxy es el nginx de web01 |
 | 23000 | Grafana | mon01; desde el 3 dic, solo por detrás de su nginx |
-| 23001 | Gitea | mon01, publicado, del 17 nov (A2.6 de Mantenimiento) al 12 feb (A6.4); en gitea01, solo por detrás de su nginx |
+| 23001 | Gitea | mon01, publicado, del 24 nov (práctica evaluable de la UT2 de Mantenimiento) al 12 feb (A6.4); en gitea01, solo por detrás de su nginx |
 | 23100 | Loki, con certificado de cliente desde el 3 dic | mon01 |
 | 25000 | receptor de incidencias de Alertmanager | mon01, solo en `127.0.0.1` |
 | 28025 | Mailpit, buzón de pruebas de Alertmanager (su web; el SMTP sigue en el 1025, dentro del compose) | mon01, solo en `127.0.0.1` desde el 3 dic |
 | 28080 | **la API del curso** | app01 y app01-pre |
 | 28081 | cAdvisor | app01 |
-| 28090 | `whoami`, el contenedor de pruebas de cabeceras | app01, desde la A3.3 |
+| 28090 | `whoami`, el contenedor de pruebas de cabeceras | app01, desde la A3.2 |
 | 28443 | túnel a las consolas web por HTTPS (OPNsense, Jenkins y Grafana) | el puesto del alumno |
 | 29000 y 29001 | API S3 y consola de MinIO | 10.10.0.30, en mon01 |
 | 29080 | Promtail | app01 |
@@ -310,7 +309,7 @@ Las consolas web se abren con un túnel a través de admin01, que en el puesto e
 | 29093 | Alertmanager | mon01, solo en `127.0.0.1` desde el 3 dic |
 | 29100 | node_exporter | todas las VM que salen de la plantilla, que lo deja en este puerto; en app01, con TLS y usuario desde el 1 dic |
 | 29102 | `/metrics` de la aplicación | app01 |
-| 29187 | postgres_exporter | en el compose del servicio hasta el 27 nov; en db01 desde la A3.3 |
+| 29187 | postgres_exporter | en el compose del servicio hasta el 27 nov; en db01 desde la A3.2 |
 
 Jenkins deja escrito su nombre en tres sitios y los tres dicen lo mismo: **nombre público `jenkins.lab`, puerto público 443 (`https://jenkins.lab`, con nginx delante terminando TLS) y puerto interno 8080** dentro de la red del compose. En el servidor, el 8443 solo aparece en la variante con keystore Java, que no es la instalación del curso y está recogida en [Para ampliar](ampliacion.md#jenkins-con-keystore-java); en el puesto del alumno, el túnel usa el 28443. Los agentes que llaman al controlador lo hacen por WebSocket a través del mismo 443, así que el puerto 50000 no se abre.
 
@@ -318,28 +317,28 @@ El registry se escribe siempre entero, con puerto: **`registry.lab:5000`**. Ni `
 
 ### Matriz de reglas de OPNsense
 
-Una sola matriz para las dos asignaturas. Las pestañas son las interfaces de OPNsense (WAN, MGMT, DMZEXT, DMZINT, INT, CLI_A y CLI_B) y el grupo `ZONAS`, que las reúne todas menos WAN. Los alias son los de la [A3.2](ut/ut3-seguridad-por-capas.md#a32-publicar-la-web-sesion-15) (`srv_web`, `srv_app`, `srv_db`, `net_mgmt`, `p_web`, `p_app`...) más los que añade la hoja de cada fila. Los números se reparten así: del 1 al 10, esta asignatura; del 11 al 20, la UT3 de Mantenimiento; del 21 en adelante, las unidades posteriores, que hoy no añaden ninguna. La denegación por defecto es siempre la 99. El número va al principio de la descripción de cada regla en OPNsense, para que el log y la matriz se crucen sin buscar.
+Una sola matriz para las dos asignaturas. Las pestañas son las interfaces de OPNsense (WAN, MGMT, DMZEXT, DMZINT, INT, y CLI_A y CLI_B, que solo existen en la demostración de dos clientes) y el grupo `ZONAS`, que las reúne todas menos WAN. Los alias son los de la [A3.1](ut/ut3-seguridad-por-capas.md#a31-firewall-y-publicacion-de-la-web-sesion-15) (`srv_web`, `srv_app`, `srv_db`, `net_mgmt`, `p_web`, `p_app`...) más los que añade la hoja de cada fila. Los números se reparten así: del 1 al 10, esta asignatura; del 11 al 20, la UT3 de Mantenimiento; del 21 en adelante, las unidades posteriores, que hoy no añaden ninguna. La denegación por defecto es siempre la 99. El número va al principio de la descripción de cada regla en OPNsense, para que el log y la matriz se crucen sin buscar.
 
 | # | Pestaña | Origen | Destino | Puertos | Acción | Log | Para qué | Nace en |
 |--:|---------|--------|---------|---------|--------|-----|----------|---------|
-| 0 | ZONAS | la red de la zona | This Firewall | `p_infra` (53 TCP y UDP, 123 UDP) e ICMP echo | Pass | no | DNS, hora y ping al propio cortafuegos | A3.1 (20 nov) |
-| 1 | WAN | any | `srv_web` | `p_web` (80, 443) | Pass | no | Publicación de `api.dev.lab`, con su port forward | A3.2 (25 nov) |
-| 2 | MGMT | `net_mgmt` | any | `p_web` (80, 443) | Pass | no | Consola del cortafuegos y salida a Internet de gestión, la única permanente | A3.2 (25 nov) |
-| 3 | DMZEXT | `srv_web` | `srv_app` | `p_app` (28080, 28090) | Pass | no | El proxy reenvía a la API y a `whoami` | A3.3 (27 nov) |
-| 4 | DMZINT | `srv_app` | `srv_db` | 5432 | Pass | sí | La API consulta PostgreSQL | A3.3 (27 nov) |
-| 5 | MGMT | `net_mgmt` | any | 22 | Pass | sí | Administración por SSH | A3.2 (25 nov) |
-| 6 | DMZINT | `srv_app` | `srv_gitea` | 23001; 443 desde la A6.4 | Pass | no | `git pull` y `git push` de `servicio` desde app01. `srv_gitea` es la 10.10.0.20 hasta el 12 feb y la 10.10.0.11 desde la A6.4 | A3.3 (27 nov) |
-| 7 | CLI_A | `net_cli_a` | `srv_web` | 443 | Pass | no | Cliente A al proxy compartido | A3.4 (2 dic) |
-| 8 | CLI_A | `net_cli_a` | any | any | Block | sí | Cliente A: el resto, denegado | A3.4 (2 dic) |
-| 9 | CLI_B | `net_cli_b` | `srv_web` | 443 | Pass | no | Cliente B al proxy compartido | A3.4 (2 dic) |
-| 10 | CLI_B | `net_cli_b` | any | any | Block | sí | Cliente B: el resto, denegado | A3.4 (2 dic) |
+| 0 | ZONAS | la red de la zona | This Firewall | `p_infra` (53 TCP y UDP, 123 UDP) e ICMP echo | Pass | no | DNS, hora y ping al propio cortafuegos | A3.1 (25 nov) |
+| 1 | WAN | any | `srv_web` | `p_web` (80, 443) | Pass | no | Publicación de `api.dev.lab`, con su port forward | A3.1 (25 nov) |
+| 2 | MGMT | `net_mgmt` | any | `p_web` (80, 443) | Pass | no | Consola del cortafuegos y salida a Internet de gestión, la única permanente | A3.1 (25 nov) |
+| 3 | DMZEXT | `srv_web` | `srv_app` | `p_app` (28080, 28090) | Pass | no | El proxy reenvía a la API y a `whoami` | A3.2 (27 nov) |
+| 4 | DMZINT | `srv_app` | `srv_db` | 5432 | Pass | sí | La API consulta PostgreSQL | A3.2 (27 nov) |
+| 5 | MGMT | `net_mgmt` | any | 22 | Pass | sí | Administración por SSH | A3.1 (25 nov) |
+| 6 | DMZINT | `srv_app` | `srv_gitea` | 23001; 443 desde la A6.4 | Pass | no | `git pull` y `git push` de `servicio` desde app01. `srv_gitea` es la 10.10.0.20 hasta el 12 feb y la 10.10.0.11 desde la A6.4 | A3.2 (27 nov) |
+| 7 | CLI_A | `net_cli_a` | `srv_web` | 443 | Pass | no | Cliente A al proxy compartido | Demostración de dos clientes (2 dic) |
+| 8 | CLI_A | `net_cli_a` | any | any | Block | sí | Cliente A: el resto, denegado | Demostración de dos clientes (2 dic) |
+| 9 | CLI_B | `net_cli_b` | `srv_web` | 443 | Pass | no | Cliente B al proxy compartido | Demostración de dos clientes (2 dic) |
+| 10 | CLI_B | `net_cli_b` | any | any | Block | sí | Cliente B: el resto, denegado | Demostración de dos clientes (2 dic) |
 | 11 | MGMT | `srv_mon` | `srv_app` | `p_mon_app` (29100, 28081, 29102, 29080) | Pass | sí | Scrape de mon01 a app01 | A3.1 de Mantenimiento (26 nov) |
 | 12 | MGMT | `srv_mon` | `srv_db` | `p_mon_db` (29100, 29187) | Pass | sí | Scrape de mon01 a db01 | A3.1 de Mantenimiento (26 nov) |
 | 13 | DMZINT | `srv_app` | `srv_mon` | 23100 | Pass | sí | Promtail de app01 hacia Loki | A3.1 de Mantenimiento (26 nov) |
 | T | la de la zona | la máquina | any | `p_web` | Pass | sí | `TEMPORAL alta <fecha> baja <fecha> <motivo>`: la salida de una zona de servicio para instalar algo | La hoja que la necesita, que la borra en el mismo paso |
-| 99 | todas | any | any | any | Block | sí | Denegación por defecto | A3.1 (20 nov) |
+| 99 | todas | any | any | any | Block | sí | Denegación por defecto | A3.1 (25 nov) |
 
-Desde el 20 de noviembre las zonas de servicio no salen a Internet (hasta ese día `router-dev` da salida a las cuatro zonas de dev): cuando una hoja tiene que instalar algo en ellas, abre la fila T en la pestaña de esa zona, instala y la borra en el mismo paso, y mientras existe la anota en la matriz. Gestión sale siempre, por la fila 2. La regla anti-lockout de MGMT la pone OPNsense sola y no lleva número. Ninguna fila deja a mon01 llegar a los puertos de scrape de front (la fila 2 solo le abre el 80 y el 443), y por eso la UT7 no vigila `web01`. pre no pasa por OPNsense: gestión llega a pre por la pata de `router-pre` en `devmgmt`, y pre sale a Internet por el NAT de `router-pre`.
+Desde el 25 de noviembre las zonas de servicio no salen a Internet (hasta ese día `router-dev` da salida a las cuatro zonas de dev): cuando una hoja tiene que instalar algo en ellas, abre la fila T en la pestaña de esa zona, instala y la borra en el mismo paso, y mientras existe la anota en la matriz. Gestión sale siempre, por la fila 2. La regla anti-lockout de MGMT la pone OPNsense sola y no lleva número. Las filas 7 a 10 se montan solo en el laboratorio del profesor: en el del alumno no hay pestañas CLI_A ni CLI_B, y esas filas van al informe de la práctica evaluable de la UT3, no al cortafuegos. Ninguna fila deja a mon01 llegar a los puertos de scrape de front (la fila 2 solo le abre el 80 y el 443), y por eso la UT7 no vigila `web01`. pre no pasa por OPNsense: gestión llega a pre por la pata de `router-pre` en `devmgmt`, y pre sale a Internet por el NAT de `router-pre`.
 
 ### La aplicación del curso
 
@@ -353,7 +352,7 @@ Las dos asignaturas trabajan sobre el mismo servicio, y esto es lo que cualquier
 | Errores | JSON `{"error": "..."}` con 400, 401, 404 o 422 |
 | Puertos | la API en el 28080 y sus métricas en `/metrics` del 29102, los de la [franja del curso](#puertos); hasta el 27 nov, el nginx del compose en el 20080 |
 | Repositorio | `servicio`: el código de la API en `api/`, con su `api/Dockerfile`, y `compose.yml` en la raíz |
-| Compose | proyecto `servicio` en `/opt/servicio`, en todos los entornos. Servicios `nginx`, `app` y `db` hasta el 27 nov; desde la A3.3, solo `app` |
+| Compose | proyecto `servicio` en `/opt/servicio`, en todos los entornos. Servicios `nginx`, `app` y `db` hasta el 27 nov; desde la A3.2, solo `app` |
 | Contenedores | `servicio-app-1`, `servicio-db-1` y `servicio-nginx-1` |
 | Base de datos | base `servicio` y usuario de la aplicación `app`; el superusuario sigue siendo `postgres`. La API crea su esquema al arrancar si no existe |
 | Imagen | `app:<versión>`, construida en app01 desde `api/Dockerfile`, hasta el 19 feb; desde la A6.6, `registry.lab:5000/app:<versión>` y `registry.lab:5000/app:<commit corto>`, que publica el pipeline |
@@ -361,7 +360,7 @@ Las dos asignaturas trabajan sobre el mismo servicio, y esto es lo que cualquier
 
 Las recetas que paran, arrancan o reinician una pieza usan siempre el compose y el nombre del servicio, nunca el del contenedor escrito a mano: `docker compose -f /opt/servicio/compose.yml stop app`. Las que provocan un fallo en app01 se lanzan desde el puesto, con `ssh ops@<app01> docker compose -f /opt/servicio/compose.yml <acción> <servicio>`. Los selectores de LogQL usan `service` y `level`: `{service="app", level="error"}`.
 
-**El paso a db01.** Hasta el 27 de noviembre, la base y el proxy son los servicios `db` y `nginx` del compose de app01. La [A3.3](ut/ut3-seguridad-por-capas.md#a33-aplicacion-y-datos-sesion-16) instala PostgreSQL en db01 con la base `servicio` y el usuario `app`, pone `DB_HOST=10.10.3.10` en el `.env` de `/opt/servicio` y quita `db`, `nginx` y postgres_exporter del compose. Los datos de prueba de octubre y noviembre no se trasladan: son de prueba, y la API crea el esquema vacío. Desde ese día PostgreSQL de dev se maneja con `systemctl` en db01, postgres_exporter corre como paquete en db01 y el proxy es el nginx de web01.
+**El paso a db01.** Hasta el 27 de noviembre, la base y el proxy son los servicios `db` y `nginx` del compose de app01. La [A3.2](ut/ut3-seguridad-por-capas.md#a32-aplicacion-y-datos-sesion-16) instala PostgreSQL en db01 con la base `servicio` y el usuario `app`, pone `DB_HOST=10.10.3.10` en el `.env` de `/opt/servicio` y quita `db`, `nginx` y postgres_exporter del compose. Los datos de prueba de octubre y noviembre no se trasladan: son de prueba, y la API crea el esquema vacío. Desde ese día PostgreSQL de dev se maneja con `systemctl` en db01, postgres_exporter corre como paquete en db01 y el proxy es el nginx de web01.
 
 ### Nombres compartidos
 
@@ -376,16 +375,16 @@ Cada artefacto que usan las dos asignaturas tiene un solo nombre. Un nombre dist
 | Proyecto compose | `servicio`, en `/opt/servicio`, en dev y en pre |
 | Base y usuario | base `servicio`, usuario `app` |
 | Repositorios | propietario `ops`: `ops/servicio`, `ops/monitoring`, `ops/alerting`, `ops/operacion`, `ops/incidencias`, `ops/iac-lab`, `ops/jenkins-config` y `ops/entregas-5166` |
-| CA del curso | `Lab 5166 CA`, en `~/ca/` de admin01, creada con `openssl ca` en la A3.2 (25 nov); no hay otra |
+| CA del curso | `Lab 5166 CA`, en `~/ca/` de admin01, creada con `openssl ca` en la preparación de la A3.1 (25 nov); no hay otra |
 | Usuario de Proxmox para OpenTofu | `terraform@pve` con el token `tofu`; nace en la A5.1 con `PVEVMAdmin` en `/vms`, `PVEDatastoreUser` en `/storage/local-lvm` y `PVESDNUser` en `/sdn/zones/lab` |
-| Usuario de prácticas de la A2.6 | `cli@pve`, que la propia A2.6 borra al terminar |
+| Usuario de la demostración del script de la UT2 | `cli@pve`, que solo existe en la demostración del profesor (18 nov) y se borra al terminarla |
 | Credenciales de Jenkins | `git-ro` (token de Gitea de solo lectura), `registry-cred` (usuario `jenkins` del registry), `ssh-pre` (clave SSH de `ops` para pre, solo en la carpeta `pre`) y `telegram-token`. Jenkins no guarda ningún token de Proxmox |
 | Etiqueta de equipo en las alertas | `team` |
 | Tabla nftables en los hosts | `inet fw` |
 | Credencial de MinIO para las copias | `restic` |
 | Repositorio restic | uno solo, `s3:http://10.10.0.30:29000/backups`, con la contraseña en `/etc/restic/pass`; las copias de pre llevan `--tag pre` |
 | Volumen de Gitea en mon01 | `monitoring_gitea_data` |
-| Alarmas de la UT2 de Mantenimiento | la lista cerrada de su A2.4, que incluye `HostDown`; ninguna unidad cita otras |
+| Alarmas de la UT2 de Mantenimiento | la lista cerrada de su A2.2, que incluye `HostDown`; ninguna unidad cita otras |
 | Retención de Prometheus | 45 días |
 
 ## Repositorios
@@ -394,11 +393,11 @@ Todos los repositorios del curso viven en la Gitea del laboratorio, bajo el prop
 
 | Repositorio | Qué guarda | Nace en | Copia de trabajo | Remoto desde |
 |-------------|------------|---------|------------------|--------------|
-| `servicio` | La API en `api/` con su `Dockerfile`, el `compose.yml`, las pruebas y el `Jenkinsfile` | A1.1 de Mantenimiento (1 oct), con el código que entrega el profesor | app01, en `/opt/servicio` (en el puesto del alumno hasta el 15 oct) | A2.6 de Mantenimiento (17 nov) |
-| `monitoring` | La pila de mon01; desde la UT7 de esta asignatura, también sus ficheros `ut7-*` | A1.1 de Mantenimiento (1 oct) | mon01, en `/opt/monitoring` (en el puesto del alumno hasta el 15 oct) | A2.6 de Mantenimiento |
-| `alerting` | Reglas, Alertmanager y el receptor de incidencias | A2.1 de Mantenimiento (29 oct) | mon01, en `/opt/alerting` | A2.6 de Mantenimiento |
-| `incidencias` | Solo las issues que abre el receptor de alertas | A2.6 de Mantenimiento (17 nov), directamente en Gitea | ninguna | desde que nace |
-| `entregas-5166` | El trabajo de las hojas de esta asignatura, una carpeta por hoja | A2.1 de Despliegue (28 oct), en local | admin01 desde la A2.4 (6 nov) | 17 nov, en cuanto existe la Gitea de mon01 |
+| `servicio` | La API en `api/` con su `Dockerfile`, el `compose.yml`, las pruebas y el `Jenkinsfile` | A1.1 de Mantenimiento (1 oct), con el código que entrega el profesor | app01, en `/opt/servicio` (en el puesto del alumno hasta el 5 nov) | Práctica evaluable de la UT2 de Mantenimiento (24 nov) |
+| `monitoring` | La pila de mon01; desde la UT7 de esta asignatura, también sus ficheros `ut7-*` | A1.1 de Mantenimiento (1 oct) | mon01, en `/opt/monitoring` (en el puesto del alumno hasta el 5 nov) | Práctica evaluable de la UT2 de Mantenimiento |
+| `alerting` | Reglas, Alertmanager y el receptor de incidencias | A2.1 de Mantenimiento (12 nov) | mon01, en `/opt/alerting` | Práctica evaluable de la UT2 de Mantenimiento |
+| `incidencias` | Solo las issues que abre el receptor de alertas | Práctica evaluable de la UT2 de Mantenimiento (24 nov), directamente en Gitea | ninguna | desde que nace |
+| `entregas-5166` | El trabajo de las hojas de esta asignatura, una carpeta por hoja | A2.1 de Despliegue (11 nov), en local | admin01 desde la A2.2 (13 nov) | 24 nov, en cuanto existe la Gitea de mon01 |
 | `operacion` | Fichas de métricas, catálogo de alarmas, runbooks y revisiones | A4.1 de Mantenimiento (15 dic) | admin01 | la propia A4.1 |
 | `iac-lab` | OpenTofu y Ansible de pre | A5.1 de Despliegue (16 dic), con `git init` | admin01 | la propia A5.1 |
 | `jenkins-config` | La instalación de Jenkins (compose, JCasC, plugins, nginx) y el compose del registry | A6.2 de Despliegue (5 feb) | jenkins01, en `~/jenkins-config` | la propia A6.2 |
@@ -411,7 +410,7 @@ Ninguno puede contener un secreto: `.env` y `secrets/` van en `.gitignore` desde
 
 Lo monta cada alumno en el paso 1 de la A5.2 (18 de diciembre), salvo que el profesor lo monte para toda el aula: entonces basta con apuntar el endpoint, la clave y el secreto que dé, y comprobar con `mc ls` que se ven `tfstate` y `backups`. Va como un contenedor más de la pila de `mon01` y no como VM propia porque la máquina ya tiene Docker, está encendida desde octubre y así el presupuesto de memoria no sube. Fuera de un laboratorio no se juntaría el almacén de copias con la máquina que vigila: si se pierde `mon01`, se pierden a la vez la monitorización y las copias. En una empresa es un servicio aparte, con versionado y Object Lock, que es lo que comprueba la UT6 de Mantenimiento.
 
-**La segunda dirección.** La `10.10.0.30` se añade a la tarjeta de gestión de `mon01` (en las VM del curso, `ens18`) con una unidad de systemd, igual que la ruta del puesto de administración en la A2.4, para no depender de los ficheros de red que escribe cloud-init. El `Before=docker.service` asegura que la dirección existe antes de que arranque el contenedor; sin él, Docker falla con `cannot assign requested address`.
+**La segunda dirección.** La `10.10.0.30` se añade a la tarjeta de gestión de `mon01` (en las VM del curso, `ens18`) con una unidad de systemd, igual que la ruta del puesto de administración en la A2.2, para no depender de los ficheros de red que escribe cloud-init. El `Before=docker.service` asegura que la dirección existe antes de que arranque el contenedor; sin él, Docker falla con `cannot assign requested address`.
 
 ```bash
 sudo tee /etc/systemd/system/ip-minio.service > /dev/null <<'EOF'

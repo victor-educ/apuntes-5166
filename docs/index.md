@@ -107,9 +107,9 @@ Cada unidad se apoya en la anterior: la red de la UT2 es donde la UT3 pone el co
 
 | UT | Título | Horas | Dónde | RA · CE |
 |----|--------|------:|-------|---------|
-| [UT1](ut/ut1-virtualizacion.md) | Virtualización e hipervisores | 12 | Centro | RA1 a |
-| [UT2](ut/ut2-vpc.md) | Nubes privadas virtuales (VPC) | 14 | Centro | RA1 b, c |
-| [UT3](ut/ut3-seguridad-por-capas.md) | Seguridad por capas: DMZ externa, DMZ interna y zona interna | 12 | Centro | RA1 d |
+| [UT1](ut/ut1-virtualizacion.md) | Virtualización e hipervisores | 20 | Centro | RA1 a |
+| [UT2](ut/ut2-vpc.md) | Nubes privadas virtuales (VPC) | 8 | Centro | RA1 b, c |
+| [UT3](ut/ut3-seguridad-por-capas.md) | Seguridad por capas: DMZ externa, DMZ interna y zona interna | 10 | Centro | RA1 d |
 | [UT4](ut/ut4-nube-publica.md) | Nube pública: consola, CLI y SDK | 12 | Empresa | RA2 a–e |
 | [UT5](ut/ut5-iac.md) | Infraestructura como código (OpenTofu + Ansible) | 18 | Centro | RA3 a–d |
 | [UT6](ut/ut6-ci.md) | Orquestador de integración continua (Jenkins) | 18 | Centro | RA4 a–h |

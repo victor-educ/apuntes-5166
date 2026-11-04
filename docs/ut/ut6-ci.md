@@ -140,7 +140,7 @@ Los nombres de fichero, el modelo de runners y la forma de guardar secretos de c
 
 <span class="et et-obj">Objetivo</span> Al terminar has ejecutado el mismo «hola mundo» en Jenkins y en Gitea Actions y tienes, escrita con lo que has visto, la justificación de cuál usarías para el servicio del curso. Elegir y justificar el orquestador es el primer criterio de la unidad, y la tabla y la justificación de hoy van tal cual a la práctica evaluable.
 
-<span class="et et-pre">Antes de empezar</span> El nodo, la plantilla 9000 y el puesto de administración accesibles, y tu Gitea de `mon01` (`http://gitea.lab:23001`, la de la A2.6 de Mantenimiento) con tu usuario. Se han explicado [integración, entrega y despliegue continuos](#integracion-continua-entrega-continua-y-despliegue-continuo), la [comparativa de orquestadores](#elegir-el-orquestador) y [cómo están hechos Jenkins y Gitea Actions](#jenkins-y-gitea-actions-por-dentro).
+<span class="et et-pre">Antes de empezar</span> El nodo, la plantilla 9000 y el puesto de administración accesibles, y tu Gitea de `mon01` (`http://gitea.lab:23001`, la de la práctica evaluable de la UT2 de Mantenimiento) con tu usuario. Se han explicado [integración, entrega y despliegue continuos](#integracion-continua-entrega-continua-y-despliegue-continuo), la [comparativa de orquestadores](#elegir-el-orquestador) y [cómo están hechos Jenkins y Gitea Actions](#jenkins-y-gitea-actions-por-dentro).
 
 <span class="et et-pas">Pasos</span>
 
@@ -282,7 +282,7 @@ server {
 
 #### Certificados
 
-**De dónde sale el certificado.** Para que el navegador ponga el candado, el certificado de `jenkins.lab` tiene que estar firmado por una CA en la que confíe. Una CA pública no sirve: Let's Encrypt solo firma nombres de dominios públicos, y `jenkins.lab` no lo es. En el laboratorio tampoco se crea ninguna CA nueva: se usa **la CA del curso**, la que se montó con `openssl ca` en la [A3.2](ut3-seguridad-por-capas.md#a32-publicar-la-web-sesion-15) y vive en `~/ca/` del puesto de administración, con su `ca.cnf` y su registro de certificados emitidos. En una empresa, ese papel lo hace la CA corporativa.
+**De dónde sale el certificado.** Para que el navegador ponga el candado, el certificado de `jenkins.lab` tiene que estar firmado por una CA en la que confíe. Una CA pública no sirve: Let's Encrypt solo firma nombres de dominios públicos, y `jenkins.lab` no lo es. En el laboratorio tampoco se crea ninguna CA nueva: se usa **la CA del curso**, la que se montó con `openssl ca` en la preparación de la [A3.1](ut3-seguridad-por-capas.md#a31-firewall-y-publicacion-de-la-web-sesion-15) y vive en `~/ca/` del puesto de administración, con su `ca.cnf` y su registro de certificados emitidos. En una empresa, ese papel lo hace la CA corporativa.
 
 **Quién tiene que confiar en ella.** Su `ca.crt` se instala en el navegador del puesto y en el almacén del sistema de cada máquina que va a hablar con Jenkins, Gitea y el registry (`/usr/local/share/ca-certificates/lab-ca.crt` y `update-ca-certificates` en Debian/Ubuntu). `ca.key` no sale nunca del puesto: quien la tenga puede firmar un certificado para cualquier nombre del laboratorio.
 
@@ -442,7 +442,7 @@ USER jenkins
 
 <span class="et et-obj">Objetivo</span> Al terminar tienes el Jenkins definitivo del curso en `https://jenkins.lab`, con candado en el navegador, tres roles que solo pueden lo que les toca, ejecutores del controlador a 0 y los plugins de la unidad metidos en una imagen propia con su versión fijada. Todo queda en el repositorio `jenkins-config`, con un README que permite reconstruirlo: es lo que hace que este Jenkins se pueda tirar y volver a levantar igual durante el resto de la unidad.
 
-<span class="et et-pre">Antes de empezar</span> `jenkins01` de la A6.1, con Docker y con `jenkins.lab` dado de alta en OPNsense, y la CA del curso en `~/ca/` del puesto de administración (la de la A3.2). La demo de la A6.1 sobra: tírala con sus volúmenes, `~/demo` y `~/runner` de `jenkins01`. Se han explicado [cómo se instala y asegura Jenkins](#instalar-y-asegurar-jenkins) y [qué plugins hacen falta](#plugins).
+<span class="et et-pre">Antes de empezar</span> `jenkins01` de la A6.1, con Docker y con `jenkins.lab` dado de alta en OPNsense, y la CA del curso en `~/ca/` del puesto de administración (la de la A3.1). La demo de la A6.1 sobra: tírala con sus volúmenes, `~/demo` y `~/runner` de `jenkins01`. Se han explicado [cómo se instala y asegura Jenkins](#instalar-y-asegurar-jenkins) y [qué plugins hacen falta](#plugins).
 
 <span class="et et-pas">Pasos</span>
 
@@ -606,7 +606,7 @@ Con Jenkins instalado y un agente conectado, falta engancharlo al repositorio: u
 
 **Cómo se lleva una Gitea con todo su historial.** Gitea guarda todo (repositorios, usuarios, incidencias, tokens y su base de datos SQLite) en un único directorio, `/data`, que en `mon01` es el volumen `monitoring_gitea_data`. Mudarla es llevar ese volumen: se para Gitea para que nada cambie mientras se copia, se empaqueta su contenido en un `tar`, se crea en `gitea01` un volumen nuevo y se desempaqueta dentro. Con la misma versión de Gitea en los dos lados, para que la mudanza no sea además una actualización.
 
-**Qué cambia en el compose.** El servicio `gitea` de `gitea01` es el de la A2.6 de Mantenimiento con estos cambios:
+**Qué cambia en el compose.** El servicio `gitea` de `gitea01` es el de la práctica evaluable de la UT2 de Mantenimiento con estos cambios:
 
 ```yaml
 # /opt/gitea/compose.yml, en gitea01 (delante va el nginx de jenkins-config)
@@ -719,13 +719,13 @@ sequenceDiagram
 
 <span class="et et-obj">Objetivo</span> Al terminar, Gitea está en su máquina definitiva, `gitea01`, con HTTPS y todo su historial, y Jenkins tiene un proyecto Multibranch conectado al repositorio del servicio, que lee con una credencial que no sirve para nada más y que arranca solo con cada push. Es la primera vez que un cambio en el código llega a Jenkins sin que nadie pulse nada: desde ahora, todo lo que se añada al pipeline se ejecutará así.
 
-<span class="et et-pre">Antes de empezar</span> Jenkins con `agent01` conectado, la plantilla 9000 y la CA del curso en el puesto de administración. Los repositorios del curso están en la Gitea que Mantenimiento levantó en `mon01` en la A2.6, que hoy se muda a su máquina con todo su historial. Se han explicado [la mudanza de Gitea](#la-mudanza-de-gitea-a-gitea01) y [proyectos, credenciales y webhooks](#proyectos-credenciales-y-webhooks).
+<span class="et et-pre">Antes de empezar</span> Jenkins con `agent01` conectado, la plantilla 9000 y la CA del curso en el puesto de administración. Los repositorios del curso están en la Gitea que Mantenimiento levantó en `mon01` en la práctica evaluable de su UT2, que hoy se muda a su máquina con todo su historial. Se han explicado [la mudanza de Gitea](#la-mudanza-de-gitea-a-gitea01) y [proyectos, credenciales y webhooks](#proyectos-credenciales-y-webhooks).
 
 <span class="et et-pas">Pasos</span>
 
 Empiezas por la mudanza, porque todo lo demás apunta a la dirección definitiva de Gitea: si enganchas Jenkins a la de `mon01`, habría que rehacerlo después. La mudanza tiene tres tiempos: la máquina con sus datos, los nombres y la red, y las copias de trabajo. Con Gitea ya en su sitio, das a Jenkins permiso para leer y nada más, creas el proyecto y, al final, el webhook, que es lo que hace que todo funcione sin ti.
 
-1. **Muda Gitea a `gitea01`, con todos sus datos.** Monta `gitea01`, la VM 102 de la [tabla del laboratorio](../laboratorio.md#maquinas-ids-de-vm-y-direcciones) (`devmgmt`, 10.10.0.11, 1 GB), con Docker y compose, y lleva a ella la Gitea de `mon01` con su volumen. En `/opt/gitea` va el servicio `gitea` de la A2.6 de Mantenimiento con los cambios de [la mudanza](#la-mudanza-de-gitea-a-gitea01), y delante, el nginx de `jenkins-config` con `server_name gitea.lab`, un certificado de `gitea.lab` de la CA del curso y `proxy_pass http://gitea:23001`.
+1. **Muda Gitea a `gitea01`, con todos sus datos.** Monta `gitea01`, la VM 102 de la [tabla del laboratorio](../laboratorio.md#maquinas-ids-de-vm-y-direcciones) (`devmgmt`, 10.10.0.11, 1 GB), con Docker y compose, y lleva a ella la Gitea de `mon01` con su volumen. En `/opt/gitea` va el servicio `gitea` de la práctica evaluable de la UT2 de Mantenimiento con los cambios de [la mudanza](#la-mudanza-de-gitea-a-gitea01), y delante, el nginx de `jenkins-config` con `server_name gitea.lab`, un certificado de `gitea.lab` de la CA del curso y `proxy_pass http://gitea:23001`.
 
     *Pista:* con Gitea parada, empaqueta con `sudo` el contenido de `/var/lib/docker/volumes/monitoring_gitea_data/_data` y desempaquétalo igual en el volumen nuevo: así se conservan los propietarios de los ficheros, que Gitea necesita.
 
@@ -1207,7 +1207,7 @@ stage('Package') {
 
 **Por qué solo cuando no acaba en verde.** Un aviso por cada ejecución correcta se silencia en una semana, y con él los que importan. El pipeline avisa en `post { unsuccessful }`, que cubre cualquier final que no sea SUCCESS: FAILURE, UNSTABLE y ABORTED.
 
-**Cómo se manda.** Con el bot de Telegram de la A2.5 de Mantenimiento, el que usa Alertmanager, que ya está en un grupo de pruebas. Un bot manda un mensaje con una petición a la API de Telegram, `sendMessage`, con dos datos: el **token**, que identifica al bot y permite hablar en su nombre, y el **`chat_id`**, que dice a qué grupo va. El token es un secreto, así que va en la credencial `telegram-token` (*Secret text*) de la carpeta `servicio`, y llega al `curl` con `withCredentials`; el `chat_id` no lo es, y va en el bloque `environment` como `TG_CHAT`. No hace falta ningún plugin: el `curl` del `post` del [pipeline declarativo](#pipeline-declarativo) es todo.
+**Cómo se manda.** Con el bot de Telegram de la A2.3 de Mantenimiento, el que usa Alertmanager, que ya está en un grupo de pruebas. Un bot manda un mensaje con una petición a la API de Telegram, `sendMessage`, con dos datos: el **token**, que identifica al bot y permite hablar en su nombre, y el **`chat_id`**, que dice a qué grupo va. El token es un secreto, así que va en la credencial `telegram-token` (*Secret text*) de la carpeta `servicio`, y llega al `curl` con `withCredentials`; el `chat_id` no lo es, y va en el bloque `environment` como `TG_CHAT`. No hace falta ningún plugin: el `curl` del `post` del [pipeline declarativo](#pipeline-declarativo) es todo.
 
 **Qué lleva el mensaje.** El nombre del job, el número de ejecución y su URL, que son las variables predefinidas `JOB_NAME`, `BUILD_NUMBER` y `BUILD_URL`. Con eso, quien lo recibe abre la ejecución que ha fallado con un clic, sin buscarla.
 
@@ -1229,7 +1229,7 @@ El quinto caso necesita la etapa `Deploy` de verdad, que se escribe el 26 de feb
 
 <span class="et et-obj">Objetivo</span> Al terminar has visto fallar tu pipeline de cuatro maneras distintas, a propósito, y de cada una tienes una ficha con el estado final, la notificación y cómo quedó el agente; el quinto caso del plan queda preparado para la A6.8. Importa porque un pipeline que solo se ha visto en verde no está probado: estas fichas son el informe de pruebas de la práctica evaluable.
 
-<span class="et et-pre">Antes de empezar</span> El pipeline de la A6.6, y el bot de Telegram de la A2.5 de Mantenimiento: su token (el fichero `/opt/alerting/secrets/tg_token` de `mon01`) y el `chat_id` de su grupo. Se han explicado [los estados de un pipeline, `timeout`, `retry` y `catchError`](#gestion-de-errores), [el aviso por Telegram](#avisar-cuando-algo-no-acaba-en-verde) y el [plan de pruebas](#plan-de-pruebas-del-pipeline).
+<span class="et et-pre">Antes de empezar</span> El pipeline de la A6.6, y el bot de Telegram de la A2.3 de Mantenimiento: su token (el fichero `/opt/alerting/secrets/tg_token` de `mon01`) y el `chat_id` de su grupo. Se han explicado [los estados de un pipeline, `timeout`, `retry` y `catchError`](#gestion-de-errores), [el aviso por Telegram](#avisar-cuando-algo-no-acaba-en-verde) y el [plan de pruebas](#plan-de-pruebas-del-pipeline).
 
 <span class="et et-pas">Pasos</span>
 

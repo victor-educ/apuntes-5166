@@ -42,7 +42,7 @@ Términos que aparecen en el módulo, explicados en una o dos frases y con la un
 
 **Bridge (Linux)** · Switch virtual dentro del host. Las VM se conectan a él como si fuera un switch físico; la tarjeta física del host puede ser un puerto más del bridge. En Proxmox, vmbr0. UT1.
 
-**CA** · Autoridad de certificación: quien firma los certificados y en quien confían los clientes. En el laboratorio hay una sola, la CA del curso (`Lab 5166 CA`), creada con `openssl ca` en la A3.2 y en `~/ca/` del puesto de administración. UT3, UT6.
+**CA** · Autoridad de certificación: quien firma los certificados y en quien confían los clientes. En el laboratorio hay una sola, la CA del curso (`Lab 5166 CA`), creada con `openssl ca` en la preparación de la A3.1 y en `~/ca/` del puesto de administración. UT3, UT6.
 
 **cAdvisor** · Exporter de Google que expone métricas de uso de recursos por contenedor. UT7.
 
@@ -116,7 +116,7 @@ Términos que aparecen en el módulo, explicados en una o dos frases y con la un
 
 **ICMP** · Protocolo de mensajes de control de IP: el echo de `ping` y los avisos de destino inalcanzable. Que un ping no responda no demuestra casi nada, porque muchos cortafuegos lo filtran. UT2, UT3.
 
-**Idempotencia** · Propiedad de una operación que, aplicada dos veces, deja el mismo resultado que aplicada una. Base del IaC. La A2.6 ya exige que los scripts de creación y destrucción se puedan ejecutar dos veces sin error ni duplicados. UT2, UT5.
+**Idempotencia** · Propiedad de una operación que, aplicada dos veces, deja el mismo resultado que aplicada una. Base del IaC. La A2.3 ya exige que los scripts de creación y destrucción se puedan ejecutar dos veces sin error ni duplicados. UT2, UT5.
 
 **IDS (Intrusion Detection System)** · Sistema que vigila el tráfico o la actividad de una máquina y avisa cuando reconoce un ataque. Solo avisa; el que además corta es el IPS. Ampliación de la UT3.
 
@@ -148,7 +148,7 @@ Términos que aparecen en el módulo, explicados en una o dos frases y con la un
 
 **LXC** · Contenedores de sistema: comparten kernel con el host pero se comportan como una máquina completa. Más ligeros que una VM, menos aislados. UT1.
 
-**MAC** · Dirección física de una interfaz de red. Proxmox asigna una a cada NIC de la VM; el traslado de la A3.3 la conserva para que la VM no cambie de IP ni de nombre de interfaz. UT2, UT3.
+**MAC** · Dirección física de una interfaz de red. Proxmox asigna una a cada NIC de la VM; el traslado de la A3.2 la conserva para que la VM no cambie de IP ni de nombre de interfaz. UT2, UT3.
 
 **Mailpit** · Servidor de correo de pruebas con interfaz web: acepta cualquier mensaje y lo enseña sin entregarlo a nadie. En el curso recibe las notificaciones de Alertmanager. UT7.
 
