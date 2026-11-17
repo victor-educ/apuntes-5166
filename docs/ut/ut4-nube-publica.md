@@ -215,23 +215,27 @@ En una máquina sin navegador, las órdenes de AWS y Azure admiten `--use-device
 
 ### A4.1 Acceso a la plataforma (CE 2a)
 
-<span class="et et-obj">Objetivo</span> Entrar en la consola del proveedor con tu usuario y MFA activo, y saber decir en qué cuenta, suscripción o proyecto, en qué región y con qué política de etiquetas trabajas. Son las tres coordenadas de todo lo que harás en la unidad: con otra cuenta o en otra región, tus órdenes irán a otro sitio.
+<span class="et et-obj">Objetivo</span> **Qué vas a conseguir:** entrar en la consola web del proveedor con tu propio usuario y con segundo factor, y saber decir en qué cuenta, en qué región y con qué etiquetas trabajas.
+
+**Para qué sirve en un trabajo:** todo lo que hagas en la nube va a una cuenta y a una región concretas. Si te equivocas de cualquiera de las dos, tus órdenes acaban en otro sitio, y lo que creas sin las etiquetas de la empresa nadie sabe de quién es.
 
 <span class="et et-pre">Antes de empezar</span>
 
-- Autorización del tutor para usar la cuenta de la empresa con el usuario que te haya creado, nunca el usuario raíz ni una cuenta compartida.
-- Un móvil o una llave física para el segundo factor, del tipo que admita la empresa.
-- Leídos [Usuarios, roles y políticas](#usuarios-roles-y-politicas), [MFA, SSO y credenciales temporales](#mfa-sso-y-credenciales-temporales), [Cómo se organizan las cuentas](#como-se-organizan-las-cuentas), [Regiones y zonas de disponibilidad](#regiones-y-zonas-de-disponibilidad) y [Etiquetado](#etiquetado).
+- El tutor te ha autorizado a usar la cuenta de la empresa con el usuario que te ha creado. Nunca el usuario raíz (el dueño de la cuenta) ni una cuenta compartida.
+- Un móvil o una llave física para el segundo factor (MFA: además de la contraseña, un código o una llave), del tipo que admita la empresa.
+- La teoría del bloque: [Usuarios, roles y políticas](#usuarios-roles-y-politicas), [MFA, SSO y credenciales temporales](#mfa-sso-y-credenciales-temporales), [Cómo se organizan las cuentas](#como-se-organizan-las-cuentas), [Regiones y zonas de disponibilidad](#regiones-y-zonas-de-disponibilidad) y [Etiquetado](#etiquetado).
 
 <span class="et et-pas">Pasos</span>
 
-Primero aseguras tu acceso y después averiguas, por este orden, en qué cuenta estás, en qué región están los recursos y cómo se etiquetan. Cada paso deja un dato para la Entrega y para el documento de cierre.
+Todo se hace en la consola web. Primero **proteges** tu acceso (paso 1) y después averiguas, por este orden, en qué **cuenta** estás (paso 2), en qué **región** (paso 3) y cómo se **etiqueta** (paso 4). Cada paso deja un dato para la Entrega y para el documento de cierre.
 
-1. **Protege tu acceso antes de nada.** Entra por primera vez con la dirección de acceso que te dé el tutor y activa el segundo factor antes de hacer nada más: un usuario con solo contraseña es justo lo que buscan los ataques.
+1. **Activa el segundo factor.** *En la consola web.*
+
+    Entra por primera vez con la dirección de acceso que te dé el tutor y, antes de hacer nada más, activa el segundo factor. Un usuario con solo contraseña es justo lo que buscan los ataques.
 
     === "AWS"
 
-        Con SSO, el segundo factor se activa en el proveedor de identidad de la empresa. Con un usuario de IAM: menú de la cuenta (arriba a la derecha) > *Security credentials* > *Assign MFA device*.
+        Con SSO (la empresa te da un único acceso para todas sus aplicaciones), el segundo factor se activa en el proveedor de identidad de la empresa. Con un usuario de IAM (usuario creado dentro de la propia cuenta de AWS): menú de la cuenta (arriba a la derecha) > *Security credentials* > *Assign MFA device*.
 
     === "Azure"
 
@@ -241,9 +245,11 @@ Primero aseguras tu acceso y después averiguas, por este orden, en qué cuenta 
 
         Regístralo en `https://myaccount.google.com/security` > *2-Step Verification*.
 
-    Compruébalo: cierra sesión, vuelve a entrar y te tiene que pedir el segundo factor.
+    **Sale bien si:** cierras sesión, vuelves a entrar y te pide el segundo factor.
 
-2. **Sitúate en la estructura de cuentas.** Apunta el identificador de la cuenta, suscripción o proyecto en que trabajas y busca la jerarquía que la agrupa, aunque no tengas permiso para verla: la captura de un acceso denegado también sirve.
+2. **Apunta en qué cuenta estás.** *En la consola web.*
+
+    Apunta el identificador de la cuenta, suscripción o proyecto (así llama cada proveedor al contenedor donde viven tus recursos) y busca la jerarquía que la agrupa. Si no tienes permiso para verla, la captura del acceso denegado también sirve.
 
     | | Identificador | Jerarquía |
     |---|---|---|
@@ -251,21 +257,38 @@ Primero aseguras tu acceso y después averiguas, por este orden, en qué cuenta 
     | Azure | *Subscriptions*, columna *Subscription ID* | *Management groups* |
     | Google Cloud | Selector de proyecto de la barra superior | *IAM & Admin* > *Manage resources* |
 
-    Compruébalo: tienes el identificador apuntado y una captura de la jerarquía o de su acceso denegado.
+    **Sale bien si:** tienes el identificador apuntado y una captura de la jerarquía o de su acceso denegado.
 
-3. **Encuentra la región de trabajo.** Pregunta al tutor en qué región crea la empresa sus recursos y comprueba que ahí hay máquinas o redes: en AWS, elige la región en el selector de arriba a la derecha y abre *EC2* > *Instances*; en Azure, *Virtual machines* y mira la columna *Location*; en Google Cloud, *Compute Engine* > *VM instances* y mira la columna de zona.
+3. **Encuentra la región de trabajo.** *En la consola web.*
 
-    Compruébalo: el listado no está vacío. Si lo está, casi siempre es que miras otra región.
+    Pregunta al tutor en qué región (la zona del mundo donde está el centro de datos) crea la empresa sus recursos, y comprueba que ahí hay máquinas o redes:
 
-4. **Conoce la política de etiquetas.** Pregunta al tutor qué etiquetas son obligatorias y con qué formato, y comprueba en un recurso cualquiera que las lleva: ábrelo y mira su pestaña *Tags* (*Labels* en Google Cloud).
+    - AWS: elige la región en el selector de arriba a la derecha y abre *EC2* > *Instances*.
+    - Azure: abre *Virtual machines* y mira la columna *Location*.
+    - Google Cloud: abre *Compute Engine* > *VM instances* y mira la columna de zona.
 
-    Compruébalo: el recurso tiene todas las etiquetas obligatorias que te ha dicho el tutor.
+    **Sale bien si:** el listado no está vacío. Si lo está, casi siempre es que miras otra región.
 
-<span class="et et-com">Comprobación</span> Al cerrar sesión y volver a entrar te pide el segundo factor, y eres capaz de decir de memoria cuenta, región y las etiquetas obligatorias.
+4. **Mira cómo se etiqueta.** *En la consola web.*
 
-<span class="et et-ent">Entrega</span> Captura de la consola con el usuario, la cuenta o proyecto y la región visibles, y un párrafo con el identificador (parcialmente tapado), la región y las etiquetas obligatorias. Todo va a la carpeta o el repositorio de evidencias, y la fila A4.1 de la [ficha de evidencias](#ficha-de-evidencias) la firma el tutor.
+    Pregunta al tutor qué etiquetas son obligatorias y con qué formato. Después abre un recurso cualquiera y mira su pestaña *Tags* (*Labels* en Google Cloud).
 
-<span class="et et-ext">Si te sobra tiempo</span> Busca en la consola qué políticas o roles tiene asignados tu usuario: te servirá para explicar los `AccessDenied` de las actividades siguientes.
+    **Sale bien si:** el recurso lleva todas las etiquetas obligatorias que te ha dicho el tutor.
+
+<span class="et et-com">Comprobación</span>
+
+- [ ] Al cerrar sesión y volver a entrar, la consola te pide el segundo factor.
+- [ ] Sabes decir de memoria el identificador de tu cuenta, suscripción o proyecto.
+- [ ] Sabes en qué región trabaja la empresa, y en ella ves sus máquinas o redes.
+- [ ] Sabes qué etiquetas son obligatorias y las has visto en un recurso.
+
+<span class="et et-ent">Entrega</span>
+
+- **Guarda** en la carpeta o el repositorio de evidencias una captura de la consola con el usuario, la cuenta o proyecto y la región visibles, y un párrafo con el identificador (parcialmente tapado), la región y las etiquetas obligatorias.
+- El tutor firma la fila A4.1 de la [ficha de evidencias](#ficha-de-evidencias).
+- **Piensa:** si mañana entras y ves la consola vacía, ¿qué es lo primero que miras?
+
+<span class="et et-ext">Si te sobra tiempo</span> Para entender los `AccessDenied` (el error de "no tienes permiso") de las hojas siguientes, busca en la consola qué políticas o roles tiene asignados tu usuario.
 
 ## Bloque 2 · Configuración de la interfaz (CE 2b)
 
@@ -319,19 +342,23 @@ Con la identidad clara quedan dos cosas por resolver antes de pasar a la CLI: qu
 
 ### A4.2 Configuración de la interfaz (CE 2b)
 
-<span class="et et-obj">Objetivo</span> Dejar la consola configurada para trabajar (idioma, región, favoritos) y tener una alerta de presupuesto que avise antes que la factura. Al terminar, la consola abre con lo que usas a mano y, si se te olvida apagar algo, te enterarás por un correo.
+<span class="et et-obj">Objetivo</span> **Qué vas a conseguir:** una consola que abre con tu idioma, tu región y tus servicios a mano, y un aviso por correo antes de que el gasto se dispare.
+
+**Para qué sirve en un trabajo:** en la nube se paga por uso, y una máquina olvidada encendida cuesta dinero cada hora. El presupuesto con alerta es lo primero que se configura en cualquier cuenta: te enteras por un correo y no por la factura.
 
 <span class="et et-pre">Antes de empezar</span>
 
-- A4.1 hecha: entras con MFA y sabes en qué cuenta o suscripción estás.
-- Autorización del tutor para crear un presupuesto sobre tu cuenta, suscripción o resource group; si no te lo puede dar, acuerda con él la etiqueta de propietario por la que vas a filtrar los costes.
-- Leídos [Consola web y shells integrados](#consola-web-y-shells-integrados) y [Free tier, presupuestos y alertas](#free-tier-presupuestos-y-alertas).
+- La A4.1 hecha: entras con segundo factor y sabes en qué cuenta o suscripción estás.
+- El tutor te ha autorizado a crear un presupuesto sobre tu cuenta, suscripción o resource group (en Azure, la carpeta que agrupa los recursos de un proyecto). Si no puede, acuerda con él la etiqueta de propietario por la que filtrarás los costes.
+- La teoría del bloque: [Consola web y shells integrados](#consola-web-y-shells-integrados) y [Free tier, presupuestos y alertas](#free-tier-presupuestos-y-alertas).
 
 <span class="et et-pas">Pasos</span>
 
-Primero haces que la consola trabaje para ti, después pones la alarma del gasto y al final tomas la medida de partida, que compararás con la del final de la estancia.
+Todo se hace en la consola web. Primero la **ajustas** a tu medida (paso 1), después pones la **alarma** del gasto (paso 2) y al final **anotas** lo que se lleva gastado (paso 3), para compararlo con lo del final de la estancia.
 
-1. **Deja la consola a tu medida.** Ponla en inglés, con la región de la empresa por defecto y con los servicios de red, cómputo, identidad y facturación en favoritos.
+1. **Deja la consola a tu medida.** *En la consola web.*
+
+    Ponla en inglés, con la región de la empresa por defecto y con los servicios de red, cómputo, identidad y facturación en favoritos. En inglés, porque es como aparecen los menús en la documentación y en los errores.
 
     === "AWS"
 
@@ -345,9 +372,11 @@ Primero haces que la consola trabaje para ti, después pones la alarma del gasto
 
         Tu avatar > *Preferences* > *Language*. Favoritos: en el menú de navegación, la chincheta de cada servicio. La región por defecto es del proyecto: no la cambies.
 
-    Compruébalo: cierra la consola, vuelve a abrirla y aparecen el idioma, los favoritos y, en AWS, la región.
+    **Sale bien si:** al cerrar la consola y volver a abrirla aparecen el idioma, los favoritos y, en AWS, la región.
 
-2. **Pon la alarma del gasto.** Crea un presupuesto mensual (por ejemplo, 20 €) sobre tu cuenta, suscripción o resource group, que avise a tu correo al 80 % del gasto real.
+2. **Pon la alarma del gasto.** *En la consola web.*
+
+    Crea un presupuesto mensual (por ejemplo, 20 €) sobre tu cuenta, suscripción o resource group, que avise a tu correo cuando el gasto real llegue al 80 %.
 
     === "AWS"
 
@@ -361,23 +390,36 @@ Primero haces que la consola trabaje para ti, después pones la alarma del gasto
 
         *Billing* > *Budgets & alerts* > *Create budget*, ámbito tu proyecto: importe 20, umbral 80 % del gasto real, notificación por correo.
 
-    Compruébalo: el presupuesto aparece en la lista con el umbral del 80 %. Si no tienes permiso para crearlo, la evidencia es la vista de costes del mes filtrada por tu etiqueta de propietario.
+    Si no tienes permiso para crearlo, la evidencia es la vista de costes del mes filtrada por tu etiqueta de propietario.
 
-3. **Toma la medida de partida.** Abre la vista de costes (*Cost Explorer*, *Cost analysis* o *Reports*) y anota el coste del mes hasta hoy y su moneda. La diferencia con el del final de la estancia es lo que ha costado tu trabajo en la unidad.
+    **Sale bien si:** el presupuesto aparece en la lista con el umbral del 80 %.
 
-    Compruébalo: tienes anotados el importe, la moneda y la fecha.
+3. **Anota el gasto de partida.** *En la consola web.*
 
-<span class="et et-com">Comprobación</span> Al entrar, la consola abre en la región de la empresa (en AWS; en Azure y Google Cloud la consola no guarda una región tuya), los favoritos aparecen en la barra y el presupuesto figura en la lista de presupuestos con el umbral del 80 % (o la consulta de costes filtrada por tu etiqueta devuelve resultados).
+    Abre la vista de costes (*Cost Explorer*, *Cost analysis* o *Reports*) y anota el coste del mes hasta hoy y su moneda. La diferencia con el del final de la estancia es lo que ha costado tu trabajo en la unidad.
 
-<span class="et et-ent">Entrega</span> Capturas de las preferencias y de la alerta de presupuesto (o de la consulta de costes), sin datos sensibles, en la carpeta de evidencias. Fila A4.2 de la ficha.
+    **Sale bien si:** tienes anotados el importe, la moneda y la fecha.
 
-<span class="et et-ext">Si te sobra tiempo</span> Abre el shell integrado y lanza `aws sts get-caller-identity`, `az account show` o `gcloud auth list`: ya está autenticado con la identidad de la consola.
+<span class="et et-com">Comprobación</span>
+
+- [ ] Al abrir la consola sale en inglés y con tus favoritos en la barra.
+- [ ] En AWS, la consola abre en la región de la empresa (en Azure y Google Cloud la consola no guarda una región tuya).
+- [ ] El presupuesto figura en la lista con el umbral del 80 %, o la consulta de costes filtrada por tu etiqueta devuelve resultados.
+- [ ] Tienes anotados el coste de partida, la moneda y la fecha.
+
+<span class="et et-ent">Entrega</span>
+
+- **Guarda** en la carpeta de evidencias las capturas de las preferencias y de la alerta de presupuesto (o de la consulta de costes), sin datos sensibles.
+- El tutor firma la fila A4.2 de la ficha.
+- **Guarda** también el coste de partida: el documento de cierre lo compara con el del final.
+
+<span class="et et-ext">Si te sobra tiempo</span> Para ver que el shell integrado (una terminal dentro del navegador) ya trae tu identidad, ábrelo y lanza `aws sts get-caller-identity`, `az account show` o `gcloud auth list`: está autenticado con el mismo usuario de la consola.
 
 ## Bloque 3 · Instalación de la CLI (CE 2c)
 
 <p class="ut-meta">En la empresa · con el tutor</p>
 
-Lo que se hace a clics no se puede repetir igual ni revisar antes de lanzarlo; la CLI sí, como los scripts de la A2.3 frente a la consola de Proxmox. A cambio, necesita credenciales guardadas en la máquina. El bloque explica cómo se instala, cómo se autentica sin claves permanentes y cómo se comprueba con qué identidad se habla. La hoja A4.3 deja la CLI lista para los perfiles del bloque 4.
+Lo que se hace a clics no se puede repetir igual ni revisar antes de lanzarlo; la CLI sí, como el script de la UT2 que creaba un entorno entero de Proxmox de una vez. A cambio, necesita credenciales guardadas en la máquina. El bloque explica cómo se instala, cómo se autentica sin claves permanentes y cómo se comprueba con qué identidad se habla. La hoja A4.3 deja la CLI lista para los perfiles del bloque 4.
 
 ### La CLI a fondo
 
@@ -480,23 +522,29 @@ La orden concreta se encuentra en la ayuda de cada nivel: `aws ec2 help`, `az ne
 
 ### A4.3 Instalación de la CLI (CE 2c)
 
-<span class="et et-obj">Objetivo</span> Tener la CLI del proveedor instalada donde diga la empresa, autenticada sin claves de larga duración y con la identidad comprobada. Es la base de las dos hojas siguientes: los perfiles de la A4.4 parten de esta autenticación y el script de la A4.5 usa sus credenciales.
+<span class="et et-obj">Objetivo</span> **Qué vas a conseguir:** la herramienta de terminal del proveedor (la CLI) instalada, con tu sesión iniciada sin claves permanentes, y comprobado que eres quien crees ser.
+
+**Para qué sirve en un trabajo:** en una empresa casi todo se hace desde la terminal o desde scripts, no a golpe de ratón. Y una clave permanente olvidada en un portátil es una de las fugas más comunes. Las dos hojas siguientes parten de esta: la A4.4 crea perfiles sobre esta sesión y el script de la A4.5 usa sus credenciales.
 
 <span class="et et-pre">Antes de empezar</span>
 
-- Autorización del tutor sobre dónde instalarla (tu portátil, una VM de la empresa o el shell integrado) y sobre el mecanismo de autenticación de la empresa. Si te ofrece un par de claves de acceso, pregúntale antes si hay alternativa con SSO. Haz esta hoja y las dos siguientes en la misma máquina.
+- El tutor te ha dicho dónde instalarla (tu portátil, una VM de la empresa o el shell integrado de la consola) y cómo se autentica la empresa. Si te ofrece un par de claves de acceso, pregúntale antes si hay alternativa con SSO. Haz esta hoja y las dos siguientes en la misma máquina.
 - Permisos de administrador en la máquina donde instales.
-- Leídos [La CLI a fondo](#la-cli-a-fondo), con [Instalación](#instalacion) y [Autenticación y "quién soy"](#autenticacion-y-quien-soy).
+- La teoría del bloque: [La CLI a fondo](#la-cli-a-fondo), con [Instalación](#instalacion) y [Autenticación y "quién soy"](#autenticacion-y-quien-soy).
 
 <span class="et et-pas">Pasos</span>
 
-Primero que el programa funcione, después que tenga credenciales, luego que sean las que crees y, solo entonces, una lectura real. Así, si el último paso falla, sabes que el problema está en los permisos.
+Todo se hace en la máquina que te haya indicado el tutor. Vas por capas: **instalar** (paso 1), **iniciar sesión** (paso 2), **comprobar** qué credencial tienes (paso 3) y **leer** algo de verdad (paso 4). Así, si el último paso falla, sabes que el problema está en los permisos y no en la instalación. Para no copiar salidas a mano, añade `| tee -a a4.3.txt` a las órdenes de versión e identidad: ese fichero es la evidencia de la Entrega.
 
-1. **Instala la versión buena.** Copia las órdenes de tu proveedor de [Instalación](#instalacion). En el shell integrado ya viene instalada y este paso se reduce a comprobar la versión.
+1. **Instala la CLI.** *En la máquina de trabajo.*
 
-    Compruébalo: `aws --version`, `az version` o `gcloud version` responde; en AWS, con una versión `2.x`.
+    Copia las órdenes de tu proveedor del apartado [Instalación](#instalacion). En el shell integrado ya viene instalada y este paso se reduce a comprobar la versión.
 
-2. **Autentícate sin claves permanentes.** Copia las órdenes de tu proveedor de [Autenticación y "quién soy"](#autenticacion-y-quien-soy), cambiando la dirección de acceso y la región por las que te dé el tutor. El nombre `empresa-dev` no se cambia, porque la A4.4 y la A4.5 lo usan.
+    **Sale bien si:** `aws --version`, `az version` o `gcloud version` responde; en AWS, con una versión `2.x`.
+
+2. **Inicia sesión sin claves permanentes.** *En la máquina de trabajo.*
+
+    Copia las órdenes de tu proveedor de [Autenticación y "quién soy"](#autenticacion-y-quien-soy), cambiando la dirección de acceso y la región por las que te dé el tutor. El nombre `empresa-dev` no se cambia, porque la A4.4 y la A4.5 lo usan. Si la máquina no tiene navegador, usa la opción del comentario.
 
     === "AWS"
 
@@ -521,13 +569,17 @@ Primero que el programa funcione, después que tenga credenciales, luego que sea
         gcloud auth list
         ```
 
-    Compruébalo: la salida de identidad muestra tu usuario en la cuenta, suscripción o proyecto que anotaste en la A4.1.
+    **Sale bien si:** la última orden muestra tu usuario en la cuenta, suscripción o proyecto que apuntaste en la A4.1.
 
-3. **Identifica qué credencial tienes.** Escribe en una línea qué tipo de credencial muestra la salida del paso 2: rol asumido por SSO, usuario con claves, cuenta de persona o service account. En AWS lo dice el `Arn`; en Azure, el campo `user.type`; en Google Cloud, la cuenta activa de `gcloud auth list`.
+3. **Mira qué credencial tienes.** *En la máquina de trabajo.*
 
-    Compruébalo: tu línea coincide con lo que acordaste con el tutor, y no es un usuario con claves permanentes salvo que él lo haya decidido así.
+    Escribe en una línea qué tipo de credencial muestra la salida del paso 2: rol asumido por SSO, usuario con claves, cuenta de persona o service account (cuenta pensada para programas, no para personas). En AWS lo dice el `Arn`; en Azure, el campo `user.type`; en Google Cloud, la cuenta activa de `gcloud auth list`.
 
-4. **Haz una lectura de verdad.** Lista las redes con tu identidad. Hasta aquí has comprobado quién eres; esta orden comprueba qué puedes hacer.
+    **Sale bien si:** tu línea coincide con lo que acordaste con el tutor, y no es un usuario con claves permanentes salvo que él lo haya decidido así.
+
+4. **Haz una lectura de verdad.** *En la máquina de trabajo.*
+
+    Hasta aquí has comprobado quién eres; ahora compruebas qué puedes hacer. Lista las redes con tu identidad (usa la línea de tu proveedor):
 
     ```bash
     aws ec2 describe-vpcs --profile empresa-dev --output table   # AWS
@@ -535,13 +587,21 @@ Primero que el programa funcione, después que tenga credenciales, luego que sea
     gcloud compute networks list                                 # Google Cloud
     ```
 
-    Compruébalo: sale un listado, o un `AccessDenied` que sabes explicar con [cómo se lee una política](#usuarios-roles-y-politicas).
+    **Sale bien si:** sale un listado, o un `AccessDenied` que sabes explicar con [cómo se lee una política](#usuarios-roles-y-politicas).
 
-<span class="et et-com">Comprobación</span> El comando de versión devuelve una versión reciente (AWS 2.x), el de identidad devuelve tu usuario o rol en la cuenta de la empresa, y el listado de redes devuelve algo o un `AccessDenied` que sabes explicar.
+<span class="et et-com">Comprobación</span>
 
-<span class="et et-ent">Entrega</span> Salida de `aws --version` y `aws sts get-caller-identity`, o `az version` y `az account show`, o `gcloud version` y `gcloud auth list`, en texto (no captura), con el comentario de una línea sobre el tipo de credencial. Fila A4.3 de la ficha.
+- [ ] La orden de versión responde, y en AWS es una `2.x`.
+- [ ] La orden de identidad devuelve tu usuario o rol en la cuenta de la empresa.
+- [ ] Sabes decir qué tipo de credencial usas y no es una clave permanente (salvo que lo haya decidido el tutor).
+- [ ] El listado de redes devuelve algo, o un `AccessDenied` que sabes explicar.
 
-<span class="et et-ext">Si te sobra tiempo</span> Mira qué ha dejado la autenticación en `~/.aws`, `~/.azure` o `~/.config/gcloud` y comprueba que no hay ningún fichero con una clave permanente.
+<span class="et et-ent">Entrega</span>
+
+- **Guarda** en texto (no captura) la salida de `aws --version` y `aws sts get-caller-identity`, o `az version` y `az account show`, o `gcloud version` y `gcloud auth list`, con tu línea del paso 3 sobre el tipo de credencial.
+- El tutor firma la fila A4.3 de la ficha.
+
+<span class="et et-ext">Si te sobra tiempo</span> Para asegurarte de que no hay ninguna clave permanente guardada, mira qué ha dejado el inicio de sesión en `~/.aws`, `~/.azure` o `~/.config/gcloud` y comprueba que ningún fichero la contiene.
 
 ## Bloque 4 · Gestión de perfiles (CE 2d)
 
@@ -676,19 +736,23 @@ flowchart TB
 
 ### A4.4 Gestión de perfiles (CE 2d)
 
-<span class="et et-obj">Objetivo</span> Tener dos perfiles o configuraciones que apunten a entornos distintos, saltar entre ellos con el mecanismo nativo y con la variable de entorno, y saber qué ficheros hay debajo. Importa porque el error más caro con la CLI es una orden correcta lanzada contra el entorno equivocado.
+<span class="et et-obj">Objetivo</span> **Qué vas a conseguir:** dos perfiles en la CLI, uno para desarrollo y otro para preproducción, y saber pasar de uno a otro para una sola orden o para toda la terminal.
+
+**Para qué sirve en un trabajo:** el error más caro con la CLI es una orden correcta lanzada contra el entorno equivocado, como borrar en producción lo que querías borrar en pruebas. Saber en qué perfil estás, y cómo cambiarlo, lo evita.
 
 <span class="et et-pre">Antes de empezar</span>
 
-- A4.3 hecha: la CLI autenticada con `empresa-dev` y la identidad comprobada.
-- Autorización del tutor para acceder a un segundo entorno (dev y pre, dos regiones o dos suscripciones). Si solo tienes uno, el segundo perfil apunta al mismo con otra región por defecto.
-- Leídos [Perfiles y ficheros de configuración](#perfiles-y-ficheros-de-configuracion) y [Formatos de salida y filtrado](#formatos-de-salida-y-filtrado).
+- La A4.3 hecha: la CLI con la sesión iniciada en `empresa-dev` y la identidad comprobada.
+- El tutor te ha dado acceso a un segundo entorno (dev y pre, dos regiones o dos suscripciones). Si solo tienes uno, el segundo perfil apunta al mismo con otra región por defecto.
+- La teoría del bloque: [Perfiles y ficheros de configuración](#perfiles-y-ficheros-de-configuracion) y [Formatos de salida y filtrado](#formatos-de-salida-y-filtrado).
 
 <span class="et et-pas">Pasos</span>
 
-Creas el segundo perfil, cambias de entorno primero solo para una orden y después para todo el shell, miras los ficheros que hay debajo y terminas creando y borrando un perfil de prueba. El script de la A4.5 cambia de entorno con la variable, así que llegarás sabiendo su alcance.
+Todo se hace en la misma máquina de la A4.3. **Creas** el segundo perfil (paso 1), **cambias** de entorno para una orden (paso 2) y para toda la terminal (paso 3), **miras** los ficheros que hay debajo (paso 4) y **practicas** crear y borrar un perfil de prueba (paso 5). El script de la A4.5 cambia de entorno con la variable del paso 3. Para no copiar salidas a mano, antes del paso 2 abre `script -q a4.4.txt`, haz los pasos 2 a 5 dentro y sal con `exit`: el fichero guarda órdenes y salidas, y es la evidencia de la Entrega.
 
-1. **Crea el segundo perfil.** Da de alta `empresa-pre`, apuntando al otro entorno. Cambia lo marcado por los datos que te dé el tutor.
+1. **Crea el segundo perfil.** *En la máquina de trabajo.*
+
+    Un perfil es un nombre que guarda con qué cuenta, región y credencial trabaja la CLI. Da de alta `empresa-pre`, apuntando al otro entorno, y cambia lo marcado entre `< >` por los datos que te dé el tutor.
 
     === "AWS"
 
@@ -718,9 +782,11 @@ Creas el segundo perfil, cambias de entorno primero solo para una orden y despu�
         gcloud config configurations list
         ```
 
-    Compruébalo: el listado muestra `empresa-dev` y `empresa-pre` (en Azure, los directorios `~/.azure` y `~/.azure-pre`).
+    **Sale bien si:** el listado muestra `empresa-dev` y `empresa-pre` (en Azure, los directorios `~/.azure` y `~/.azure-pre`).
 
-2. **Cambia de entorno para una sola orden.** Lista las redes con cada perfil usando la opción de la orden, sin cambiar el perfil activo.
+2. **Cambia de entorno para una sola orden.** *En la máquina de trabajo.*
+
+    Lista las redes con cada perfil indicándolo en la propia orden, sin cambiar el perfil activo.
 
     === "AWS"
 
@@ -743,9 +809,11 @@ Creas el segundo perfil, cambias de entorno primero solo para una orden y despu�
         gcloud compute networks list --configuration=empresa-pre
         ```
 
-    Compruébalo: los dos listados son distintos (o, si comparten cuenta, la región por defecto lo es).
+    **Sale bien si:** los dos listados son distintos (o, si comparten cuenta, lo es la región por defecto).
 
-3. **Cambia de entorno para toda la sesión.** Repite el cambio con la variable de entorno, sin opciones en la orden, y muestra de dónde sale cada valor mientras está exportada. Es como eligen entorno los scripts, y lo que hará la A4.5.
+3. **Cambia de entorno para toda la terminal.** *En la máquina de trabajo.*
+
+    Ahora el cambio lo hace una variable de entorno: mientras está exportada, todas las órdenes van a pre sin indicar nada. Es como eligen entorno los scripts, y lo que hará la A4.5. La segunda orden muestra de dónde sale cada valor.
 
     === "AWS"
 
@@ -774,9 +842,11 @@ Creas el segundo perfil, cambias de entorno primero solo para una orden y despu�
         unset CLOUDSDK_ACTIVE_CONFIG_NAME
         ```
 
-    Compruébalo: el listado coincide con el de pre del paso 2, y tras el `unset` una orden sin opciones vuelve a dev.
+    **Sale bien si:** el listado coincide con el de pre del paso 2, y tras el `unset` una orden sin opciones vuelve a dev.
 
-4. **Mira lo que hay debajo.** Muestra los ficheros de configuración de los dos perfiles, sin ningún secreto.
+4. **Mira los ficheros que hay debajo.** *En la máquina de trabajo.*
+
+    Los perfiles se guardan en ficheros de texto. Muestra los de los dos perfiles (usa la línea de tu proveedor). En AWS, nunca enseñes `~/.aws/credentials`, que es donde irían las claves.
 
     ```bash
     cat ~/.aws/config                                    # AWS (nunca ~/.aws/credentials)
@@ -784,9 +854,11 @@ Creas el segundo perfil, cambias de entorno primero solo para una orden y despu�
     gcloud config configurations list                    # Google Cloud
     ```
 
-    Compruébalo: en la salida aparecen los dos entornos y ninguna clave ni token.
+    **Sale bien si:** en la salida aparecen los dos entornos y ninguna clave ni token.
 
-5. **Crea y borra un perfil de usar y tirar.** Practica el borrado con `empresa-tmp`: créalo, lístalo, bórralo y vuelve a listar. `empresa-pre` sigue vivo para la A4.5.
+5. **Crea y borra un perfil de prueba.** *En la máquina de trabajo.*
+
+    Practica el borrado con `empresa-tmp`: créalo, lístalo, bórralo y vuelve a listar. `empresa-pre` no se toca, porque la A4.5 lo usa.
 
     === "AWS"
 
@@ -815,13 +887,23 @@ Creas el segundo perfil, cambias de entorno primero solo para una orden y despu�
         gcloud config configurations list
         ```
 
-    Compruébalo: el último listado es igual que el de antes de crear `empresa-tmp`.
+    **Sale bien si:** el último listado es igual que el de antes de crear `empresa-tmp`.
 
-<span class="et et-com">Comprobación</span> Los dos perfiles apuntan a entornos distintos (listados de redes distintos o, si comparten cuenta, región por defecto distinta), `aws configure list` o su equivalente muestra de dónde sale cada valor con la variable exportada, y tras borrar el perfil de prueba el listado vuelve a ser el de antes de crearlo, con el perfil de pre dentro.
+<span class="et et-com">Comprobación</span>
 
-<span class="et et-ent">Entrega</span> Los comandos y sus salidas en texto: los listados de cada perfil de los pasos 2 y 3, el fichero `~/.aws/config` o las dos salidas de `az config get`, o la de `gcloud config configurations list`, y el borrado del paso 5. Fila A4.4 de la ficha.
+- [ ] `empresa-dev` y `empresa-pre` apuntan a entornos distintos: listados de redes distintos o, si comparten cuenta, región por defecto distinta.
+- [ ] Con la variable exportada, `aws configure list` (o `az config get`, o `gcloud config list`) muestra de dónde sale cada valor.
+- [ ] Tras el `unset`, una orden sin opciones vuelve a trabajar en dev.
+- [ ] Los ficheros de configuración muestran los dos entornos y ningún secreto.
+- [ ] Tras borrar `empresa-tmp`, el listado es el de antes de crearlo, con `empresa-pre` dentro.
 
-<span class="et et-ext">Si te sobra tiempo</span> Exporta a la vez `AWS_PROFILE` y una `AWS_REGION` distinta de la del perfil y comprueba con `aws configure list` cuál gana.
+<span class="et et-ent">Entrega</span>
+
+- **Guarda** en texto (el `a4.4.txt` del recorrido) los comandos y sus salidas: los listados de cada perfil de los pasos 2 y 3, el fichero `~/.aws/config` o las dos salidas de `az config get`, o la de `gcloud config configurations list`, y el borrado del paso 5.
+- El tutor firma la fila A4.4 de la ficha.
+- **Piensa:** antes de lanzar una orden que borra algo, ¿cómo te aseguras de en qué perfil estás?
+
+<span class="et et-ext">Si te sobra tiempo</span> Para saber qué manda cuando dos ajustes chocan, exporta a la vez `AWS_PROFILE` y una `AWS_REGION` distinta de la del perfil y comprueba con `aws configure list` cuál gana.
 
 ## Bloque 5 · SDK (CE 2e)
 
@@ -1005,27 +1087,36 @@ Se ejecuta con `AWS_PROFILE=empresa-dev node listar.mjs`. En Azure el patrón es
 - **Nunca credenciales en Git**: el repositorio se escanea con `gitleaks`, como en `iac-lab`.
 - **Al `.gitignore` antes del primer commit**: `.env`, `*.pem`, los JSON de clave de service account, `~/.aws/credentials` y `terraform.tfstate`. Lo que entra en un commit ya no se borra borrando el fichero.
 
-!!! consulta "Repaso"
-    gitleaks y el framework pre-commit se explican en [.gitignore y pre-commit](ut5-iac.md#gitignore-y-pre-commit) y se montan en la [A5.8](ut5-iac.md#a58-correccion-de-hallazgos-sesion-28). En el repositorio nuevo de la empresa basta con copiar de allí `.pre-commit-config.yaml` dejando solo el bloque de gitleaks y ejecutar `pre-commit install`; `gitleaks git -v` escanea el historial entero. Si no se puede instalar pre-commit, el hook se escribe a mano: un `.git/hooks/pre-commit` ejecutable con la línea `gitleaks git --pre-commit --staged --redact`.
+!!! consulta "Repaso: gitleaks y el hook de pre-commit"
+    gitleaks y pre-commit se vieron en enero, en la UT5 ([.gitignore y pre-commit](ut5-iac.md#gitignore-y-pre-commit)), sobre
+    el repositorio `iac-lab`. En el repositorio de la empresa basta con gitleaks, y no hace falta nada de aquello: se instala
+    con `sudo apt install -y gitleaks` (en macOS, `brew install gitleaks`) y `gitleaks detect -v` escanea el historial
+    entero (en versiones recientes también vale `gitleaks git -v`). Para que además git rechace un commit que lleva una
+    clave, sin instalar el programa pre-commit, basta un `.git/hooks/pre-commit` ejecutable con la línea
+    `gitleaks protect --staged --redact`.
 
 **Si `gitleaks` encuentra algo ya subido**, borrarlo en el siguiente commit no basta: sigue en el historial. Primero se revoca la clave en el proveedor y se avisa al tutor, y después se limpia, igual que con el token de Proxmox ([Cuando gitleaks encuentra algo](ut5-iac.md#cuando-gitleaks-encuentra-algo)).
 
 ### A4.5 SDK (CE 2e)
 
-<span class="et et-obj">Objetivo</span> Un script en el lenguaje del proyecto de la empresa que liste las VPC/VNets y las máquinas sin una sola credencial dentro, y que funcione con dos perfiles cambiando solo la variable de entorno. El mismo fichero, sin tocar una línea, valdría en tu equipo, en un pipeline o en una máquina de la nube.
+<span class="et et-obj">Objetivo</span> **Qué vas a conseguir:** un pequeño script que lista las redes y las máquinas de la nube de la empresa, sin ninguna credencial escrita dentro, y que cambia de entorno con solo cambiar una variable.
+
+**Para qué sirve en un trabajo:** los scripts acaban en repositorios, y una clave escrita en el código acaba publicada tarde o temprano. Un script que coge las credenciales del entorno vale tal cual en tu equipo, en un pipeline o en una máquina de la nube, y no filtra nada.
 
 <span class="et et-pre">Antes de empezar</span>
 
-- A4.4 hecha: `empresa-dev` y `empresa-pre` funcionando.
-- Autorización del tutor sobre el lenguaje (Python o Node; si el proyecto usa otro, decide el tutor) y sobre el repositorio privado donde vas a guardar el código.
-- Python 3 o Node en la misma máquina donde tienes la CLI, y `gitleaks` instalado en ella o autorización del tutor para instalarlo.
-- Leídos [La cadena de credenciales por defecto](#la-cadena-de-credenciales-por-defecto), [Python](#python) o [Node.js](#nodejs), y [Buenas prácticas mínimas](#buenas-practicas-minimas) con su repaso de `gitleaks`.
+- La A4.4 hecha: `empresa-dev` y `empresa-pre` funcionando.
+- El tutor te ha dicho el lenguaje (Python o Node; si el proyecto usa otro, decide él) y el repositorio privado donde guardarás el código.
+- Python 3 o Node en la misma máquina donde tienes la CLI, y `gitleaks` (un programa que busca claves en un repositorio de git) instalado, o permiso del tutor para instalarlo.
+- La teoría del bloque: [La cadena de credenciales por defecto](#la-cadena-de-credenciales-por-defecto), [Python](#python) o [Node.js](#nodejs), y [Buenas prácticas mínimas](#buenas-practicas-minimas) con su repaso de `gitleaks`.
 
 <span class="et et-pas">Pasos</span>
 
-Preparas el repositorio antes de escribir una línea, escribes el script apoyado en la cadena, lo pruebas con los dos perfiles y lo escaneas antes de subirlo. Los ejemplos van en Python; en Node, cambia `pip` por `npm` y `listar.py` por `listar.mjs`.
+Todo se hace en la máquina de la A4.3. **Preparas** el repositorio (paso 1), **escribes** el script (paso 2), lo **pruebas** con los dos perfiles (paso 3) y lo **escaneas** antes de subirlo (paso 4). Los ejemplos van en Python; en Node, cambia `pip` por `npm` y `listar.py` por `listar.mjs`.
 
-1. **Prepara el repositorio.** Crea el repositorio `listar-nube`, su `.gitignore` y el entorno con solo la librería de tu proveedor ([Python](#python) o [Node.js](#nodejs)).
+1. **Prepara el repositorio.** *En la máquina de trabajo.*
+
+    Antes de escribir código, crea el repositorio `listar-nube`, un `.gitignore` que deje fuera lo que no se sube y un entorno virtual de Python (`.venv`: una carpeta con las librerías solo de este proyecto) con la librería de tu proveedor ([Python](#python) o [Node.js](#nodejs)).
 
     ```bash
     mkdir listar-nube && cd listar-nube && git init
@@ -1041,15 +1132,19 @@ Preparas el repositorio antes de escribir una línea, escribes el script apoyado
     pip freeze > requirements.txt
     ```
 
-    Si usas Google Cloud y tienes un JSON de clave de service account, añade su nombre exacto al `.gitignore`: no pongas `*.json`, que dejaría fuera `package.json`.
+    Si usas Google Cloud y tienes un JSON de clave de service account, añade su nombre exacto al `.gitignore`. No pongas `*.json`, que dejaría fuera `package.json`.
 
-    Compruébalo: `git status` muestra `.gitignore` y `requirements.txt`, y no `.venv/`.
+    **Sale bien si:** `git status` muestra `.gitignore` y `requirements.txt`, y no `.venv/`.
 
-2. **Escribe el script sin credenciales.** Copia el ejemplo de tu proveedor de [Python](#python) o [Node.js](#nodejs) en `listar.py`, sin añadir perfil, región ni credencial: lo que escribas en el código pasa por delante de la [cadena de credenciales](#la-cadena-de-credenciales-por-defecto), y el script dejaría de obedecer a la variable.
+2. **Escribe el script sin credenciales.** *En la máquina de trabajo.*
 
-    Compruébalo: `grep -nE "profile|region|key|secret" listar.py` no devuelve nada.
+    Copia el ejemplo de tu proveedor de [Python](#python) o [Node.js](#nodejs) en `listar.py`, sin añadir perfil, región ni credencial. Lo que escribas en el código pasa por delante de la [cadena de credenciales](#la-cadena-de-credenciales-por-defecto) (el orden en que la librería busca con quién conectarse), y el script dejaría de obedecer a la variable de entorno.
 
-3. **Pruébalo con los dos perfiles.** Ejecútalo con cada perfil cambiando solo variables de entorno, guarda las dos salidas y compáralas con lo que da la CLI con el mismo perfil.
+    **Sale bien si:** `grep -nE "profile|region|key|secret" listar.py` no devuelve nada.
+
+3. **Pruébalo con los dos perfiles.** *En la máquina de trabajo.*
+
+    Ejecútalo con cada perfil cambiando solo variables de entorno y guarda las dos salidas. Después compáralas con lo que daba la CLI con el mismo perfil.
 
     === "AWS"
 
@@ -1077,52 +1172,105 @@ Preparas el repositorio antes de escribir una línea, escribes el script apoyado
         CLOUDSDK_CORE_PROJECT=<proyecto de pre> python listar.py > salida-pre.txt
         ```
 
-    Compruébalo: cada salida tiene las mismas redes que el listado de la CLI de ese perfil en la A4.4.
+    **Sale bien si:** cada salida tiene las mismas redes que el listado de la CLI de ese perfil en la A4.4.
 
-4. **Escanéalo antes de subirlo.** Haz commit y escanea el historial con `gitleaks`, guardando la salida.
+4. **Escanéalo antes de subirlo.** *En la máquina de trabajo.*
+
+    Haz commit y pasa `gitleaks` por el historial, guardando la salida en el propio repositorio. Si no lo tienes, instálalo como en la UT5: `sudo apt install -y gitleaks` (en macOS, `brew install gitleaks`). `gitleaks detect` revisa los commits, no los ficheros sueltos de la carpeta: por eso va después del commit.
 
     ```bash
     git add . && git commit -m "Script de listado sin credenciales"
-    gitleaks git -v 2>&1 | tee gitleaks.txt
+    gitleaks detect -v 2>&1 | tee gitleaks.txt
+    git add gitleaks.txt && git commit -m "Evidencia de gitleaks"
     ```
 
-    `gitleaks git` revisa el historial, no la carpeta: lo que no está en un commit no lo ve. Si encuentra una clave, borrarla no basta: revócala en el proveedor y avisa al tutor.
+    Si encuentra una clave, borrarla no basta: revócala en el proveedor y avisa al tutor.
 
-    Compruébalo: la salida termina con `no leaks found`.
+    **Sale bien si:** la salida termina con `no leaks found`.
 
-<span class="et et-com">Comprobación</span> Las dos salidas del script coinciden con las de la CLI para cada perfil, `grep -rIiE "AKIA|secret|password" . --include='*.py' --include='*.mjs' --include='*.js' --exclude-dir=.venv --exclude-dir=node_modules` no devuelve nada y `gitleaks` termina sin fugas (`no leaks found`).
+<span class="et et-com">Comprobación</span>
 
-<span class="et et-ent">Entrega</span> `requirements.txt` o `package.json` (con `package-lock.json`), el script, su salida con cada perfil y la salida de `gitleaks git` sobre el repositorio donde lo has guardado. Fila A4.5 de la ficha.
+- [ ] `git status` no muestra `.venv/` ni `node_modules/`.
+- [ ] `salida-dev.txt` y `salida-pre.txt` coinciden con los listados de la CLI de cada perfil.
+- [ ] `grep -rIiE "AKIA|secret|password" . --include='*.py' --include='*.mjs' --include='*.js' --exclude-dir=.venv --exclude-dir=node_modules` no devuelve nada.
+- [ ] `gitleaks` termina con `no leaks found`.
 
-<span class="et et-ext">Si te sobra tiempo</span> Monta el hook de pre-commit como en la A5.8 (repaso en [Buenas prácticas mínimas](#buenas-practicas-minimas)), intenta hacer commit de un fichero con una clave falsa (`AKIA` y 16 caracteres) y guarda el rechazo.
+<span class="et et-ent">Entrega</span>
+
+- **Guarda** en el repositorio: `requirements.txt` o `package.json` (con `package-lock.json`), el script, su salida con cada perfil y la salida de `gitleaks` (`gitleaks.txt`).
+- El tutor firma la fila A4.5 de la ficha.
+- **Piensa:** si este script lo ejecutara un pipeline, ¿qué tendría que cambiar en el código? ¿Y fuera de él?
+
+<span class="et et-ext">Si te sobra tiempo</span> Para que git rechace una clave antes de que entre en un commit, pon un hook de pre-commit que llame a gitleaks (el [repaso](#buenas-practicas-minimas) dice qué hace), prueba a colar una clave falsa y guarda el rechazo:
+
+```bash
+printf '#!/bin/sh\ngitleaks protect --staged --redact -v\n' > .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
+echo 'aws_access_key_id = AKIAZ3XQ7PLM4RTW9KVB' > prueba.txt
+git add prueba.txt && git commit -m "prueba" 2>&1 | tee rechazo.txt   # el commit no se hace
+git reset prueba.txt && rm prueba.txt
+```
 
 ## Actividad de cierre
 
 <p class="ut-meta">En la empresa · con el tutor</p>
 
-<span class="et et-obj">Objetivo</span> Un documento de dos páginas que explique cómo está organizada la nube de la empresa y en qué se diferencia de la VPC de Proxmox del centro. Demuestra que entiendes el sistema y no solo has seguido pasos: cada apartado sale de algo que anotaste en las hojas y lo compara con algo que montaste en el centro.
+<span class="et et-obj">Objetivo</span> **Qué vas a conseguir:** un documento de dos páginas que explica cómo está organizada la nube de la empresa y en qué se parece y se diferencia de la VPC de Proxmox que montaste en el centro.
+
+**Para qué sirve en un trabajo:** cuando llegas a una empresa, lo primero es entender cómo está montado lo que vas a tocar. Ponerlo por escrito demuestra que lo entiendes y no solo que has seguido pasos.
 
 <span class="et et-pre">Antes de empezar</span>
 
-- Las cinco actividades hechas, porque el documento se apoya en lo que anotaste en ellas.
-- Autorización del tutor sobre qué se puede contar por escrito: nombres de cuentas, rangos de red y nombres de máquinas pueden ser información interna.
+- Las cinco actividades hechas: el documento se apoya en lo que anotaste en ellas.
+- El tutor te ha dicho qué se puede contar por escrito: nombres de cuentas, rangos de red y nombres de máquinas pueden ser información interna.
 - Releída la tabla de [Correspondencia con el laboratorio](#correspondencia-con-el-laboratorio) y tus apuntes de la VPC del centro.
 
 <span class="et et-pas">Pasos</span>
 
-Recorres la nube de la empresa en el orden de la unidad. Los cuatro primeros apartados salen de tus evidencias (la cuenta, la región y las etiquetas de la A4.1, el coste de la A4.2, la identidad de la A4.3 y los listados de la A4.4); el último es tu comparación.
+Cada paso es un apartado del documento y recorre la nube de la empresa en el orden de la unidad. Los cuatro primeros salen de tus evidencias (la cuenta, la región y las etiquetas de la A4.1, el coste de la A4.2, la identidad de la A4.3 y los listados de la A4.4); el último es tu comparación.
 
-1. **La estructura.** Describe las cuentas, suscripciones o proyectos y cómo se agrupan, qué regiones usa la empresa y por qué. Compruébalo: aparecen el identificador (tapado) y la región de la A4.1.
-2. **La red.** Describe las redes y subredes, qué es público y qué privado, cómo se sale a Internet y qué hace de cortafuegos, y compáralo pieza a pieza con la VPC del centro (bridge, DMZ, OPNsense, NAT) con la tabla de [Correspondencia con el laboratorio](#correspondencia-con-el-laboratorio). Compruébalo: cada pieza de la empresa tiene al lado su equivalente del centro.
-3. **Identidad y permisos.** Describe con qué mecanismo se entra (SSO, MFA), cómo se reparten los permisos y qué tienes tú. Compruébalo: citas el tipo de credencial de la A4.3.
-4. **Etiquetas y costes.** Describe las etiquetas obligatorias, los presupuestos, quién revisa la factura y qué te ha costado la unidad (la vista de costes de la A4.2 antes y después). Compruébalo: hay un importe concreto.
-5. **Las diferencias.** Cierra con lo que no esperabas, qué hace la empresa que en el centro no se hizo y qué se hizo en el centro que en la nube ya viene dado. Compruébalo: cada diferencia dice por qué existe la pieza, no solo cómo se llama.
+1. **Describe la estructura.** *En el documento.*
 
-<span class="et et-com">Comprobación</span> Cabe en dos páginas, cada apartado de los cuatro primeros pasos tiene al menos un dato concreto sacado de tus evidencias, y no contiene identificadores completos, claves ni IP públicas de producción.
+    Cuenta qué cuentas, suscripciones o proyectos hay y cómo se agrupan, qué regiones usa la empresa y por qué.
 
-<span class="et et-ent">Entrega</span> El documento (PDF) en la carpeta de evidencias, junto con la ficha firmada. Fila "Cierre" de la ficha.
+    **Sale bien si:** aparecen el identificador (tapado) y la región de la A4.1.
 
-<span class="et et-ext">Si te sobra tiempo</span> Añade un diagrama de la red de la empresa con la misma notación que el de regiones y zonas de esta unidad.
+2. **Describe la red.** *En el documento.*
+
+    Cuenta qué redes y subredes hay, qué es público y qué privado, cómo se sale a Internet y qué hace de cortafuegos. Compáralo pieza a pieza con la VPC del centro (bridge, DMZ, OPNsense, NAT) usando la tabla de [Correspondencia con el laboratorio](#correspondencia-con-el-laboratorio).
+
+    **Sale bien si:** cada pieza de la empresa tiene al lado su equivalente del centro.
+
+3. **Describe la identidad y los permisos.** *En el documento.*
+
+    Cuenta con qué mecanismo se entra (SSO, segundo factor), cómo se reparten los permisos y qué permisos tienes tú.
+
+    **Sale bien si:** citas el tipo de credencial de la A4.3.
+
+4. **Describe las etiquetas y los costes.** *En el documento.*
+
+    Cuenta qué etiquetas son obligatorias, qué presupuestos hay, quién revisa la factura y cuánto te ha costado la unidad. Para eso abre hoy la misma vista de costes de la A4.2, paso 3, con el intervalo desde la fecha que anotaste allí y, si se puede, filtrada por tu etiqueta de propietario.
+
+    **Sale bien si:** hay un importe concreto.
+
+5. **Cierra con las diferencias.** *En el documento.*
+
+    Cuenta lo que no esperabas, qué hace la empresa que en el centro no se hizo y qué se hizo en el centro que en la nube ya viene dado.
+
+    **Sale bien si:** cada diferencia dice por qué existe la pieza, no solo cómo se llama.
+
+<span class="et et-com">Comprobación</span>
+
+- [ ] El documento cabe en dos páginas.
+- [ ] Cada uno de los cuatro primeros apartados tiene al menos un dato concreto sacado de tus evidencias.
+- [ ] No contiene identificadores completos, claves ni IP públicas de producción.
+
+<span class="et et-ent">Entrega</span>
+
+- **Guarda** el documento (PDF) en la carpeta de evidencias, junto con la ficha firmada.
+- El tutor firma la fila "Cierre" de la ficha.
+
+<span class="et et-ext">Si te sobra tiempo</span> Para que la red se entienda de un vistazo, añade un diagrama de la red de la empresa con la misma notación que el de regiones y zonas de esta unidad.
 
 ## Práctica evaluable
 

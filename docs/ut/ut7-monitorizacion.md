@@ -210,7 +210,9 @@ El `tls_config` y el `basic_auth` de `node-tls` son los que dejó la A3.2 de Man
 
 ### A7.1 Ingesta (sesión 39)
 
-<span class="et et-obj">Objetivo</span> Al terminar, la pila de `mon01` vigila la plataforma entera: las cuatro máquinas de dev, con sus targets generados por Ansible desde el inventario, los contenedores de `app01` y el propio Jenkins. Tienes todos los targets de dev en UP, una consulta con datos por cada fuente y la elección del gestor de ingesta justificada por escrito. Es la parte de la práctica evaluable del CE 4i, y los datos sobre los que la A7.2 construye el panel y las alertas.
+<span class="et et-obj">Objetivo</span> **Qué vas a conseguir:** que el Prometheus de `mon01` recoja datos de toda la plataforma: las cuatro máquinas de dev, los contenedores de `app01` y el propio Jenkins. La lista de máquinas a vigilar no la escribes a mano: la genera Ansible desde el inventario.
+
+**Para qué sirve en un trabajo:** no se puede vigilar lo que no se mide. Si la lista de máquinas sale del mismo inventario con el que se despliegan, una máquina nueva entra en la monitorización sola y nadie se olvida de darla de alta.
 
 <span class="et et-pre">Antes de empezar</span>
 
@@ -219,13 +221,15 @@ El `tls_config` y el `basic_auth` de `node-tls` son los que dejó la A3.2 de Man
 - La pila de Mantenimiento en marcha en `/opt/monitoring` de `mon01`. No la pares en ningún momento.
 - El túnel a Prometheus abierto desde tu puesto, con la orden de [La pila del curso en mon01](#la-pila-del-curso-en-mon01).
 - `jenkins.lab` en el DNS de OPNsense desde la A6.1 (el contenedor de Prometheus no lee el `/etc/hosts` de `mon01`).
-- Explicado en clase: [Elegir el gestor de ingesta](#elegir-el-gestor-de-ingesta), [La pila del curso en mon01](#la-pila-del-curso-en-mon01) y [Los targets, desde el inventario](#los-targets-desde-el-inventario). Para copiar: [Descubrimiento de targets](#descubrimiento-de-targets) y [Consultas del laboratorio](#consultas-del-laboratorio).
+- La teoría de hoy: [Elegir el gestor de ingesta](#elegir-el-gestor-de-ingesta), [La pila del curso en mon01](#la-pila-del-curso-en-mon01) y [Los targets, desde el inventario](#los-targets-desde-el-inventario). Para copiar: [Descubrimiento de targets](#descubrimiento-de-targets) y [Consultas del laboratorio](#consultas-del-laboratorio).
 
 <span class="et et-pas">Pasos</span>
 
-Empiezas por la imagen de Jenkins, que tarda en construirse, y mientras tanto generas los targets desde el puesto de administración, preparas `mon01` para leerlos y cambias los jobs. Con todo en UP consultas los datos y dejas la elección por escrito.
+Empiezas por la imagen de Jenkins, que tarda en construirse (paso 1). Mientras tanto generas la lista de máquinas desde el puesto de administración (paso 2), preparas `mon01` para leerla (paso 3) y cambias la configuración de Prometheus (paso 4). Con todo funcionando consultas los datos (paso 5) y dejas la elección por escrito (paso 6).
 
-1. **Lanza primero lo que más tarda: Jenkins con el plugin.** Añade el plugin al `plugins.txt` con su versión fijada y reconstruye la imagen. Como `plugins.txt` cambia, Docker vuelve a descargar todos los plugins: sigue con el paso 2 mientras tanto. En `jenkins01`:
+1. **Lanza primero lo que más tarda: Jenkins con el plugin.** *En `jenkins01`.*
+
+    Jenkins no da métricas por sí solo: hace falta el plugin Prometheus metrics. Añádelo al `plugins.txt` con su versión fijada y reconstruye la imagen. Como `plugins.txt` cambia, Docker vuelve a descargar todos los plugins: sigue con el paso 2 mientras tanto.
 
     ```bash
     cd ~/jenkins-config
@@ -234,9 +238,11 @@ Empiezas por la imagen de Jenkins, que tarda en construirse, y mientras tanto ge
     docker compose build jenkins && docker compose up -d jenkins
     ```
 
-    Comprueba en Manage Jenkins → Plugins → Installed que aparece Prometheus metrics.
+    **Sale bien si:** en Manage Jenkins → Plugins → Installed aparece Prometheus metrics.
 
-2. **Genera la lista de targets desde el inventario.** Copia `dev.ini` y `ut7-targets.yml` de [Descubrimiento de targets](#descubrimiento-de-targets) y lanza el playbook. En el puesto de administración:
+2. **Genera la lista de targets desde el inventario.** *En el puesto de administración.*
+
+    Un target es cada dirección que Prometheus visita para leer métricas. Copia `dev.ini` y `ut7-targets.yml` de [Descubrimiento de targets](#descubrimiento-de-targets) y lanza el playbook, que escribe los ficheros de targets en `mon01`:
 
     ```bash
     cd ~/iac-lab/ansible
@@ -247,9 +253,11 @@ Empiezas por la imagen de Jenkins, que tarda en construirse, y mientras tanto ge
     ssh ops@10.10.0.20 cat /opt/monitoring/targets/ut7-node.yml /opt/monitoring/targets/ut7-node-tls.yml
     ```
 
-    Comprueba que cada máquina está en el fichero que le toca según su `node_tls` y con sus tres etiquetas.
+    **Sale bien si:** cada máquina está en el fichero que le toca según su `node_tls` y con sus tres etiquetas.
 
-3. **Prepara la pila de `mon01` para los ficheros de la unidad.** Crea los directorios de la unidad, añade los dos volúmenes de [Los targets, desde el inventario](#los-targets-desde-el-inventario) al servicio `prometheus` y recrea solo ese contenedor. `rules/` se monta ya, aunque esté vacío hasta el 17 de marzo, para recrear Prometheus una sola vez. En `mon01`:
+3. **Prepara la pila de `mon01` para los ficheros de la unidad.** *En `mon01`.*
+
+    El contenedor de Prometheus solo ve los ficheros que se le montan. Crea los directorios de la unidad, añade los dos volúmenes de [Los targets, desde el inventario](#los-targets-desde-el-inventario) al servicio `prometheus` y recrea solo ese contenedor. `rules/` se monta ya, aunque esté vacío hasta el 17 de marzo, para recrear Prometheus una sola vez.
 
     ```bash
     cd /opt/monitoring
@@ -260,9 +268,11 @@ Empiezas por la imagen de Jenkins, que tarda en construirse, y mientras tanto ge
     docker compose exec prometheus ls /etc/prometheus/targets
     ```
 
-    Comprueba que el resto de la pila sigue en marcha y que el contenedor ve los dos ficheros de targets.
+    **Sale bien si:** el resto de la pila sigue en marcha y el contenedor ve los dos ficheros de targets.
 
-4. **Pasa los jobs de node_exporter a los ficheros y añade Jenkins.** En `prometheus.yml`, cambia los `static_configs` de dev de node_exporter por los `file_sd_configs` de [Descubrimiento de targets](#descubrimiento-de-targets) y añade el job `jenkins`. De `node-tls` solo cambia de dónde sale el target: su `scheme`, `tls_config` y `basic_auth` se quedan. Si `node` tiene un grupo con `env: pre`, déjalo. Valida y recarga sin reiniciar:
+4. **Pasa los jobs de node_exporter a los ficheros y añade Jenkins.** *En `mon01`.*
+
+    Un job es un grupo de targets que se leen igual. En `prometheus.yml`, cambia los `static_configs` (targets escritos a mano) de dev de node_exporter por los `file_sd_configs` (targets leídos de un fichero) de [Descubrimiento de targets](#descubrimiento-de-targets) y añade el job `jenkins`. De `node-tls` solo cambia de dónde sale el target: su `scheme`, `tls_config` y `basic_auth` se quedan. Si `node` tiene un grupo con `env: pre`, déjalo. Valida y recarga sin reiniciar:
 
     ```bash
     nano prometheus.yml
@@ -270,13 +280,19 @@ Empiezas por la imagen de Jenkins, que tarda en construirse, y mientras tanto ge
     curl -s -X POST http://localhost:29090/-/reload
     ```
 
-    Al minuto, en `http://localhost:29090/targets`, los targets de dev de `node`, `node-tls`, `cadvisor` y `jenkins` tienen que estar en UP. Los de `env="pre"` pueden salir en DOWN (pre se destruyó el 11 de marzo) y no cuentan.
+    **Sale bien si:** al minuto, en `http://localhost:29090/targets`, los targets de dev de `node`, `node-tls`, `cadvisor` y `jenkins` están en UP. Los de `env="pre"` pueden salir en DOWN (pre se destruyó el 11 de marzo) y no cuentan.
 
-5. **Comprueba que llegan datos de las tres fuentes.** Un target en UP solo dice que Prometheus lee su página; que los datos sirvan se comprueba consultándolos. En Graph, lanza tres consultas de [Consultas del laboratorio](#consultas-del-laboratorio), una por fuente: CPU usada por host (node_exporter), memoria del contenedor de la API (cAdvisor) y ejecuciones correctas de Jenkins (el plugin). Captura el resultado de cada una.
+5. **Comprueba que llegan datos de las tres fuentes.** *En el navegador, en Prometheus.*
 
-    *Pista:* las series de Jenkins no existen hasta que termina la primera ejecución desde que arrancó con el plugin. Si sale vacía, lanza el pipeline de `servicio` sin `RUN_DEPLOY` y espera a que acabe.
+    Un target en UP solo dice que Prometheus lee su página; que los datos sirvan se comprueba consultándolos. En Graph, lanza tres consultas de [Consultas del laboratorio](#consultas-del-laboratorio), una por fuente: CPU usada por host (node_exporter), memoria del contenedor de la API (cAdvisor) y ejecuciones correctas de Jenkins (el plugin). Captura el resultado de cada una.
 
-6. **Justifica la elección y guarda el trabajo.** Escribe `docs/ut7.md` con cinco a diez líneas: los dos criterios del CE 4i de [Elegir el gestor de ingesta](#elegir-el-gestor-de-ingesta), por qué Prometheus los cumple aquí y cuándo elegirías Zabbix o un servicio de nube. Es la justificación que pide el primer criterio de la práctica evaluable. Después sube solo tus ficheros, porque esa copia de trabajo es también la de Mantenimiento:
+    Si la de Jenkins sale vacía: sus series no existen hasta que termina la primera ejecución desde que arrancó con el plugin. Lanza el pipeline de `servicio` sin `RUN_DEPLOY` y espera a que acabe.
+
+    **Sale bien si:** las tres consultas devuelven datos.
+
+6. **Justifica la elección y guarda el trabajo.** *En `mon01`.*
+
+    Escribe `docs/ut7.md` con cinco a diez líneas: los dos criterios del CE 4i de [Elegir el gestor de ingesta](#elegir-el-gestor-de-ingesta), por qué Prometheus los cumple aquí y cuándo elegirías Zabbix o un servicio de nube. Después sube solo tus ficheros, porque esa copia de trabajo es también la de Mantenimiento:
 
     ```bash
     cd /opt/monitoring
@@ -285,13 +301,21 @@ Empiezas por la imagen de Jenkins, que tarda en construirse, y mientras tanto ge
     git commit -m "UT7: ingesta de la plataforma" && git push
     ```
 
-    Comprueba en Gitea que el commit lleva esos cuatro elementos y nada más.
+    **Sale bien si:** en Gitea el commit lleva esos cuatro elementos y nada más.
 
-<span class="et et-com">Comprobación</span> En `http://localhost:29090/targets`, los jobs `node`, `node-tls`, `cadvisor` y `jenkins` sin ninguna fila de dev en DOWN, y la fila de `app01` en `node-tls` con un endpoint que empieza por `https://`. En Graph, `up{rol="ci"}` devuelve la serie de `jenkins01`, y las tres consultas del paso 5 devuelven datos. Los ficheros de `targets/` empiezan por la línea que dice que los genera Ansible.
+<span class="et et-com">Comprobación</span>
 
-<span class="et et-ent">Para practicar</span> Guarda en `A7.1` de `entregas-5166` la captura de la página Targets con los jobs de dev en UP, las de las tres consultas y el enlace al commit de `monitoring` con `targets/`, `prometheus.yml` y `docs/ut7.md`: lo pide la práctica evaluable.
+- [ ] En `http://localhost:29090/targets`, los jobs `node`, `node-tls`, `cadvisor` y `jenkins` no tienen ninguna fila de dev en DOWN.
+- [ ] La fila de `app01` en `node-tls` tiene un endpoint que empieza por `https://`.
+- [ ] En Graph, `up{rol="ci"}` devuelve la serie de `jenkins01`, y las tres consultas del paso 5 devuelven datos.
+- [ ] Los ficheros de `targets/` empiezan por la línea que dice que los genera Ansible.
 
-<span class="et et-ext">Si te sobra tiempo</span> Lanza dos veces en Jenkins un job que falle a propósito y mira subir `increase(default_jenkins_builds_failed_build_count_total[1h])`, el núcleo de la consulta del panel de la A7.2. Fíjate en cuál de las dos ejecuciones hace subir el valor y explícalo con [Cómo se leen los contadores](#como-se-leen-los-contadores-y-la-duracion).
+<span class="et et-ent">Para practicar</span>
+
+- **Guarda** en `A7.1` de `entregas-5166` la captura de la página Targets con los jobs de dev en UP, las de las tres consultas y el enlace al commit de `monitoring` con `targets/`, `prometheus.yml` y `docs/ut7.md`. Es la parte de la práctica evaluable del CE 4i, y la A7.2 construye el panel y las alertas sobre estos datos.
+- **Piensa:** si mañana se añade una quinta máquina a dev, ¿qué tendrías que tocar para que Prometheus la vigile?
+
+<span class="et et-ext">Si te sobra tiempo</span> Mira cómo cuenta Jenkins los fallos, que es lo que usa el panel de la A7.2. Lanza dos veces en Jenkins un job que falle a propósito y mira subir `increase(default_jenkins_builds_failed_build_count_total[1h])`. Fíjate en cuál de las dos ejecuciones hace subir el valor y explícalo con [Cómo se leen los contadores](#como-se-leen-los-contadores-y-la-duracion).
 
 ## Sesión 40 · Visualización, alertas y seguridad
 
@@ -490,20 +514,25 @@ Este fichero sustituye al `/etc/nftables.conf` de Debian, que empieza por `flush
 
 ### A7.2 Paneles, alertas y seguridad (sesión 40)
 
-<span class="et et-obj">Objetivo</span> Al terminar, los datos de la A7.1 se miran de un vistazo y avisan solos, y lo que la unidad abrió queda cerrado. Tienes el panel `KPI plataforma` guardado en Git, las reglas de la unidad cargadas, `JenkinsDown` llegada a Mailpit en FIRING y en RESOLVED, las métricas de Jenkins solo para `mon01`, lo de Mantenimiento todavía cerrado y el repositorio `monitoring` sin secretos y con la etiqueta de entrega. Es lo que la práctica evaluable recoge de los CE 4j y 4k.
+<span class="et et-obj">Objetivo</span> **Qué vas a conseguir:** ver de un vistazo cómo está la plataforma en un panel de Grafana, recibir un correo cuando Jenkins se cae y cerrar lo que la unidad dejó abierto: las métricas de Jenkins solo las lee `mon01` y el repositorio no lleva secretos.
+
+**Para qué sirve en un trabajo:** un dato que nadie mira no sirve de nada. En una empresa, el panel enseña el estado al equipo, la alerta avisa sin que nadie vigile y cada puerta nueva que se abre para medir se cierra a todos los que no la necesitan.
 
 <span class="et et-pre">Antes de empezar</span>
 
 - Lo de la A7.1 en marcha: targets de dev en UP y su commit subido.
 - Los dos túneles de [La pila del curso en mon01](#la-pila-del-curso-en-mon01) abiertos, y un usuario de Grafana que pueda crear paneles (Editor).
 - Permiso para parar un par de minutos el nginx de Jenkins (avisa si compartes `jenkins01`).
-- Leído antes de clase: el [repaso](#repaso-promql-reglas-alertmanager-y-grafana). Explicado en clase: [Métricas del orquestador](#metricas-del-orquestador-jenkins-en-prometheus) y [Seguridad de lo que añade la unidad](#seguridad-de-lo-que-anade-la-unidad). Para copiar: [Consultas del laboratorio](#consultas-del-laboratorio), [Reglas de esta unidad](#reglas-de-esta-unidad) y [El panel en Grafana](#el-panel-en-grafana).
+- Leído antes de clase: el [repaso](#repaso-promql-reglas-alertmanager-y-grafana).
+- La teoría de hoy: [Métricas del orquestador](#metricas-del-orquestador-jenkins-en-prometheus) y [Seguridad de lo que añade la unidad](#seguridad-de-lo-que-anade-la-unidad). Para copiar: [Consultas del laboratorio](#consultas-del-laboratorio), [Reglas de esta unidad](#reglas-de-esta-unidad) y [El panel en Grafana](#el-panel-en-grafana).
 
 <span class="et et-pas">Pasos</span>
 
-Primero el panel, que te dice si las consultas devuelven lo que esperas; después las reglas, y una alerta provocada para ver la cadena entera hasta el correo. Con la alerta probada cierras `/prometheus/`: si el cierre deja fuera a Prometheus, la propia `JenkinsDown` te avisará. Al final dejas escritos los secretos, marcas la entrega y compruebas desde fuera que todo sigue cerrado.
+Primero el panel, que te dice si las consultas devuelven lo que esperas (paso 1). Después las reglas (paso 2) y una alerta provocada para ver la cadena entera hasta el correo (paso 3). Con la alerta probada cierras `/prometheus/` (paso 4): si el cierre deja fuera a Prometheus, la propia `JenkinsDown` te avisará. Al final dejas escritos los secretos y marcas la entrega (paso 5), y compruebas desde fuera que todo sigue cerrado (paso 6).
 
-1. **Resume la plataforma en un panel y guárdalo en Git.** En Grafana, crea la carpeta `UT7` y dentro el dashboard `KPI plataforma` con tres paneles y las consultas de [Consultas del laboratorio](#consultas-del-laboratorio):
+1. **Resume la plataforma en un panel y guárdalo en Git.** *En Grafana, y luego en tu puesto.*
+
+    Crea la carpeta `UT7` y dentro el dashboard `KPI plataforma` con tres paneles y las consultas de [Consultas del laboratorio](#consultas-del-laboratorio). Los umbrales son los de las alertas, para que el panel y el correo digan lo mismo.
 
     | Panel | Tipo | Ajustes |
     |----|----|----|
@@ -511,16 +540,18 @@ Primero el panel, que te dice si las consultas devuelven lo que esperas; despué
     | Memoria del contenedor de la API | Time series | Unidad bytes(IEC), leyenda `{{host}}` |
     | Ejecuciones fallidas de Jenkins (1 h) | Stat | Verde 0, naranja 1, rojo desde 4 |
 
-    Los umbrales son los de las alertas, para que el panel y el correo digan lo mismo. Exporta el JSON (Export → Export as JSON, con «Export the dashboard to use in another instance») y súbelo a `mon01` desde tu puesto:
+    Exporta el JSON (Export → Export as JSON, con «Export the dashboard to use in another instance») y súbelo a `mon01` desde tu puesto:
 
     ```bash
     scp -J ops@<IP de admin01 en la red del laboratorio> kpi-plataforma.json \
         ops@10.10.0.20:/opt/monitoring/grafana/ut7/kpi-plataforma.json
     ```
 
-    Comprueba que los tres paneles muestran datos.
+    **Sale bien si:** los tres paneles muestran datos y el JSON está en `grafana/ut7/` de `mon01`.
 
-2. **Carga las reglas de la unidad.** Copia el fichero de [Reglas de esta unidad](#reglas-de-esta-unidad) y añade `"rules/ut7-*.yml"` a `rule_files` de `prometheus.yml`, sin quitar lo que ya tiene. En `mon01`:
+2. **Carga las reglas de la unidad.** *En `mon01`.*
+
+    Una regla de alerta es una consulta con un umbral: cuando se cumple, Prometheus avisa. Copia el fichero de [Reglas de esta unidad](#reglas-de-esta-unidad) y añade `"rules/ut7-*.yml"` a `rule_files` de `prometheus.yml`, sin quitar lo que ya tiene:
 
     ```bash
     cd /opt/monitoring
@@ -530,20 +561,26 @@ Primero el panel, que te dice si las consultas devuelven lo que esperas; despué
     curl -s -X POST http://localhost:29090/-/reload
     ```
 
-    En `http://localhost:29090/alerts` tienen que aparecer las dos reglas, en verde.
+    **Sale bien si:** en `http://localhost:29090/alerts` aparecen las dos reglas, en verde.
 
-3. **Provoca `JenkinsDown` y síguela hasta el correo.** Parar el nginx de Jenkins es, para Prometheus, lo mismo que un Jenkins caído. En `jenkins01`:
+3. **Provoca `JenkinsDown` y síguela hasta el correo.** *En `jenkins01` y en el navegador.*
+
+    Parar el nginx de Jenkins es, para Prometheus, lo mismo que un Jenkins caído. Así pruebas la cadena entera sin romper nada de verdad:
 
     ```bash
     cd ~/jenkins-config
     date && docker compose stop nginx      # apunta la hora
     ```
 
-    Sigue la alerta en Prometheus (de `pending` a `firing`), en Alertmanager (`http://localhost:29093`) y en Mailpit (`http://localhost:28025`) hasta que llegue el correo FIRING, y compara su hora con la tuya. Después vuelve a arrancarlo con `docker compose start nginx` y espera el RESOLVED. Captura los dos correos.
+    Sigue la alerta en Prometheus (de `pending`, que se cumple pero espera por si es pasajero, a `firing`, que ya avisa), en Alertmanager (`http://localhost:29093`, el que envía los avisos) y en Mailpit (`http://localhost:28025`, el buzón de pruebas) hasta que llegue el correo FIRING, y compara su hora con la tuya. Después vuelve a arrancarlo con `docker compose start nginx` y espera el RESOLVED (el aviso de que se ha resuelto). Captura los dos correos.
 
-    *Pista:* el RESOLVED puede tardar hasta cinco minutos. Mientras llega, sigue con el paso 4, que es en la misma máquina.
+    El RESOLVED puede tardar hasta cinco minutos. Mientras llega, sigue con el paso 4, que es en la misma máquina.
 
-4. **Cierra `/prometheus/` a todos menos a `mon01`.** Añade el bloque `location` de [Seguridad de lo que añade la unidad](#seguridad-de-lo-que-anade-la-unidad) dentro del `server` de `jenkins.lab` del `nginx.conf`. Reinicia nginx en lugar de recargarlo: el fichero está montado suelto y, si el editor lo reescribe, el contenedor sigue viendo el antiguo hasta que arranca otra vez.
+    **Sale bien si:** en Mailpit hay un FIRING y un RESOLVED de `JenkinsDown`.
+
+4. **Cierra `/prometheus/` a todos menos a `mon01`.** *En `jenkins01`.*
+
+    La página de métricas de Jenkins enseña datos internos y solo la necesita `mon01`. Añade el bloque `location` de [Seguridad de lo que añade la unidad](#seguridad-de-lo-que-anade-la-unidad) dentro del `server` de `jenkins.lab` del `nginx.conf`. Reinicia nginx en lugar de recargarlo: el fichero está montado suelto y, si el editor lo reescribe, el contenedor sigue viendo el antiguo hasta que arranca otra vez.
 
     ```bash
     nano nginx.conf
@@ -551,9 +588,11 @@ Primero el panel, que te dice si las consultas devuelven lo que esperas; despué
     git add nginx.conf && git commit -m "UT7: /prometheus/ solo para mon01" && git push
     ```
 
-    Mira enseguida el target `jenkins` en Prometheus: tiene que seguir en UP, porque `mon01` es quien sí debe pasar.
+    **Sale bien si:** el target `jenkins` sigue en UP en Prometheus, porque `mon01` es quien sí debe pasar.
 
-5. **Deja escrito de dónde sale cada secreto y marca la entrega.** Añade a `docs/ut7.md` un apartado «Secretos» de dos o tres líneas: qué credencial usa lo de esta unidad, dónde está y por qué no llega al repositorio. Después sube tus ficheros y pon la etiqueta `entrega-5166-ut7`, que fija el estado que corrige la práctica evaluable. En `mon01`:
+5. **Deja escrito de dónde sale cada secreto y marca la entrega.** *En `mon01`.*
+
+    Añade a `docs/ut7.md` un apartado «Secretos» de dos o tres líneas: qué credencial usa lo de esta unidad, dónde está y por qué no llega al repositorio. Después sube tus ficheros y pon la etiqueta `entrega-5166-ut7` (una marca de Git que fija el estado que corrige la práctica evaluable):
 
     ```bash
     cd /opt/monitoring
@@ -563,9 +602,11 @@ Primero el panel, que te dice si las consultas devuelven lo que esperas; despué
     git tag entrega-5166-ut7 && git push origin entrega-5166-ut7
     ```
 
-    Comprueba en Gitea que la etiqueta aparece en el repositorio.
+    **Sale bien si:** la etiqueta aparece en el repositorio en Gitea.
 
-6. **Comprueba desde fuera que todo sigue cerrado.** Desde el puesto de administración, prueba la puerta nueva, una de las que cerró Mantenimiento (el 29100 de `db01`) y busca secretos en una copia recién clonada. Guarda la salida de las tres órdenes:
+6. **Comprueba desde fuera que todo sigue cerrado.** *En el puesto de administración.*
+
+    Prueba la puerta nueva, una de las que cerró Mantenimiento (el 29100 de `db01`) y busca secretos con gitleaks en una copia recién clonada. `-m 3` pone un tiempo máximo, porque un puerto filtrado no contesta. Guarda la salida de las tres órdenes:
 
     ```bash
     curl -s -m 3 --cacert <ruta de ca.crt en el puesto> -o /dev/null -w '%{http_code}\n' https://jenkins.lab/prometheus/
@@ -573,13 +614,24 @@ Primero el panel, que te dice si las consultas devuelven lo que esperas; despué
     git clone https://gitea.lab/ops/monitoring.git ~/monitoring-limpia && cd ~/monitoring-limpia && gitleaks detect -v
     ```
 
-    `-m 3` pone un tiempo máximo: un puerto filtrado no contesta. Si gitleaks encuentra algo, corrígelo y mueve la etiqueta como dice la [práctica evaluable](#practica-evaluable). Con todo cerrado, los targets de dev tienen que seguir en UP.
+    Si gitleaks encuentra algo, corrígelo y mueve la etiqueta como dice la [práctica evaluable](#practica-evaluable).
 
-<span class="et et-com">Comprobación</span> El dashboard `KPI plataforma` muestra datos en los tres paneles y su JSON está en `grafana/ut7/`; `http://localhost:29090/alerts` lista las dos reglas de la unidad; en Mailpit hay un FIRING y un RESOLVED de `JenkinsDown`; desde el puesto de administración, 403 en `/prometheus/` y tiempo agotado en el 29100 de `db01`, con todos los targets de dev en UP; gitleaks sin hallazgos y la etiqueta `entrega-5166-ut7` en Gitea.
+    **Sale bien si:** el primer `curl` no deja pasar, el segundo agota el tiempo, gitleaks no encuentra nada y los targets de dev siguen en UP.
 
-<span class="et et-ent">Para practicar</span> Guarda en `A7.2` de `entregas-5166` las capturas del panel y de los dos correos, la salida del paso 6 y el enlace a la etiqueta `entrega-5166-ut7`, que ya lleva dentro `kpi-plataforma.json` y `rules/ut7-plataforma.yml`. Con la carpeta de la A7.1, es lo que pide la práctica evaluable.
+<span class="et et-com">Comprobación</span>
 
-<span class="et et-ext">Si te sobra tiempo</span> Cierra el 29100 de `jenkins01`: copia el fichero de nftables de [Seguridad de lo que añade la unidad](#seguridad-de-lo-que-anade-la-unidad) en `/etc/nftables.conf`, valídalo con `sudo nft -c -f /etc/nftables.conf`, cárgalo y deja habilitado el servicio `nftables`; comprueba desde el puesto de administración que el 29100 de `jenkins01` agota el tiempo mientras su target sigue en UP. Añade al dashboard el panel de CPU por host (percent; verde, naranja 70, rojo 85) con la variable `$host` de [El panel en Grafana](#el-panel-en-grafana). Y haz que Grafana cargue el panel desde el repositorio: el proveedor de ese apartado en `grafana/provisioning/dashboards/ut7.yml`, el hueco `${DS_PROMETHEUS}` cambiado por el uid, y `./grafana/ut7` montado en `/var/lib/grafana/dashboards/ut7` del servicio `grafana`, recreando solo ese servicio.
+- [ ] El dashboard `KPI plataforma` muestra datos en los tres paneles y su JSON está en `grafana/ut7/`.
+- [ ] `http://localhost:29090/alerts` lista las dos reglas de la unidad.
+- [ ] En Mailpit hay un FIRING y un RESOLVED de `JenkinsDown`.
+- [ ] Desde el puesto de administración, 403 en `/prometheus/` y tiempo agotado en el 29100 de `db01`, con todos los targets de dev en UP.
+- [ ] gitleaks sin hallazgos y la etiqueta `entrega-5166-ut7` en Gitea.
+
+<span class="et et-ent">Para practicar</span>
+
+- **Guarda** en `A7.2` de `entregas-5166` las capturas del panel y de los dos correos, la salida del paso 6 y el enlace a la etiqueta `entrega-5166-ut7`, que ya lleva dentro `kpi-plataforma.json` y `rules/ut7-plataforma.yml`. Con la carpeta de la A7.1, es lo que pide la práctica evaluable para los CE 4j y 4k.
+- **Piensa:** ¿cuánto tiempo pasó entre que paraste nginx y llegó el correo FIRING, y de qué partes de la cadena sale ese retraso?
+
+<span class="et et-ext">Si te sobra tiempo</span> Tres mejoras que se hacen en una plataforma real. Cierra el 29100 de `jenkins01` con su cortafuegos: copia el fichero de nftables de [Seguridad de lo que añade la unidad](#seguridad-de-lo-que-anade-la-unidad) en `/etc/nftables.conf`, valídalo con `sudo nft -c -f /etc/nftables.conf`, cárgalo y deja habilitado el servicio `nftables`; comprueba desde el puesto de administración que el 29100 de `jenkins01` agota el tiempo mientras su target sigue en UP. Añade al dashboard el panel de CPU por host (percent; verde, naranja 70, rojo 85) con la variable `$host` de [El panel en Grafana](#el-panel-en-grafana). Y haz que Grafana cargue el panel desde el repositorio: el proveedor de ese apartado en `grafana/provisioning/dashboards/ut7.yml`, el hueco `${DS_PROMETHEUS}` cambiado por el uid, y `./grafana/ut7` montado en `/var/lib/grafana/dashboards/ut7` del servicio `grafana`, recreando solo ese servicio.
 
 ## Práctica evaluable
 

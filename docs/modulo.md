@@ -72,7 +72,7 @@ La nota sale de tres cosas: las prácticas evaluables de cada unidad, dos exáme
 
 La nota final del módulo pondera los cuatro resultados de aprendizaje como fija la programación didáctica: **40 % el RA1, 4 % el RA2, 19 % el RA3 y 37 % el RA4**. Cada RA toma la nota de las unidades donde se trabaja (las tablas de arriba): en las del centro, 60 % el examen y 40 % la práctica evaluable; en las de la empresa, la ficha de evidencias. Para aprobar hace falta un 5 en cada RA, y un RA suspendido se recupera solo, con los mismos instrumentos y pesos.
 
-Cada práctica evaluable lleva su tabla de criterios y pesos al final de la unidad. Se entrega en la fecha de su sesión en el calendario, salvo la de la UT7, que no tiene sesión propia y se entrega antes del examen del 24 de marzo; una entrega fuera de plazo sin causa justificada se corrige sobre el 50 %.
+Cada práctica evaluable lleva su tabla de criterios y pesos al final de la unidad. Se trabaja en la sesión evaluable del calendario y se entrega por Aules hasta las 23:59 del día de la clase siguiente, salvo la de la UT7, que no tiene sesión propia y se entrega antes del examen del 24 de marzo; una entrega fuera de plazo sin causa justificada se corrige sobre el 50 %.
 
 !!! examen "Lo que no se admite"
     Informes sin evidencias (capturas o salidas de comandos con fecha), repositorios con secretos en el historial y código que no se puede ejecutar desde cero siguiendo el README. En las tres situaciones la práctica vuelve al alumno sin nota hasta que lo corrija.
