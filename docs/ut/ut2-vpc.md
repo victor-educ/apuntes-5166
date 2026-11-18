@@ -253,7 +253,7 @@ Primero el papel (pasos 1 y 2) y después la consola, porque la red se construye
 <span class="et et-com">Comprobación</span>
 
 - [ ] Tus bloques no se solapan entre sí ni con `vmbr9` ni con `vmbr0`, y cada tamaño está justificado.
-- [ ] `ip -br link show type bridge` lista las cuatro VNets: `devfront` y `devdata` en `UP`, y `devmgmt` y `devback` en `DOWN` mientras no tengan nada conectado, que es lo normal.
+- [ ] `ip -br link show type bridge` lista las cuatro VNets: `devfront` y `devdata` en `UP`, y `devmgmt` y `devback` en `UNKNOWN` mientras no tengan nada conectado, que es lo normal.
 - [ ] `web01` tiene una IP de `10.10.1.100` a `10.10.1.199` con gateway `10.10.1.1`.
 - [ ] `db01` tiene una IP de `10.10.3.100` a `10.10.3.199` con gateway `10.10.3.1`.
 - [ ] Cada VM hace `ping` a su `.1`. Que `web01` alcance a `db01` llega el 13 de noviembre, con el router.
