@@ -119,7 +119,7 @@ Cada entorno tiene **cuatro VNets del SDN, una por zona, y cada VNet lleva una s
 
 **El ID de una VNet admite como máximo 8 caracteres y solo alfanuméricos. Es un límite de Proxmox, no una manía del curso**: nombres como `vdev-front` no se pueden crear. El ID de zona tiene el mismo límite; la zona del laboratorio se llama `lab`, es de tipo Simple y usa el IPAM `pve`.
 
-El **router del entorno** tiene una pata en cada VNet y es el `.1` de las cuatro subredes. En dev lo es la VM `router-dev` (100), con dnsmasq, desde la sesión 12 (13 de noviembre), y OPNsense (109) desde la sesión 15 (25 de noviembre), que ocupa su sitio con esas mismas direcciones; `router-dev` se apaga ese día y se destruye al cerrar la evaluable de la UT3. En pre y pro son `router-pre` (200) y `router-pro` (300). Orden de interfaces en los routers Debian: `ens18` exterior (vmbr0), `ens19` gestión, `ens20` front, `ens21` back y `ens22` data, y en `router-pre`, desde la A5.3, `ens23`, su pata en `devmgmt`. Las de OPNsense están en [Instalación en Proxmox](ut/ut3-seguridad-por-capas.md#instalacion-en-proxmox).
+El **router del entorno** tiene una pata en cada VNet y es el `.1` de las cuatro subredes. En dev lo es la VM `router-dev` (100), con dnsmasq, desde la sesión 12 (13 de noviembre), y OPNsense (109) desde la sesión 15 (25 de noviembre), que ocupa su sitio con esas mismas direcciones; `router-dev` se apaga ese día y se destruye al cerrar la evaluable de la UT3. En pre y pro son `router-pre` (200) y `router-pro` (300). Orden de interfaces en los routers Debian: `eth0` exterior (vmbr0), `eth1` gestión, `eth2` front, `eth3` back y `eth4` data, y en `router-pre`, desde la A5.3, `eth5`, su pata en `devmgmt`. Las de OPNsense están en [Instalación en Proxmox](ut/ut3-seguridad-por-capas.md#instalacion-en-proxmox).
 
 Quién reparte direcciones cambia una sola vez en todo el curso. En la **sesión 11** (11 de noviembre) las subredes del SDN se crean con gateway y con rango DHCP del SDN (dnsmasq por zona, unidad `dnsmasq@lab`), porque es lo que se explica ese día. En la **sesión 12** (13 de noviembre), al entrar `router-dev`, se quita el gateway y el rango DHCP de cada subred del SDN y el router pasa a hacer DHCP, DNS y NAT. Dos `.1` distintos en la misma red no funcionan, así que ese paso no es opcional.
 
@@ -196,9 +196,9 @@ Las tres VM llevan 1 GB y salen de la plantilla, así que traen node_exporter. L
 
 **Cómo llega gestión a pre.** La A2.3 aísla los entornos con rutas blackhole, y así se quedan. El paso lo da una pata de `router-pre` en `devmgmt`, que monta el paso 1 de la [A5.3](ut/ut5-iac.md#a53-vm-completas-sesion-23):
 
-- En la web, la VM 200 recibe una sexta tarjeta en `devmgmt` (**Hardware → Add → Network Device**, la `net5`) y, en su pestaña **Cloud-Init**, la IP Config de `net5` con `10.10.0.2/24`; dentro de `router-pre` esa tarjeta es `ens23`. Como 10.10.0.0/24 queda conectada, gana al blackhole de 10.10.0.0/16 y `router-pre` contesta a gestión.
-- En `router-pre`, tres reglas nftables de `forward`: lo establecido y relacionado se acepta, lo que entra por `ens23` se acepta y nada nuevo de pre sale hacia `ens23`.
-- En `admin01`, la línea `ExecStart=/sbin/ip route replace 10.20.0.0/16 via 10.10.0.2 dev ens19` añadida a `ruta-lab.service`. `agent01`, en la A6.8, y `mon01`, en la A7.4 de Mantenimiento, reciben la misma ruta con una unidad igual, `ruta-pre.service`.
+- En la web, la VM 200 recibe una sexta tarjeta en `devmgmt` (**Hardware → Add → Network Device**, la `net5`) y, en su pestaña **Cloud-Init**, la IP Config de `net5` con `10.10.0.2/24`; dentro de `router-pre` esa tarjeta es `eth5`. Como 10.10.0.0/24 queda conectada, gana al blackhole de 10.10.0.0/16 y `router-pre` contesta a gestión.
+- En `router-pre`, tres reglas nftables de `forward`: lo establecido y relacionado se acepta, lo que entra por `eth5` se acepta y nada nuevo de pre sale hacia `eth5`.
+- En `admin01`, la línea `ExecStart=/sbin/ip route replace 10.20.0.0/16 via 10.10.0.2 dev eth1` añadida a `ruta-lab.service`. `agent01`, en la A6.8, y `mon01`, en la A7.4 de Mantenimiento, reciben la misma ruta con una unidad igual, `ruta-pre.service`.
 
 pre no alcanza gestión: solo responde. Lo que llega a pre se empuja desde gestión, los ficheros con Ansible y las imágenes con `docker save app:<versión> | ssh ops@10.20.2.10 docker load`, porque desde pre no se llega al registry. pre sale a Internet por el NAT de `router-pre`. En las hojas se escribe con IP: los nombres `<host>.pre.lab` solo los resuelve `router-pre`.
 
@@ -377,7 +377,6 @@ Cada artefacto que usan las dos asignaturas tiene un solo nombre. Un nombre dist
 | Repositorios | propietario `ops`: `ops/servicio`, `ops/monitoring`, `ops/alerting`, `ops/operacion`, `ops/incidencias`, `ops/iac-lab`, `ops/jenkins-config` y `ops/entregas-5166` |
 | CA del curso | `Lab 5166 CA`, en `~/ca/` de admin01, creada con `openssl ca` en la preparación de la A3.1 (25 nov); no hay otra |
 | Usuario de Proxmox para OpenTofu | `terraform@pve` con el token `tofu`; nace en la A5.1 con `PVEVMAdmin` en `/vms`, `PVEDatastoreUser` en `/storage/local-lvm` y `PVESDNUser` en `/sdn/zones/lab` |
-| Usuario de la demostración del script de la UT2 | `cli@pve`, que solo existe en la demostración del profesor (18 nov) y se borra al terminarla |
 | Credenciales de Jenkins | `git-ro` (token de Gitea de solo lectura), `registry-cred` (usuario `jenkins` del registry), `ssh-pre` (clave SSH de `ops` para pre, solo en la carpeta `pre`) y `telegram-token`. Jenkins no guarda ningún token de Proxmox |
 | Etiqueta de equipo en las alertas | `team` |
 | Tabla nftables en los hosts | `inet fw` |
@@ -410,7 +409,7 @@ Ninguno puede contener un secreto: `.env` y `secrets/` van en `.gitignore` desde
 
 Lo monta cada alumno en el paso 1 de la A5.2 (18 de diciembre), salvo que el profesor lo monte para toda el aula: entonces basta con apuntar el endpoint, la clave y el secreto que dé, y comprobar con `mc ls` que se ven `tfstate` y `backups`. Va como un contenedor más de la pila de `mon01` y no como VM propia porque la máquina ya tiene Docker, está encendida desde octubre y así el presupuesto de memoria no sube. Fuera de un laboratorio no se juntaría el almacén de copias con la máquina que vigila: si se pierde `mon01`, se pierden a la vez la monitorización y las copias. En una empresa es un servicio aparte, con versionado y Object Lock, que es lo que comprueba la UT6 de Mantenimiento.
 
-**La segunda dirección.** La `10.10.0.30` se añade a la tarjeta de gestión de `mon01` (en las VM del curso, `ens18`) con una unidad de systemd, igual que la ruta del puesto de administración en la A2.2, para no depender de los ficheros de red que escribe cloud-init. El `Before=docker.service` asegura que la dirección existe antes de que arranque el contenedor; sin él, Docker falla con `cannot assign requested address`.
+**La segunda dirección.** La `10.10.0.30` se añade a la tarjeta de gestión de `mon01` (en las VM del curso, `eth0`) con una unidad de systemd, igual que la ruta del puesto de administración en la A2.2, para no depender de los ficheros de red que escribe cloud-init. El `Before=docker.service` asegura que la dirección existe antes de que arranque el contenedor; sin él, Docker falla con `cannot assign requested address`.
 
 ```bash
 sudo tee /etc/systemd/system/ip-minio.service > /dev/null <<'EOF'
@@ -423,7 +422,7 @@ Before=docker.service
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/sbin/ip addr replace 10.10.0.30/24 dev ens18
+ExecStart=/sbin/ip addr replace 10.10.0.30/24 dev eth0
 
 [Install]
 WantedBy=multi-user.target

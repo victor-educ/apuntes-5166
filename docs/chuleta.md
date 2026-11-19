@@ -49,7 +49,7 @@ nc -zv -w 3 10.10.3.10 5432             # ¿responde el puerto? timeout: filtrad
 nmap -sn 10.20.0.0/24                   # descubrimiento de hosts
 nmap -sS -p- -T4 10.10.2.10             # todos los puertos TCP (root)
 nmap -sT -Pn -p 22,80,443,28080 host    # sin ping previo
-tcpdump -i ens22 -n host 10.10.3.10 and port 5432
+tcpdump -i eth4 -n host 10.10.3.10 and port 5432
 tcpdump -i any -n -w captura.pcap port 28080
 curl -kv https://api.dev.lab/health
 curl -sf -o /dev/null -w '%{http_code}\n' http://localhost:28080/health   # dentro de app01

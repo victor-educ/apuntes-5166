@@ -4,7 +4,15 @@
 
 La UT1 dejó un Proxmox funcionando, la plantilla Debian con cloud-init (ID 9000) y sus bridges, los switches virtuales del nodo. Todas las VM clonadas hasta ahora cuelgan de `vmbr0`, la red del laboratorio, y se ven con cualquier equipo de esa red. Un servicio de verdad no se monta así: sus piezas no deberían compartir red (si alguien entra en el servidor web, no debería tener la base de datos a un paso) y lo que se ensaya no debería poder tocar lo que está en marcha. Por eso las empresas trabajan con tres **entornos**: *dev* (desarrollo), donde se construye y se prueba; *pre* (preproducción), una copia de producción donde se ensaya cada cambio; y *pro* (producción), donde corre el servicio de los clientes.
 
-Esta unidad construye la red de esos tres entornos. Cada uno es una VPC: un bloque de direcciones propio, partido en cuatro subredes (gestión, front, back y data), con su router, su DHCP y su DNS, y aislado de los otros dos. Se hace en el orden de una empresa: el plano y la red de dev en el SDN de Proxmox; después el router que reparte direcciones y nombres, con las pruebas que demuestran que funciona; y al final pre y pro, aislados de dev y creados con un script. `app01` y `mon01` se quedan de momento en la red del laboratorio, porque Mantenimiento las usa a diario; esta unidad les deja reservadas su dirección y su nombre, y llegan a la VPC el 27 de noviembre, ya detrás del cortafuegos de la unidad de seguridad por capas (UT3).
+**Lo que funciona al terminar la unidad.** Desde `web01`, en la zona front de dev, se llama a la base de datos por su nombre, `db01.dev.lab`, y la conexión pasa por un router que controlas; desde dev, en cambio, no se llega a nada de pre ni de pro, y lo demuestran pruebas guardadas. pre y pro no se montan a mano: los crea un script que se puede relanzar sin romper nada. Eso es la práctica evaluable, y cada hoja construye una parte de su memoria:
+
+| Hoja | Parte de la evaluable | Punto de la memoria |
+|---|---|---|
+| A2.1 | El plano de direcciones y la red de dev | 1 y 2 |
+| A2.2 | El router que reparte IP y nombres, y tres pruebas de que front llega a data | 3 y 5 |
+| A2.3 | pre y pro creados con un script, y dos pruebas de que no se ven desde dev | 2, 4 y 5 |
+
+Todo va a la carpeta `ut2/` del repositorio de entregas. La clase del 20 de noviembre es para terminar las hojas y montar la memoria, que se entrega el 10 de diciembre, antes del examen. `app01` y `mon01` se quedan de momento en la red del laboratorio, porque Mantenimiento las usa a diario; llegan a la VPC el 27 de noviembre, ya detrás del cortafuegos de la unidad de seguridad por capas (UT3).
 
 ## Sesión 11 · Diseño y VPC dev con SDN
 
@@ -163,6 +171,8 @@ systemctl disable --now dnsmasq
 
 **Para qué sirve en un trabajo:** una red se planifica antes de crearla. Si dos rangos se pisan, el fallo aparece meses después y cuesta mucho de arreglar; un plano escrito y justificado lo evita y deja claro a todo el equipo qué dirección es de quién.
 
+**Para tu evaluable:** el plano y la configuración del SDN son los puntos 1 y 2 de la memoria.
+
 <span class="et et-pre">Antes de empezar</span>
 
 - El nodo de la UT1 con la plantilla 9000, la consola web como `root@pam` y su Shell, y la VM `puesto` con `git`.
@@ -280,15 +290,15 @@ Con el DHCP del SDN, `web01` y `db01` tienen dirección, pero se la da el nodo, 
 
 **Por qué una VM y no el nodo.** Si el nodo fuera el router, un error en su red afectaría a la vez a todos los entornos. Una VM por entorno se puede reiniciar o sustituir sin tocar nada más. El 25 de noviembre su sitio lo ocupa un cortafuegos, OPNsense, con las mismas direcciones.
 
-**Una pata en cada VNet.** El router es un clon de la plantilla con cinco tarjetas. Dentro de la VM se llaman `ens18`, `ens19`... en el orden de `net0`, `net1`...:
+**Una pata en cada VNet.** El router es un clon de la plantilla con cinco tarjetas. Dentro de la VM se llaman `eth0`, `eth1`... en el orden de `net0`, `net1`...:
 
 | Tarjeta | Red | Dirección |
 |---|---|---|
-| `ens18` (`net0`) | `vmbr0`, exterior | por DHCP de la red del laboratorio |
-| `ens19` (`net1`) | `devmgmt` | `10.10.0.1/24` |
-| `ens20` (`net2`) | `devfront` | `10.10.1.1/24` |
-| `ens21` (`net3`) | `devback` | `10.10.2.1/24` |
-| `ens22` (`net4`) | `devdata` | `10.10.3.1/24` |
+| `eth0` (`net0`) | `vmbr0`, exterior | por DHCP de la red del laboratorio |
+| `eth1` (`net1`) | `devmgmt` | `10.10.0.1/24` |
+| `eth2` (`net2`) | `devfront` | `10.10.1.1/24` |
+| `eth3` (`net3`) | `devback` | `10.10.2.1/24` |
+| `eth4` (`net4`) | `devdata` | `10.10.3.1/24` |
 
 **El reenvío IP.** Linux, por defecto, descarta los paquetes que no son para él. Para que reenvíe de una red a otra se activa el reenvío IP, de forma persistente:
 
@@ -324,7 +334,7 @@ flowchart TB
     subgraph FUERA["Hacia fuera: NAT"]
         direction LR
         W2["<b>web01</b><br><small>10.10.1.10</small>"]:::pieza
-        RT2["<b>router</b><br><small>masquerade en ens18</small>"]:::act
+        RT2["<b>router</b><br><small>masquerade en eth0</small>"]:::act
         NET["<b>El laboratorio ve la IP del router</b>"]:::infra
         W2 --> RT2 --> NET
     end
@@ -335,14 +345,14 @@ flowchart TB
     classDef ok fill:#16a34a22,stroke:#16a34a,stroke-width:1.5px
 ```
 
-<p class="pie" markdown>Dentro se enruta y se conserva la IP real; solo al salir por `ens18` se traduce.</p>
+<p class="pie" markdown>Dentro se enruta y se conserva la IP real; solo al salir por `eth0` se traduce.</p>
 
-**El NAT de salida, con nftables**, el cortafuegos de Linux que trae Debian. `masquerade` usa la IP que tenga `ens18` en ese momento:
+**El NAT de salida, con nftables**, el cortafuegos de Linux (la plantilla no lo trae: `apt install nftables`). `masquerade` usa la IP que tenga `eth0` en ese momento:
 
 ```bash
 nft add table ip nat
 nft add chain ip nat postrouting '{ type nat hook postrouting priority 100 ; }'
-nft add rule ip nat postrouting oifname "ens18" masquerade
+nft add rule ip nat postrouting oifname "eth0" masquerade
 ```
 
 Las órdenes `nft` cambian la memoria y un reinicio las borra. Para que duren se guardan en `/etc/nftables.conf`, con `flush ruleset` al principio para que cada recarga no duplique la regla:
@@ -359,10 +369,10 @@ systemctl enable nftables
 ```ini
 # /etc/dnsmasq.d/dev.conf
 # Escuchar solo en las patas internas, nunca en la exterior
-interface=ens19
-interface=ens20
-interface=ens21
-interface=ens22
+interface=eth1
+interface=eth2
+interface=eth3
+interface=eth4
 bind-interfaces
 
 # DNS: dominio interno; lo que no es de dev.lab va a DNS públicos
@@ -402,14 +412,7 @@ log-dhcp
 log-queries
 ```
 
-**Las partes importantes.**
-
-- `interface=` y `bind-interfaces`: solo atiende en las cuatro patas internas, nunca a la red del laboratorio.
-- `dhcp-range=set:front,...` y `dhcp-option=tag:front,...`: cada subred recibe su rango y su router (`.1`). dnsmasq elige el rango por la tarjeta por la que llega la petición.
-- `dns-server` y `domain-search`: todas las VM usan `10.10.0.1` como DNS, y el dominio de búsqueda permite escribir `db01` a secas.
-- `dhcp-host`: la reserva por MAC. La IP va fuera del rango dinámico (`.10`, no `.100`) y la VM queda dada de alta en el DNS con su nombre. Las de `app01` y `mon01` se preparan hoy para cuando lleguen a la VPC.
-- `local=/dev.lab/` y `no-resolv`: dnsmasq responde él mismo por `dev.lab` y manda el resto solo a los dos `server=`.
-- `address` y `host-record`: nombres extra. `api.dev.lab` es el nombre del servicio y apunta a `web01`.
+**Lo que hay que tocar.** Las líneas `dhcp-host`, una por servidor con su MAC: la IP queda fija (`.10`, fuera del rango dinámico) y el nombre entra en el DNS. El resto del fichero se copia tal cual; los comentarios dicen qué hace cada bloque.
 
 **Ponerlo en marcha.**
 
@@ -447,13 +450,13 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/sbin/ip route replace 10.10.0.0/16 via 10.10.0.1 dev ens19
+ExecStart=/sbin/ip route replace 10.10.0.0/16 via 10.10.0.1 dev eth1
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-`ens19` es la tarjeta de gestión. El mismo patrón sirve para cualquier ruta que tenga que sobrevivir al reinicio.
+`eth1` es la tarjeta de gestión. El mismo patrón sirve para cualquier ruta que tenga que sobrevivir al reinicio.
 
 **Entrar y saltar.** Se entra en `admin01` con `ssh -A`, que le presta la clave del puesto sin copiarla, y desde ahí a cualquier VM por su IP interna. La clave tiene que estar cargada en el agente (`ssh-add -l`).
 
@@ -466,18 +469,10 @@ WantedBy=multi-user.target
 | ¿El puerto responde? | `nc -zv host puerto`, `nmap` | El servicio escucha y se llega a él |
 | ¿Qué escucha en la máquina? | `ss -tlnp` | Puertos y direcciones en escucha, desde dentro |
 | ¿Resuelve el nombre? | `dig nombre @10.10.0.1` | El DNS del router responde |
-| ¿Qué pasa por el cable? | `tcpdump -ni ens22 port 5432` | Los paquetes reales, con sus IP |
+| ¿Qué pasa por el cable? | `tcpdump -ni eth4 port 5432` | Los paquetes reales, con sus IP |
 | ¿Hay aislamiento? | `nmap -sn`, `ping` y `ip r` del router | Nadie contesta y el router no tiene camino |
 
-Lo justo para leerlas:
-
-- `ping` sin respuesta no demuestra casi nada: puede ser ruta, cortafuegos o máquina apagada.
-- `ss -tlnp` con `127.0.0.1:5432` significa que solo escucha en local: es el motivo número uno de «el puerto está abierto pero desde fuera no conecta».
-- `dig` correcto da `status: NOERROR` con una respuesta; `NXDOMAIN` es que el nombre no existe. El `@10.10.0.1` obliga a preguntar al router.
-- `tcpdump` se lanza en el router, antes de la prueba. Un handshake completo son tres líneas: `[S]`, `[S.]` y `[.]`.
-- `nmap -sn` con `0 hosts up` solo dice que nadie contestó. Lo que demuestra que no hay camino es la tabla de rutas del router, junto con un `ping` y un `traceroute` que no pasan.
-
-En la unidad de seguridad por capas y en Mantenimiento se vuelve a usar `nmap` y `tcpdump` remitiendo a este apartado.
+La trampa más común: un `ping` sin respuesta no demuestra casi nada (puede ser ruta, cortafuegos o máquina apagada). Lo que demuestra que no hay camino es la tabla de rutas del router.
 
 #### La plantilla de pruebas
 
@@ -498,6 +493,8 @@ Evidencia: captura dig-db01.png
 
 **Para qué sirve en un trabajo:** en una empresa las zonas de red están separadas y solo se hablan a través de un router que alguien controla. Montarlo, darle a cada máquina siempre la misma IP y demostrar con pruebas guardadas que el camino funciona es trabajo diario de Sistemas.
 
+**Para tu evaluable:** `dev.conf` y las tres pruebas de hoy son los puntos 3 y 5 de la memoria, y la evidencia del criterio de comunicación entre zonas (35 % de la nota).
+
 <span class="et et-pre">Antes de empezar</span>
 
 - La zona `lab` y las cuatro VNets de la A2.1, con `web01` en `devfront` y `db01` en `devdata`.
@@ -507,8 +504,8 @@ Evidencia: captura dig-db01.png
 
 !!! truco "Preparación antes de la sesión: los dos clones, sin arrancar"
     En la Shell del nodo. Las dos VM se quedan **apagadas**, porque `router-dev` lleva el `.1` de cada
-    subred, que hasta el paso 1 sigue siendo del nodo. El orden de las tarjetas da los nombres `ens18` a
-    `ens22` que usa `dev.conf`.
+    subred, que hasta el paso 1 sigue siendo del nodo. El orden de las tarjetas da los nombres `eth0` a
+    `eth4` que usa `dev.conf`.
 
     ```bash
     qm clone 9000 100 --name router-dev --full
@@ -538,18 +535,19 @@ El orden lo marca el `.1`: primero lo dejas libre en el SDN y arrancas el router
     qm start 100
     ```
 
-    **Sale bien si:** en el Summary de la VM 100 aparece la IP de `ens18` en la red del laboratorio. Entra desde el puesto con `ssh ops@<IP de router-dev en vmbr0>`.
+    **Sale bien si:** en el Summary de la VM 100 aparece la IP de `eth0` en la red del laboratorio. Entra desde el puesto con `ssh ops@<IP de router-dev en vmbr0>`.
 
 2. **Conviértelo en router.** *En `router-dev`, con `sudo -i`.*
 
-    Dos cosas: que reenvíe paquetes de una tarjeta a otra y que haga NAT (que las VM salgan a Internet con la IP del router). Las dos órdenes y su persistencia están tal cual en [router de entorno](#router-de-entorno) y [enrutar frente a hacer NAT](#enrutar-frente-a-hacer-nat).
+    Dos cosas: que reenvíe paquetes de una tarjeta a otra y que haga NAT (que las VM salgan a Internet con la IP del router). Las dos órdenes y su persistencia están tal cual en [router de entorno](#router-de-entorno) y [enrutar frente a hacer NAT](#enrutar-frente-a-hacer-nat). Si `apt` avisa de que otro proceso tiene el bloqueo, espera un par de minutos: es cloud-init terminando la primera actualización de la VM.
 
     ```bash
+    apt install -y nftables             # la plantilla no lo trae
     echo 'net.ipv4.ip_forward = 1' > /etc/sysctl.d/99-router.conf
     sysctl --system
     nft add table ip nat
     nft add chain ip nat postrouting '{ type nat hook postrouting priority 100 ; }'
-    nft add rule ip nat postrouting oifname "ens18" masquerade
+    nft add rule ip nat postrouting oifname "eth0" masquerade
     { echo 'flush ruleset'; nft list ruleset; } > /etc/nftables.conf
     systemctl enable nftables
     ```
@@ -558,7 +556,7 @@ El orden lo marca el `.1`: primero lo dejas libre en el SDN y arrancas el router
 
 3. **Pon en marcha el puesto de administración.** *En el nodo, en `admin01` y luego en tu puesto.*
 
-    Es la máquina desde la que administras todo el laboratorio a partir de hoy. Arráncalo (`qm start 105`), entra por su IP en `vmbr0`, confirma con `ip -br a` que la tarjeta de gestión es `ens19` y crea la unidad `ruta-lab.service` copiando el fichero de [desde dónde se prueba](#desde-donde-se-prueba-el-puesto-de-administracion):
+    Es la máquina desde la que administras todo el laboratorio a partir de hoy. Arráncalo (`qm start 105`), entra por su IP en `vmbr0`, confirma con `ip -br a` que la tarjeta de gestión es `eth1` y crea la unidad `ruta-lab.service` copiando el fichero de [desde dónde se prueba](#desde-donde-se-prueba-el-puesto-de-administracion):
 
     ```bash
     sudo nano /etc/systemd/system/ruta-lab.service     # pega el fichero
@@ -574,7 +572,7 @@ El orden lo marca el `.1`: primero lo dejas libre en el SDN y arrancas el router
     ssh -A ops@<IP de admin01 en vmbr0>
     ```
 
-    **Sale bien si:** `ip r` en `admin01` muestra `10.10.0.0/16 via 10.10.0.1 dev ens19`, y `ping` llega a Internet y a los cuatro `.1`.
+    **Sale bien si:** `ip r` en `admin01` muestra `10.10.0.0/16 via 10.10.0.1 dev eth1`, y `ping` llega a Internet y a los cuatro `.1`.
 
 4. **Dale a dev direcciones y nombres.** *En el nodo, en `router-dev` y en `web01`.*
 
@@ -613,7 +611,7 @@ El orden lo marca el `.1`: primero lo dejas libre en el SDN y arrancas el router
     # en db01
     sudo apt install -y netcat-openbsd && nc -l -p 5432
     # en router-dev (la plantilla no trae tcpdump)
-    apt install -y tcpdump && tcpdump -ni ens22 port 5432
+    apt install -y tcpdump && tcpdump -ni eth4 port 5432
     # en web01
     sudo apt install -y traceroute netcat-openbsd
     ping -c 3 db01.dev.lab
@@ -634,11 +632,11 @@ El orden lo marca el `.1`: primero lo dejas libre en el SDN y arrancas el router
 <span class="et et-com">Comprobación</span>
 
 - [ ] Ninguna subred del SDN conserva gateway ni rango DHCP.
-- [ ] El `ip route` del puesto de administración muestra `10.10.0.0/16 via 10.10.0.1 dev ens19` además de la ruta por defecto.
+- [ ] El `ip route` del puesto de administración muestra `10.10.0.0/16 via 10.10.0.1 dev eth1` además de la ruta por defecto.
 - [ ] `web01` tiene `10.10.1.10` y `db01` `10.10.3.10`, y en `/var/lib/misc/dnsmasq.leases` hay una línea por VM.
 - [ ] `dig` con `@10.10.0.1` devuelve `NOERROR` para `dev.lab` y para nombres externos.
 - [ ] El `traceroute` de `web01` a `db01` muestra un solo salto intermedio, `10.10.1.1`, y `nc -zv` dice `succeeded`.
-- [ ] La captura en `ens22` muestra origen `10.10.1.10` y destino `10.10.3.10`.
+- [ ] La captura en `eth4` muestra origen `10.10.1.10` y destino `10.10.3.10`.
 
 <span class="et et-ent">Para practicar</span>
 
@@ -646,11 +644,11 @@ El orden lo marca el `.1`: primero lo dejas libre en el SDN y arrancas el router
 - Las reservas de `dev.conf` las copia el cortafuegos que sustituye a `router-dev` el 25 de noviembre: déjalas bien comentadas.
 - **Piensa:** si `db01` viera llegar la conexión con la IP de `router-dev` en vez de la de `web01`, ¿qué estaría haciendo el router?
 
-<span class="et et-ext">Si te sobra tiempo</span> Provoca el fallo más típico de un router recién montado, para reconocerlo cuando te pase: `sysctl -w net.ipv4.ip_forward=0` en `router-dev` y repite desde `web01` el `ping` y el `traceroute` a `db01` mientras capturas con `tcpdump -ni ens20 icmp`. Anota qué cambia. Vuelve a activarlo con `sysctl --system` y confirma con un `ping`.
+<span class="et et-ext">Si te sobra tiempo</span> Provoca el fallo más típico de un router recién montado, para reconocerlo cuando te pase: `sysctl -w net.ipv4.ip_forward=0` en `router-dev` y repite desde `web01` el `ping` y el `traceroute` a `db01` mientras capturas con `tcpdump -ni eth2 icmp`. Anota qué cambia. Vuelve a activarlo con `sysctl --system` y confirma con un `ping`.
 
 ## Sesión 13 · pre y pro con un script; aislamiento
 
-<p class="ut-meta" markdown>18 de noviembre · Teoría y práctica · <span class="dur" tabindex="0" aria-label="Aislamiento y separación · 5 min&#10;Demostración: crear un entorno con un script · 20 min&#10;A2.3 pre, pro y aislamiento · 85 min" data-dur="Aislamiento y separación · 5 min&#10;Demostración: crear un entorno con un script · 20 min&#10;A2.3 pre, pro y aislamiento · 85 min">:material-school:<i class="dur-barra" style="--teoria:23%"></i>:material-flask:</span></p>
+<p class="ut-meta" markdown>18 de noviembre · Teoría y práctica · <span class="dur" tabindex="0" aria-label="Aislamiento y separación · 5 min&#10;Demostración: crear un entorno con un script · 15 min&#10;A2.3 pre, pro y aislamiento · 90 min" data-dur="Aislamiento y separación · 5 min&#10;Demostración: crear un entorno con un script · 15 min&#10;A2.3 pre, pro y aislamiento · 90 min">:material-school:<i class="dur-barra" style="--teoria:18%"></i>:material-flask:</span></p>
 
 Hasta aquí solo existe dev. Tener tres entornos sirve para que lo que pase en uno no afecte a los otros, y eso hay que construirlo y demostrarlo. Montar pre y pro a clics costaría una tarde por entorno y cada uno saldría distinto; por eso se crean con un script que da siempre el mismo resultado, aunque se lance dos veces. La teoría explica primero el aislamiento y después cómo se habla con Proxmox sin la consola web; en clase se hace una demostración con el script. La hoja lo usa para crear pre y pro, deja pre funcionando como dev y demuestra que desde dev no se llega a ninguno de los dos. En diciembre, la unidad de infraestructura como código (UT5) hace lo mismo con OpenTofu, que llama a esta misma API.
 
@@ -694,26 +692,6 @@ flowchart LR
 
 **La buena práctica.** Un script de infraestructura que no es idempotente es peligroso, porque nadie se atreve a relanzarlo cuando falla a medias.
 
-#### La API REST con token: la antesala de OpenTofu
-
-**Desde fuera hay que identificarse.** `qm` y `pvesh` funcionan porque los ejecuta root en el nodo. Desde fuera (el puesto de administración, OpenTofu) se llama a `https://<nodo>:8006/api2/json/` con un **token de API**, nunca con la contraseña de root: el token tiene solo los permisos de su usuario y se revoca sin cambiar ninguna contraseña.
-
-```bash
-pveum user add cli@pve --comment "Practicas de la API"
-pveum acl modify /sdn --users cli@pve --roles PVESDNAdmin
-pveum user token add cli@pve lab --privsep 0    # imprime el secreto una sola vez
-```
-
-```bash
-export PVE_TOKEN='PVEAPIToken=cli@pve!lab=<secreto>'
-curl -sk -H "Authorization: $PVE_TOKEN" \
-     https://<IP del nodo>:8006/api2/json/cluster/sdn/vnets | jq .
-```
-
-`-k` acepta el certificado autofirmado del nodo; OpenTofu tiene la opción equivalente. Comillas simples en el token, porque el `!` dentro de comillas dobles lo interpreta `bash`.
-
-**La buena práctica.** El secreto va en un gestor de contraseñas o en un `.env` fuera del repositorio; nunca en el script ni en Git.
-
 ### Demostración: crear un entorno con un script
 
 **Qué se busca.** Crear pre o pro es siempre lo mismo con otro prefijo: cuatro VNets con su subred, un router con una pata en cada una y una VM de prueba en front. El profesor explica y ejecuta el script al principio de la sesión; la hoja lo usa tal cual, así que los dos scripts están aquí íntegros.
@@ -724,7 +702,6 @@ curl -sk -H "Authorization: $PVE_TOKEN" \
 2. **Se ejecuta contra pro.** Aparecen `promgmt`, `profront`, `proback` y `prodata`, el Apply, y las VM 300 (`router-pro`) y 310 (`web01`).
 3. **Se ejecuta otra vez.** Seis líneas «ya existe, no se toca», sin Apply, y código de salida 0: es la prueba de idempotencia que pide la evaluable.
 4. **Se destruye dos veces.** `destruye-entorno.sh pro` borra la 310 y la 300; la segunda vez no encuentra nada y termina con 0. Las VNets de pro se quedan.
-5. **Se llama a la API desde fuera.** Con `cli@pve` y su token, desde el puesto de administración y contra la IP del nodo en la red del laboratorio, un `curl` lee las VNets. Después se borra el usuario y el mismo `curl` devuelve `401`.
 
 El script de creación solo admite pre y pro: dev se montó a mano y no se toca.
 
@@ -811,18 +788,15 @@ for ID in $((BASE+10)) $BASE; do
 done
 ```
 
-**Las decisiones que importan.**
-
-- `set -euo pipefail` corta al primer error: un script de infraestructura que sigue tras un fallo deja las cosas a medias.
-- La pregunta antes de cada creación (`pvesh get`, `qm status`) es lo que da la idempotencia, en los dos scripts.
-- Las subredes van sin gateway ni DHCP: el `.1` es del router, como en dev desde `router-dev`.
-- La destrucción deja la red: pro se queda como red vacía y pre conserva sus VNets para enero.
+**Lo que hay que llevarse.** La pregunta antes de cada creación (`pvesh get`, `qm status`) es lo que hace que el script se pueda relanzar, y la destrucción deja la red: pro se queda como red vacía y pre conserva sus VNets para enero.
 
 ### A2.3 pre, pro y aislamiento (sesión 13)
 
 <span class="et et-obj">Objetivo</span> **Qué vas a conseguir:** crear los entornos pre y pro con un script en vez de a mano, dejar pre funcionando igual que dev y **demostrar** que desde dev no se puede llegar a ninguno de los dos.
 
 **Para qué sirve en un trabajo:** en una empresa, una prueba que sale mal en desarrollo no puede tumbar producción. Eso se consigue separando las redes, y se demuestra con pruebas guardadas. Y un entorno se crea con un script porque así sale siempre igual.
+
+**Para tu evaluable:** los scripts con sus dos ejecuciones y las pruebas de aislamiento son los puntos 2, 4 y 5 de la memoria, y la evidencia del criterio de VPC aisladas (35 %).
 
 <span class="et et-pre">Antes de empezar</span>
 
@@ -866,11 +840,12 @@ El recorrido es: **crear** (paso 1), **configurar** pre (paso 2), **aislar** (pa
     Ya en `router-pre`, con `sudo -i`, repite el reenvío y el NAT del paso 2 de la A2.2 y convierte el `dev.conf` en `pre.conf`: `10.10.` pasa a `10.20.`, `dev.lab` a `pre.lab`, y fuera las reservas por MAC, que son de las VM de dev. El original se queda en `/tmp` y no en `/etc/dnsmasq.d/`, porque dnsmasq leería las dos versiones:
 
     ```bash
+    apt install -y nftables             # la plantilla no lo trae
     echo 'net.ipv4.ip_forward = 1' > /etc/sysctl.d/99-router.conf
     sysctl --system
     nft add table ip nat
     nft add chain ip nat postrouting '{ type nat hook postrouting priority 100 ; }'
-    nft add rule ip nat postrouting oifname "ens18" masquerade
+    nft add rule ip nat postrouting oifname "eth0" masquerade
     { echo 'flush ruleset'; nft list ruleset; } > /etc/nftables.conf
     systemctl enable nftables
     apt install -y dnsmasq
@@ -880,7 +855,7 @@ El recorrido es: **crear** (paso 1), **configurar** pre (paso 2), **aislar** (pa
     journalctl -u dnsmasq -f
     ```
 
-    La `web01` de pre (210) arrancó cuando todavía nadie repartía IP. Reiníciala desde el nodo con `qm reboot 210` y mira en el journal cómo pide y recibe su dirección. Apunta esas líneas. `router-pro` no se configura: pro solo existe como red.
+    La `web01` de pre (210) arrancó cuando todavía nadie repartía IP. Su cliente DHCP sigue preguntando, así que a menudo la recibe sola en cuanto arranca dnsmasq; si en el journal no aparece, reiníciala desde el nodo con `qm reboot 210`. Apunta las cuatro líneas en las que pide y recibe su dirección. `router-pro` no se configura: pro solo existe como red.
 
     **Sale bien si:** la 210 tiene una IP entre `10.20.1.100` y `10.20.1.199`.
 
@@ -927,7 +902,7 @@ El recorrido es: **crear** (paso 1), **configurar** pre (paso 2), **aislar** (pa
     ssh ops@10.10.0.1 ip r > ip-r-router-dev.txt
     ```
 
-    `traceroute -m 5` corta a los cinco saltos: si no, se queda un rato largo imprimiendo asteriscos. Cada `ping` sin respuesta espera unos segundos, así que el conjunto tarda un par de minutos.
+    `traceroute -m 5` corta a los cinco saltos: si no, se queda un rato largo imprimiendo asteriscos. Nada contesta y cada prueba agota su espera: el `nmap` solo tarda casi dos minutos y el conjunto, unos cuatro. Es buen momento para empezar el paso 5.
 
     **Sale bien si:** en `aislamiento.txt` el `nmap` dice `0 hosts up`, ningún `ping` recibe respuesta, el `traceroute` no llega a `10.20.1.1` e `ip-r-router-dev.txt` tiene contenido.
 
@@ -973,13 +948,13 @@ El recorrido es: **crear** (paso 1), **configurar** pre (paso 2), **aislar** (pa
 - **Guarda** en `ut2/a23` de tu repositorio de entregas: los dos scripts, los seis `.log`, `pre.conf`, el `ip r` de los dos routers, las salidas del paso 4, tu explicación del paso 5 y las dos plantillas. La memoria de la evaluable los usa tal cual (puntos 2, 4 y 5).
 - **Piensa:** si mañana alguien añade en `router-dev` una ruta hacia `10.20.0.0/16`, ¿qué prueba de las tuyas lo detectaría?
 
-<span class="et et-ext">Si te sobra tiempo</span> Mira qué pasaría sin el blackhole. Quítalo en `router-dev` con `ip route del blackhole 10.20.0.0/16`, repite el `ping` a `10.20.1.1` y captura en `router-dev` con `tcpdump -ni ens18 icmp` (lo instalaste en la A2.2): verás el paquete salir a la red del laboratorio. Vuelve a ponerlo con `systemctl restart blackhole.service`.
+<span class="et et-ext">Si te sobra tiempo</span> Mira qué pasaría sin el blackhole. Quítalo en `router-dev` con `ip route del blackhole 10.20.0.0/16`, repite el `ping` a `10.20.1.1` y captura en `router-dev` con `tcpdump -ni eth0 icmp` (lo instalaste en la A2.2): verás el paquete salir a la red del laboratorio. Vuelve a ponerlo con `systemctl restart blackhole.service`.
 
 ## Sesión 14 · Práctica evaluable
 
 <p class="ut-meta" markdown>20 de noviembre · Práctica evaluable · <span class="dur" tabindex="0" aria-label="Explicación · 10 min&#10;Trabajo en la práctica · 100 min" data-dur="Explicación · 10 min&#10;Trabajo en la práctica · 100 min">:material-school:<i class="dur-barra" style="--teoria:9%"></i>:material-flask:</span></p>
 
-Hoy cierras la memoria de la unidad. Demuestra los dos criterios: que las VPC están creadas, diferenciadas por entorno y aisladas, y que las direcciones, los nombres y la comunicación entre zonas son correctos. No pide nada nuevo: cada punto sale de un paso de las hojas A2.1 a A2.3, indicado entre paréntesis. Los diez primeros minutos son para dudas. Empieza por la lista de comprobación de abajo, porque lo que falle hay que rehacerlo antes de escribir; después reúne las evidencias y redacta. Enciende `db01` al empezar (`qm start 130`), que está apagada desde la A2.3.
+Hoy cierras la memoria de la unidad. Demuestra los dos criterios: que las VPC están creadas, diferenciadas por entorno y aisladas, y que las direcciones, los nombres y la comunicación entre zonas son correctos. No pide nada nuevo: cada punto sale de un paso de las hojas A2.1 a A2.3, indicado entre paréntesis. Los diez primeros minutos son para dudas, y el resto de la clase es para terminar lo que falte de las hojas y montar la memoria. **Se entrega el 10 de diciembre**, antes del examen. Empieza por la lista de comprobación de abajo, porque lo que falle hay que rehacerlo antes de escribir; después reúne las evidencias y redacta. Enciende `db01` al empezar (`qm start 130`), que está apagada desde la A2.3.
 
 Entrega una memoria (máximo 6 páginas, PDF) con:
 
@@ -1018,6 +993,5 @@ Cuando la memoria esté entregada, destruye la VM de prueba de pre (210) desde l
 - **`Permission denied (publickey)` al saltar desde el puesto de administración.** La clave no está en el agente del puesto: `ssh-add -l`.
 - **Un ping de dev al router de pre responde.** Falta el blackhole (`ip r` en `router-dev`, `systemctl status blackhole.service`) o el router de dev tiene por error una pata en una VNet de pre.
 - **El script falla la segunda vez con `VM 310 already exists`.** No es idempotente: falta la comprobación con `qm status` antes de clonar.
-- **El token devuelve `401 authentication failure`.** La cabecera es `Authorization: PVEAPIToken=usuario@realm!nombre=secreto`, entre comillas simples.
 
 Los enlaces para ampliar están en [Para ampliar](../ampliacion.md#ut2-nubes-privadas-virtuales-vpc).

@@ -1800,7 +1800,7 @@ Primero el camino de red (paso 1) y la credencial, encerrada en su carpeta y com
 
 1. **Abre a `agent01` el camino a `pre`.** *En `agent01`.*
 
-    `agent01` está en la red de gestión y necesita una ruta para llegar a `pre`. Lanza primero la instalación de lo que usan el playbook y `test.sh`, que es lo que más tarda, y en otra terminal crea la ruta con una unidad igual que `ruta-lab.service` de [El entorno pre](../laboratorio.md#el-entorno-pre), con `dev ens18`, la única tarjeta de `agent01`, y mete las claves de host de las tres VM en el `known_hosts` de `jenkins`:
+    `agent01` está en la red de gestión y necesita una ruta para llegar a `pre`. Lanza primero la instalación de lo que usan el playbook y `test.sh`, que es lo que más tarda, y en otra terminal crea la ruta con una unidad igual que `ruta-lab.service` de [El entorno pre](../laboratorio.md#el-entorno-pre), con `dev eth0`, la única tarjeta de `agent01`, y mete las claves de host de las tres VM en el `known_hosts` de `jenkins`:
 
     ```bash
     sudo apt-get install -y ansible netcat-openbsd curl     # en una terminal; lo demás, en otra
@@ -1813,7 +1813,7 @@ Primero el camino de red (paso 1) y la credencial, encerrada en su carpeta y com
     [Service]
     Type=oneshot
     RemainAfterExit=yes
-    ExecStart=/sbin/ip route replace 10.20.0.0/16 via 10.10.0.2 dev ens18
+    ExecStart=/sbin/ip route replace 10.20.0.0/16 via 10.10.0.2 dev eth0
 
     [Install]
     WantedBy=multi-user.target

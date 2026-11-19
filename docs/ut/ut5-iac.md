@@ -580,7 +580,7 @@ output "ips" { value = { for k, v in var.vms : k => v.ip } }
 
 **El problema.** Desde la A2.3 nada de `dev` alcanza `pre`: `router-pre` tiene un blackhole para `10.10.0.0/16`. OpenTofu no lo nota, porque habla con la API de Proxmox, pero entrar por SSH en las VM y configurarlas con Ansible exige llegar desde el puesto de administración. Se abre solo lo imprescindible, en un solo sentido:
 
-- **Una tarjeta de `router-pre` en `devmgmt`**, con la `10.10.0.2` (dentro de la VM, `ens23`). La ruta a `10.10.0.0/24` que crea esa tarjeta es más concreta que el blackhole de `10.10.0.0/16` y gana, porque un router elige siempre la ruta de prefijo más largo.
+- **Una tarjeta de `router-pre` en `devmgmt`**, con la `10.10.0.2` (dentro de la VM, `eth5`). La ruta a `10.10.0.0/24` que crea esa tarjeta es más concreta que el blackhole de `10.10.0.0/16` y gana, porque un router elige siempre la ruta de prefijo más largo.
 - **Tres reglas nftables en `router-pre`**: pasan las respuestas, pasa lo que entra desde gestión y se tira lo nuevo que `pre` intente abrir hacia gestión.
 - **Una ruta en el puesto** a `10.20.0.0/16` por la `10.10.0.2`, en la unidad `ruta-lab.service` de la A2.2.
 
@@ -591,8 +591,8 @@ table inet fw {
     chain forward {
         type filter hook forward priority filter; policy accept;
         ct state established,related accept
-        iifname "ens23" accept
-        oifname "ens23" drop
+        iifname "eth5" accept
+        oifname "eth5" drop
     }
 }
 ```
@@ -640,7 +640,7 @@ El recorrido es: **abrir el camino** del puesto a `pre` (paso 1), para entrar en
     En el puesto de administración, añade a `/etc/systemd/system/ruta-lab.service` una segunda línea `ExecStart=` (la del comentario) y guarda el `ip r` de `router-pre`:
 
     ```bash
-    # ExecStart=/sbin/ip route replace 10.20.0.0/16 via 10.10.0.2 dev ens19
+    # ExecStart=/sbin/ip route replace 10.20.0.0/16 via 10.10.0.2 dev eth1
     sudo nano /etc/systemd/system/ruta-lab.service
     sudo systemctl daemon-reload && sudo systemctl restart ruta-lab.service
     mkdir -p ~/entregas-5166/ut5/a53
@@ -648,7 +648,7 @@ El recorrido es: **abrir el camino** del puesto a `pre` (paso 1), para entrar en
     ping -c1 10.20.1.1
     ```
 
-    **Sale bien si:** el `ping` responde y en el `ip r` de `router-pre` aparece `10.10.0.0/24 dev ens23`. Si SSH avisa de que la clave del host ha cambiado, mira [Errores frecuentes](#errores-frecuentes-en-el-laboratorio).
+    **Sale bien si:** el `ping` responde y en el `ip r` de `router-pre` aparece `10.10.0.0/24 dev eth5`. Si SSH avisa de que la clave del host ha cambiado, mira [Errores frecuentes](#errores-frecuentes-en-el-laboratorio).
 
 2. **Crea las tres VM desde un plan guardado.** *En el puesto, en `iac-lab`.*
 
@@ -1879,7 +1879,7 @@ Checklist antes de entregar:
 - `Plan: 0 to add, 1 to change` cada vez, sin haber tocado nada. Un atributo que el provider lee distinto de como se escribió. Se pone en el código el valor que devuelve el provider.
 - Ansible: `Permission denied (publickey)`. La clave del agente SSH no es la que instaló cloud-init, o el usuario no es `ops`. `ssh -v ops@10.20.2.10` lo dice; `ansible_ssh_private_key_file=~/.ssh/id_ed25519` en `[all:vars]` lo arregla, añadido en `gen-inventory.sh`.
 - Ansible: `/usr/bin/python3: not found`. Imagen sin Python: `ansible -m raw -a 'apt-get install -y python3'` una vez.
-- `ssh ops@10.20.x.10` se queda sin respuesta. Falta un trozo del camino del paso 1 de la A5.3: `ip route get 10.20.1.10` en el puesto tiene que salir por la `10.10.0.2`, y en `router-pre`, `ip r` tiene que mostrar `10.10.0.0/24 dev ens23` y `nft list ruleset` las tres reglas de `forward`.
+- `ssh ops@10.20.x.10` se queda sin respuesta. Falta un trozo del camino del paso 1 de la A5.3: `ip route get 10.20.1.10` en el puesto tiene que salir por la `10.10.0.2`, y en `router-pre`, `ip r` tiene que mostrar `10.10.0.0/24 dev eth5` y `nft list ruleset` las tres reglas de `forward`.
 - El servicio de `app01` en `pre` no arranca y `docker compose ps` muestra `pull access denied for app`. La imagen no está cargada: se repite la tubería `docker save | docker load` del paso 3 de la A5.5 con la etiqueta de `app_image` (`sudo grep APP_IMAGE /opt/servicio/.env` en `app01`).
 - La segunda pasada del playbook sigue con `changed=1`. Una tarea `command` sin `creates` o `changed_when`, o un fichero que otra tarea modifica después. `--diff` localiza cuál.
 - gitleaks encuentra el token en un commit antiguo aunque ya no está en el fichero. Está en el historial: se rota el token primero y se reescribe el historial después.

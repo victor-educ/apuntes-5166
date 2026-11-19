@@ -413,11 +413,11 @@ Si vas justo de tiempo, lo que no puede quedarse a medias es el relevo: un corta
 
     Es el cambio de guardia: `router-dev` suelta sus direcciones y el cortafuegos activa las suyas. Hazlo seguido: en cuanto se activan las interfaces, el cortafuegos bloquea todo lo que no está permitido (la *denegación por defecto*), y eso corta el DNS y la hora. Por eso, justo después, creas la regla 0, que los deja pasar.
 
-    En `router-dev`, entrando por su IP en la red del laboratorio (`ens18`, que no se toca):
+    En `router-dev`, entrando por su IP en la red del laboratorio (`eth0`, que no se toca):
 
     ```bash
     sudo systemctl disable --now dnsmasq
-    for i in ens19 ens20 ens21 ens22; do sudo ip link set $i down; done
+    for i in eth1 eth2 eth3 eth4; do sudo ip link set $i down; done
     ```
 
     En el cortafuegos, sin perder tiempo. Un *grupo* permite escribir una regla una sola vez para varias interfaces, y un *alias* es un nombre para una lista de puertos o direcciones:
@@ -438,7 +438,7 @@ Si vas justo de tiempo, lo que no puede quedarse a medias es el relevo: un corta
     ```bash
     for VM in 10.10.1.10,10.10.1.1 10.10.3.10,10.10.3.1; do
       IP=${VM%,*}; GW=${VM#*,}
-      ssh ops@$IP "hostname; sudo networkctl renew ens18; sleep 3; ip -br a show ens18
+      ssh ops@$IP "hostname; sudo networkctl renew eth0; sleep 3; ip -br a show eth0
         sudo mkdir -p /etc/systemd/timesyncd.conf.d
         printf '[Time]\nNTP=$GW\n' | sudo tee /etc/systemd/timesyncd.conf.d/lab.conf
         sudo systemctl restart systemd-timesyncd; sleep 3; timedatectl timesync-status | head -3"
@@ -462,7 +462,7 @@ Si vas justo de tiempo, lo que no puede quedarse a medias es el relevo: un corta
 
 6. **Pide la web desde fuera y mírala como un atacante.** *En admin01.*
 
-    admin01 también está en la red del laboratorio (`ens18`), así que desde él la IP WAN se ve como la vería cualquiera de fuera. Haces tres pruebas: que el port forward funciona, que el certificado valida y qué puertos se ven desde fuera. Las salidas se guardan en `ut3/` de tu repositorio.
+    admin01 también está en la red del laboratorio (`eth0`), así que desde él la IP WAN se ve como la vería cualquiera de fuera. Haces tres pruebas: que el port forward funciona, que el certificado valida y qué puertos se ven desde fuera. Las salidas se guardan en `ut3/` de tu repositorio.
 
     ```bash
     WAN=<IP WAN del cortafuegos>
